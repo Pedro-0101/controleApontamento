@@ -38,6 +38,13 @@ testem.log
 /typings
 __screenshots__/
 
+# Environment files (contém credenciais sensíveis)
+/src/environments/environment.ts
+/src/environments/environment.development.ts
+/src/environments/environment.prod.ts
+# Manter apenas arquivos .example como template
+!/src/environments/*.example.ts
+
 # System files
 .DS_Store
 Thumbs.db

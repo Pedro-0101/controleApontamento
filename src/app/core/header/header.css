@@ -1,0 +1,12 @@
+@import "../../app.css";
+
+header {
+  text-align: center;
+  padding: 10px;
+  background-color: var(--color-primary);
+}
+
+p {
+  text-align: center;
+  color: var(--color-white);
+}
