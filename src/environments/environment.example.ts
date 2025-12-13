@@ -14,7 +14,8 @@ export const environment = {
   passDatabase: 'pass',
 
   // Código de acesso DNP
-  dnpAccessCode: 'SEU_CODIGO_AQUI',
+  dnpAccessCode: 'SEUS_CODIGOS_SEPARADOS_POR_VIRGULA',
+  dnpUserNames: 'SEUS_NOMES_SEPARADOS_POR_VIRGULA',
 
   // URLs da API (usando proxy para evitar CORS)
   apiUrlStartSession: '/api/StartSession',
