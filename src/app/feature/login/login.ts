@@ -3,6 +3,7 @@ import { ApiSessionService } from '../../core/services/apiSession/api-session.se
 import { LoggerService } from '../../core/services/logger/logger.service';
 import { LucideAngularModule } from 'lucide-angular';
 import { AuthService } from '../../core/services/auth/auth.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-login',
@@ -15,18 +16,19 @@ export class Login {
   private startSessionService = inject(ApiSessionService)
   private loggerService = inject(LoggerService)
   private authService = inject(AuthService)
+  private router = inject(Router)
 
   // Signal reativo que atualiza automaticamente quando o token chega
   public sessionToken = this.startSessionService.token;
 
   constructor() {
-    this.loggerService.info("[Login component] - Componente inicializado");
+    this.loggerService.info("Login component", "Componente inicializado");
   }
 
-  onSubmit(accessCode: string) {
-    this.loggerService.info("[Login component] - Formulário enviado");
-    if (this.authService.login(accessCode)) {
-      this.startSessionService.startSession();
+  async onSubmit(accessCode: string) {
+    this.loggerService.info("Login component", "Enviando código de acesso");
+    if (await this.authService.login(accessCode)) {
+      this.router.navigate(['/home']);
     } else {
       window.alert("Código de acesso inválido");
     }

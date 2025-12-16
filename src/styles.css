@@ -1,19 +1,20 @@
 /* You can add global styles to this file, and also import other style files */
 
 :root {
-  --color-primary-dark: #000000;
-  --color-secondary-dark: #000401;
-  --color-terciary-dark: #131313;
-  --color-text-light: #8D9797;
-  --color-text-muted: #4E545C;
-  --color-white: #FFFFFF;
-
-  --color-accent-yellow: #FFD700;
-
-  --status-success: #38C172;
-  --status-warning: #DDC32F;
-  --status-danger: #E3342F;
-  --status-info: #3490DC;
+  --bg-dark: oklch(0.1 0.05 98);
+  --bg: oklch(0.15 0.05 98);
+  --bg-light: oklch(0.2 0.05 98);
+  --text: oklch(0.96 0.00011 271.152);
+  --text-muted: oklch(0.76 0 98);
+  --highlight: oklch(0.5 0.08 98);
+  --border: oklch(0.4 0.08 98);
+  --border-muted: oklch(0.3 0.08 98);
+  --primary: oklch(0.76 0.2 98);
+  --secondary: oklch(0.76 0.2 278);
+  --danger: oklch(0.7 0.2 30);
+  --warning: oklch(0.7 0.2 100);
+  --success: oklch(0.7 0.2 160);
+  --info: oklch(0.7 0.2 260);
 }
 
 * {
