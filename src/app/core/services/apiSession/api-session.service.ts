@@ -3,7 +3,6 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { firstValueFrom } from 'rxjs';
 import { LoggerService } from '../logger/logger.service';
-import { CookiesService } from '../cookies/cookies.service';
 
 @Injectable({
   providedIn: 'root',
@@ -11,7 +10,6 @@ import { CookiesService } from '../cookies/cookies.service';
 export class ApiSessionService {
 
   private logger = inject(LoggerService);
-  private cookieService = inject(CookiesService)
 
   private tokenSession: WritableSignal<string | null> = signal(null);
   private chaveEmpresa = environment.chaveEmpresa;
@@ -49,7 +47,6 @@ export class ApiSessionService {
       if (token && token.trim() !== '') {
         this.tokenSession.set(token);
         this.logger.info("ApiSessionService", "Sessão iniciada com sucesso");
-        this.cookieService.setCookie('token', token.trim(), 1);
         return;
       }
 

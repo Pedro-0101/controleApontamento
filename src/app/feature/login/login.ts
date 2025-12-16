@@ -22,13 +22,13 @@ export class Login {
   public sessionToken = this.startSessionService.token;
 
   constructor() {
-    this.loggerService.info("Login component", "Componente inicializado");
+    this.loggerService.info("LoginComponent", "Componente inicializado");
   }
 
   async onSubmit(accessCode: string) {
     this.loggerService.info("Login component", "Enviando código de acesso");
     if (await this.authService.login(accessCode)) {
-      this.router.navigate(['/home']);
+      this.router.navigate(['/select-unit']);
     } else {
       window.alert("Código de acesso inválido");
     }

@@ -1,0 +1,15 @@
+<div class="container">
+  <div class="title-select">
+    <h2>Selecione uma unidade</h2>
+  </div>
+
+  <div class="select">
+    <select>
+      @if(isLoading()) {
+      <option>Carregando...</option>
+      } @else { @for(unit of units; track $index) {
+      <option value={{ unit.id }}>{{ unit.descricao }}</option>
+      } }
+    </select>
+  </div>
+</div>
