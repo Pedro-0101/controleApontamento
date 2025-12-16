@@ -4,12 +4,15 @@
   </div>
 
   <div class="select">
-    <select>
+    <select id="selectUnit" #unitSelect>
       @if(isLoading()) {
       <option>Carregando...</option>
       } @else { @for(unit of units; track $index) {
-      <option value={{ unit.id }}>{{ unit.descricao }}</option>
+      <option id="unit" [value]="unit.id">{{ unit.descricao }}</option>
       } }
     </select>
+    <button (click)="onSelectUnit(+unitSelect.value)">
+      Selecionar esta unidade
+    </button>
   </div>
 </div>

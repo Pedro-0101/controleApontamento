@@ -32,4 +32,8 @@ export class SelectUnit {
   getUnits(): AdmUnit[] {
     return this.units;
   }
+
+  onSelectUnit(unitId: number): void {
+    this.loggerService.info("SelectUnitComponent", "Unidade selecionada: " + unitId);
+  }
 }
