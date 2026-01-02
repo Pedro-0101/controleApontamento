@@ -21,12 +21,12 @@ export class AuthService {
   private userName  = signal('');
   private userCode  = signal('');
   private logedAt   = signal('');
-  private logedIn   = signal(false);
+  private authenticated   = signal(false);
 
   readonly _userName  = computed(() => this.userName());
   readonly _userCode  = computed(() => this.userCode());
   readonly _logedAt   = computed(() => this.logedAt());
-  readonly _logedIn   = computed(() => this.logedIn());
+  readonly _authenticated   = computed(() => this.authenticated());
 
   constructor() {
     this.logger.info("AuthService", "Componente inicializado");
@@ -39,7 +39,7 @@ export class AuthService {
       return this.verifyCookieLogin();
     }
 
-    if (this.logedIn()) {
+    if (this.authenticated()) {
       this.logger.info("AuthService", "Usuário já logado");
       await this.startSessionService.startSession();
       return true;
@@ -49,7 +49,7 @@ export class AuthService {
       this.logger.info("AuthService", "Codigo de acesso inválido");
       this.userName.set('');
       this.userCode.set('');
-      this.logedIn.set(false);
+      this.authenticated.set(false);
       this.logedAt.set('');
       return false;
     }
@@ -78,7 +78,7 @@ export class AuthService {
     this.userName.set(username);
     this.userCode.set(accessCode);
     this.logedAt.set(date);
-    this.logedIn.set(true);
+    this.authenticated.set(true);
 
     this.cookiesService.setCookie('userName', cryptedName, 1);
     this.cookiesService.setCookie('accessCode', cryptedCode, 1);
@@ -120,7 +120,7 @@ export class AuthService {
 
     this.userName.set('');
     this.userCode.set('');
-    this.logedIn.set(false);
+    this.authenticated.set(false);
     this.logedAt.set('');
 
     this.cookiesService.deleteCookie('userName');

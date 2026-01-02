@@ -13,10 +13,10 @@ import { Router } from '@angular/router';
 })
 export class Login {
 
-  private startSessionService = inject(ApiSessionService)
-  private loggerService = inject(LoggerService)
-  private authService = inject(AuthService)
-  private router = inject(Router)
+  private startSessionService = inject(ApiSessionService);
+  private loggerService = inject(LoggerService);
+  private authService = inject(AuthService);
+  private router = inject(Router);
 
   // Signal reativo que atualiza automaticamente quando o token chega
   public sessionToken = this.startSessionService.token;
