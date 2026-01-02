@@ -2,6 +2,8 @@ import { Component, inject, signal } from '@angular/core';
 import { AdmUnit } from '../../../models/admUnit/adm-unit';
 import { LoggerService } from '../../../core/services/logger/logger.service';
 import { AdmUnitService } from '../../../core/services/admUnits/adm-unit.service';
+import { FuncionarioService } from '../../../core/services/funcionario/funcionario.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-select-unit',
@@ -13,6 +15,7 @@ export class SelectUnit {
 
   private loggerService = inject(LoggerService);
   private admUnitService = inject(AdmUnitService);
+  private router = inject(Router);
 
   protected isLoading = signal(false);
 
@@ -35,5 +38,10 @@ export class SelectUnit {
 
   onSelectUnit(unitId: number): void {
     this.loggerService.info("SelectUnitComponent", "Unidade selecionada: " + unitId);
+
+    this.admUnitService.setSelectedUnit(unitId);
+
+    this.router.navigate(['/marcacoes']);
+
   }
 }

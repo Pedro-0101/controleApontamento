@@ -40,9 +40,9 @@ export class LoggerService {
 
   warn(source: string, msg: string, extra?: unknown) {
     const timestamp = this.getTimestamp();
-    const sourceFormatted = `[${source}]`.padEnd(this.padEndSize);
-    console.warn(
-      `%c[${timestamp}] %c${sourceFormatted}%c: ${msg}`,
+    const sourceFormatted = `[${source}]:`.padEnd(this.padEndSize);
+    console.log(
+      `%c[${timestamp}] %c${sourceFormatted}%c ${msg}`,
       `color: ${this.colorMuted};`,
       `color: ${this.colorWarn}; font-weight: bold;`,
       `color: ${this.colorText};`,
@@ -52,9 +52,9 @@ export class LoggerService {
 
   error(source: string, msg: string, extra?: unknown) {
     const timestamp = this.getTimestamp();
-    const sourceFormatted = `[${source}]`.padEnd(this.padEndSize);
-    console.error(
-      `%c[${timestamp}] %c${sourceFormatted}%c: ${msg}`,
+    const sourceFormatted = `[${source}]:`.padEnd(this.padEndSize);
+    console.log(
+      `%c[${timestamp}] %c${sourceFormatted}%c ${msg}`,
       `color: ${this.colorMuted};`,
       `color: ${this.colorError}; font-weight: bold;`,
       `color: ${this.colorText};`,

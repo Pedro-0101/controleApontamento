@@ -1,10 +1,8 @@
 import { inject, Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { AdmUnit } from '../../../models/admUnit/adm-unit';
 import { LoggerService } from '../logger/logger.service';
 import { ApiSessionService } from '../apiSession/api-session.service';
 import { environment } from '../../../../environments/environment';
-import { firstValueFrom } from 'rxjs';
 
 @Injectable({
   providedIn: 'root',
@@ -17,7 +15,7 @@ export class AdmUnitService {
 
   private units: AdmUnit[] = [];
   private selectedUnit: AdmUnit | null = null;
-  private url = environment.apiUrlListarUnidadesAdm;
+  private apiUrl = environment.apiUrlListarUnidadesAdm;
 
   constructor() {
     this.loggerService.info("AdmUnitService", "Componente inicializado");
@@ -55,8 +53,7 @@ export class AdmUnitService {
 
     const token = this.apiSessionService.token();
 
-    const urlProxy = '/api/ListarUnidadeAdministrativa';
-    const response = await fetch(urlProxy, {
+    const response = await fetch(this.apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
