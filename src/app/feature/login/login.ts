@@ -25,6 +25,14 @@ export class Login {
     this.loggerService.info("LoginComponent", "Componente inicializado");
   }
 
+  async ngOnInit() {
+    // Tenta logar automaticamente se já houver sessão ativa
+    this.loggerService.info("Login component", "Tentando login automático");
+    if(await this.authService.login()) {
+      this.router.navigate(['/select-unit']);
+    }
+  }
+
   async onSubmit(accessCode: string) {
     this.loggerService.info("Login component", "Enviando código de acesso");
     if (await this.authService.login(accessCode)) {

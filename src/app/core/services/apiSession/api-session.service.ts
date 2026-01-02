@@ -34,8 +34,6 @@ export class ApiSessionService {
         senha: this.senhaEmpresa
       };
 
-      this.logger.info("ApiSessionService", "Aguardando resposta");
-
       const response = await firstValueFrom(
         this.http.post<any>(environment.apiUrlStartSession, body)
       );
