@@ -12,14 +12,12 @@ export class FuncionarioService {
     this.loggerService.info("FuncionarioService", "Componente inicializado");
   }
 
-  async getNameById(id: number): Promise<string> {
-    this.loggerService.info("FuncionarioService", `Buscando nome do funcionário com ID: ${id}`);
+  async getNameByMatricula(matricula: string): Promise<string> {
     // Simulação de uma chamada assíncrona, como uma requisição HTTP
     return new Promise((resolve) => {
       setTimeout(() => {
         const names = ['Ana Silva', 'Bruno Cortez', 'Carla Costa', 'Daniel Silveira', 'Eduardo Lima'];
-        const name = names[id % names.length];
-        this.loggerService.info("FuncionarioService", `Nome encontrado: ${name}`);
+        const name = names[Math.floor(Math.random() * names.length)];
         resolve(name);
       }, 10);
     });

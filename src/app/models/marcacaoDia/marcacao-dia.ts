@@ -12,7 +12,7 @@ export interface MarcacaoDia {
 
 }
 
-export class MarcacaoDiaImpl implements MarcacaoDia {
+export class MarcacaoDia implements MarcacaoDia {
     id: number;
     cpf: string;
     matricula: string;

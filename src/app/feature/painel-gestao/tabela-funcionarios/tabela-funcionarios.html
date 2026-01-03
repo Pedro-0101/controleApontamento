@@ -1,1 +1,36 @@
-<p>tabela-funcionarios works!</p>
+<div class="table-container">
+  @if (isLoading()) {
+    <div class="loading-overlay">Carregando marcações...</div>
+  }
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>CPF</th>
+        <th>Matricula</th>
+        <th>Trabalhador ID</th>
+        <th>Data</th>
+        <th>Hora</th>
+        <th>status</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (marcacao of marcacoesDia(); track marcacao.id) {
+        <tr>
+          <td>{{ marcacao.id }}</td>
+          <td>{{ marcacao.cpf }}</td>
+          <td>{{ marcacao.matricula }}</td>
+          <td>{{ marcacao.nome }}</td>
+          <td>{{ marcacao.data }}</td>
+          <td>{{ marcacao.marcacoes }}</td>
+          <td>{{ marcacao.status }}</td>
+        </tr>
+      } @empty {
+        <tr>
+        <td colspan="5" style="text-align: center;">Nenhuma marcação encontrada.</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
