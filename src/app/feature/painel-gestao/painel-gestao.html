@@ -16,7 +16,7 @@
       </tr>
     </thead>
     <tbody>
-      @for (marcacao of listaMarcacoes(); track marcacao.id) {
+      @for (marcacao of marcacoesDia(); track marcacao.id) {
         <tr>
           <td>{{ marcacao.id }}</td>
           <td>{{ marcacao.cpf }}</td>

@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { Marcations } from './marcations';
+import { CadsPainel } from './cads-painel';
 
-describe('Marcations', () => {
-  let component: Marcations;
-  let fixture: ComponentFixture<Marcations>;
+describe('CadsPainel', () => {
+  let component: CadsPainel;
+  let fixture: ComponentFixture<CadsPainel>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [Marcations]
+      imports: [CadsPainel]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(Marcations);
+    fixture = TestBed.createComponent(CadsPainel);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });
