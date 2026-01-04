@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { LoggerService } from '../../../core/services/logger/logger.service';
 import { MarcacaoService } from '../../../core/services/marcacao/marcacao.service';
+import { DateHelper } from '../../../core/helpers/dateHelper';
 import { MarcacaoDia } from '../../../models/marcacaoDia/marcacao-dia';
 import { LinhaTabelaMarcacoes } from './linha-tabela-marcacoes/linha-tabela-marcacoes';
 
@@ -31,8 +32,8 @@ export class TabelaFuncionarios {
 
     try {
         const today = new Date();
-        const dataInicio = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-        const dataFim = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+        const dataInicio = DateHelper.getFirstDayOfMonth(today);
+        const dataFim = DateHelper.getLastDayOfMonth(today);
 
         await this.marcacaoService.updateMarcacoes(dataInicio, dataFim);
         const marcacoesFormatadas = this.marcacaoService.getMarcacoesFormatadas()();

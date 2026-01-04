@@ -1,4 +1,5 @@
 import { ComentarioMarcacao } from "../comentarioMarcacao/comentario-marcacao";
+import { DateHelper } from "../../core/helpers/dateHelper";
 
 // 1. A interface define apenas a ESTRUTURA DOS DADOS (Shape)
 export interface MarcacaoDia {
@@ -73,8 +74,7 @@ export class MarcacaoDia implements MarcacaoDia {
     }
 
     getDataFormatada(): string {
-        const [ano, mes, dia] = this.data.split('-');
-        return `${dia}/${mes}/${ano}`;
+        return DateHelper.getStringDate(new Date(this.data));
     }
 
     getMarcacoesFormatadas(): string {

@@ -5,6 +5,7 @@ import { environment } from '../../../../environments/environment';
 import { IMarcacaoJson, Marcacao } from '../../../models/marcacao/marcacao';
 import { MarcacaoDia } from '../../../models/marcacaoDia/marcacao-dia';
 import { FuncionarioService } from '../funcionario/funcionario.service';
+import { DateHelper } from '../../helpers/dateHelper';
 
 @Injectable({
   providedIn: 'root',
@@ -38,26 +39,30 @@ export class MarcacaoService {
     return this.isUpdating;
   }
 
-  async updateMarcacoes(dataInicio: string, dataFim: string): Promise<Marcacao[]> {
+  async updateMarcacoes(dataInicio: Date, dataFim: Date): Promise<Marcacao[]> {
     this.loggerService.info('MarcacaoService', 'Atualizando marcações');
 
     try {
 
       this.isUpdating.set(true);
 
-      // Buscar marcações da API
-      const marcacoes = await this.fetchMarcacoes(dataInicio, dataFim);
+      const dataInicioStr = DateHelper.toStefaniniFormat(dataInicio);
+      const dataFimStr = DateHelper.toStefaniniFormat(dataFim);
 
-      console.log(marcacoes);
+      this.loggerService.info('MarcacaoService', `Período de busca: ${dataInicioStr} a ${dataFimStr}`);
+
+      // Buscar marcações da API
+      const marcacoes = await this.fetchMarcacoes(dataInicioStr, dataFimStr);
 
       this.marcacoes.set(marcacoes);
-      this.loggerService.info('MarcacaoService', `Marcações atualizadas: ${marcacoes.length} registros encontrados`);
+      this.loggerService.info('MarcacaoService', `${marcacoes.length} registros encontrados`);
 
       // Formatar marcações por dia
       const marcacoesOrdenadas = marcacoes.sort((a, b) => a.cpf.localeCompare(b.cpf));
       const marcacoesPorDia = await this.formatarMarcacoesPorDia(marcacoesOrdenadas);
+
       this.marcacoesFormatadas.set(marcacoesPorDia);
-      this.loggerService.info('MarcacaoService', `Marcações formatadas por dia: ${marcacoesPorDia.length} dias encontrados`);
+      this.loggerService.info('MarcacaoService', `${marcacoesPorDia.length} marcacoes formatadas`);
 
       this.isUpdating.set(false);
       return marcacoes;
@@ -81,8 +86,8 @@ export class MarcacaoService {
     for (const marcacao of marcacoes) {
 
       const nome = await this.funcionarioService.getNameByMatricula(marcacao.matriculaFuncionario);
-      const dateStr = marcacao.dataMarcacao.toISOString().split('T')[0];
-      const horaStr = marcacao.dataMarcacao.toISOString().split('T')[1].split('.')[0];
+      const dateStr = DateHelper.getStringDate(marcacao.dataMarcacao);
+      const horaStr = DateHelper.getStringTime(marcacao.dataMarcacao);
 
       const marcacaoExistente = marcacoesDia.length > 0 && 
         marcacoesDia[marcacoesDia.length - 1].cpf === marcacao.cpf &&
