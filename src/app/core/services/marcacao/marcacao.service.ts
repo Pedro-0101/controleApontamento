@@ -1,4 +1,4 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
 import { LoggerService } from '../logger/logger.service';
 import { ApiSessionService } from '../apiSession/api-session.service';
 import { environment } from '../../../../environments/environment';
@@ -22,6 +22,8 @@ export class MarcacaoService {
   private token = signal(this.apiSessionService.token());
   private apiUrl = environment.apiUrlListarMarcacoes;
   private isUpdating = signal(false);
+
+  readonly _isUpdatingMarcacoes = computed(() => this.isUpdating());
 
   constructor() {
     this.loggerService.info('MarcacaoService', 'Componente inicializado');
@@ -138,5 +140,9 @@ export class MarcacaoService {
     const listaBruta: IMarcacaoJson[] = data.d || [];
 
     return listaBruta.map(item => Marcacao.fromJson(item));
+  }
+
+  static getPossiveisStatus(): string[] {
+    return ['Atraso', 'Corrigido', 'Falta', 'Ferias', 'Folga', 'Incompleto', 'Ok', 'Outro', 'Pendente'];
   }
 }

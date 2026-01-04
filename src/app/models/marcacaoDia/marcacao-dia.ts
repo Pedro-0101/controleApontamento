@@ -9,11 +9,14 @@ export interface MarcacaoDia {
     nome: string;
     data: string; // Formato 'YYYY-MM-DD'
     marcacoes: string[]; // Array de horários no formato 'HH:mm'
-    status?: 'Ok' | 'Incompleto' | 'Pendente' | 'Falta' | 'Atraso' | 'Folga' | 'Ferias' | 'Corrigido' | 'Outro';
+    status?: statusMarcacaoDia;
     comentarios?: ComentarioMarcacao[];
 }
 
-// 2. A classe implementa a interface e adiciona a LÓGICA (Comportamento)
+// 2. O tipo define os possíveis valores para o status
+export type statusMarcacaoDia = 'Ok' | 'Incompleto' | 'Pendente' | 'Falta' | 'Atraso' | 'Folga' | 'Ferias' | 'Corrigido' | 'Outro';
+
+// 3. A classe implementa a interface e adiciona a LÓGICA (Comportamento)
 export class MarcacaoDia implements MarcacaoDia {
     id: number;
     cpf: string;
@@ -43,8 +46,8 @@ export class MarcacaoDia implements MarcacaoDia {
         this.marcacoes = this.ordenarMarcacoes(marcacoes);
 
     }
-    
-    getStatus(): 'Ok' | 'Incompleto' | 'Pendente' | 'Falta' | 'Atraso' | 'Folga' | 'Ferias' | 'Corrigido' | 'Outro' {
+
+    getStatus(): statusMarcacaoDia {
         if (!this.marcacoes || this.marcacoes.length === 0) {
             return "Falta";
         }

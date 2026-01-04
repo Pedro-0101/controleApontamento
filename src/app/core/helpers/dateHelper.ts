@@ -43,4 +43,44 @@ export class DateHelper {
     static getLastDayOfMonth(date: Date): Date {
         return new Date(date.getFullYear(), date.getMonth() + 1, 0);
     }
+
+
+    // Funcoes especificas para filtros de data
+
+    // Retorna a data inicial e final para o filtro "Hoje"
+    static getTodayRange(): { start: Date; end: Date } {
+        const today = new Date();
+        return { start: today, end: today };
+    }
+
+    // Retorna a data inicial e final para o filtro "Ontem"
+    static getYesterdayRange(): { start: Date; end: Date } {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        return { start: yesterday, end: yesterday };
+    }
+
+    // Retorna a data inicial e final para o filtro "Últimos N dias"
+    static getLastNDaysRange(n: number): { start: Date; end: Date } {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - n);
+        return { start, end };
+    }
+
+    // Retorna a data inicial e final para o filtro "Este mês"
+    static getThisMonthRange(): { start: Date; end: Date } {
+        const today = new Date();
+        const start = new Date(today.getFullYear(), today.getMonth(), 1);
+        const end = today;
+        return { start, end };
+    }
+
+    // Retorna a data inicial e final para o filtro "Mês passado"
+    static getLastMonthRange(): { start: Date; end: Date } {
+        const today = new Date();
+        const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const end = new Date(today.getFullYear(), today.getMonth(), 0);
+        return { start, end };
+    }
 }

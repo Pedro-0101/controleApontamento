@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { ModalCorrecao } from './modal-correcao';
+import { ModalCorrecaoMarcacao } from './modal-correcao-marcacao';
 
-describe('ModalCorrecao', () => {
-  let component: ModalCorrecao;
-  let fixture: ComponentFixture<ModalCorrecao>;
+describe('ModalCorrecaoMarcacao', () => {
+  let component: ModalCorrecaoMarcacao;
+  let fixture: ComponentFixture<ModalCorrecaoMarcacao>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ModalCorrecao]
+      imports: [ModalCorrecaoMarcacao]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(ModalCorrecao);
+    fixture = TestBed.createComponent(ModalCorrecaoMarcacao);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

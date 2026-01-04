@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { LoggerService } from '../../../core/services/logger/logger.service';
 import { MarcacaoService } from '../../../core/services/marcacao/marcacao.service';
 import { DateHelper } from '../../../core/helpers/dateHelper';
@@ -16,8 +16,11 @@ export class TabelaFuncionarios {
   private loggerService = inject(LoggerService);
   private marcacaoService = inject(MarcacaoService);
 
-  protected isLoading = signal(true);
-  protected marcacoesDia = signal<MarcacaoDia[]>([]);
+  private isLoadingMarcacoesPainel = signal(true);
+  private marcacoesDiaTabelaPainel = signal<MarcacaoDia[]>([]);
+
+  readonly _isLoadingMarcacoesPainel = computed(() => this.isLoadingMarcacoesPainel());
+  readonly _marcacoesDiaTabelaPainel = computed(() => this.marcacoesDiaTabelaPainel());
 
   constructor() {
     this.loggerService.info('TabelaFuncionariosComponent', 'Componente inicializado');
@@ -28,7 +31,7 @@ export class TabelaFuncionarios {
   }
 
   private async loadMarcacoes() {
-    this.isLoading.set(true);
+    this.isLoadingMarcacoesPainel.set(true);
 
     try {
         const today = new Date();
@@ -37,12 +40,12 @@ export class TabelaFuncionarios {
 
         await this.marcacaoService.updateMarcacoes(dataInicio, dataFim);
         const marcacoesFormatadas = this.marcacaoService.getMarcacoesFormatadas()();
-        this.marcacoesDia.set(marcacoesFormatadas);
+        this.marcacoesDiaTabelaPainel.set(marcacoesFormatadas);
         
     } catch (error) {
        this.loggerService.error('TabelaFuncionarios', 'Erro', error);
     } finally {
-        this.isLoading.set(false);
+        this.isLoadingMarcacoesPainel.set(false);
     }
   }
 }

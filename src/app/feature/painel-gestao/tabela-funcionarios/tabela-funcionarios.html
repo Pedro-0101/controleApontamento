@@ -1,8 +1,7 @@
 <div class="table-container">
-  @if (isLoading()) {
-    <div class="loading-overlay">Carregando marcações...</div>
-  }
-
+  @if (_isLoadingMarcacoesPainel()) {
+  <div class="loading-overlay">Carregando marcações...</div>
+  }@else {
   <table>
     <thead>
       <tr>
@@ -16,13 +15,14 @@
       </tr>
     </thead>
     <tbody>
-      @for (item of marcacoesDia(); track item.id) {
-        <app-linha-tabela-marcacoes [marcacao]="item" />
+      @for (item of _marcacoesDiaTabelaPainel(); track item.id) {
+      <app-linha-tabela-marcacoes [marcacao]="item" />
       } @empty {
-        <tr>
-          <td colspan="7" style="text-align: center;">Nenhuma marcação encontrada.</td>
-        </tr>
+      <tr>
+        <td colspan="7" style="text-align: center;">Nenhuma marcação encontrada.</td>
+      </tr>
       }
     </tbody>
   </table>
+  }
 </div>
