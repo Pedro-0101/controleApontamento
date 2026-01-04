@@ -2,7 +2,7 @@
   display: block;
   width: 100%;
   min-height: 100vh;
-  background-color: var(--bg-dark);
+  background-color: var(--bg);
   color: var(--text);
 }
 
@@ -18,7 +18,7 @@
   width: 100%;
   max-width: 400px;
   padding: 2rem;
-  background-color: var(--bg-light);
+  background-color: var(--bg);
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   border: 1px solid var(--text-muted);
@@ -41,14 +41,14 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem;
-  background-color: var(--bg-dark);
+  background-color: var(--bg);
   border: 1px solid var(--text-muted);
   border-radius: 6px;
   transition: border-color 0.2s;
 }
 
 .input-group:focus-within {
-  border-color: var(--color-accent-yellow);
+  border-color: var(--primary);
 }
 
 .input-group lucide-icon {
@@ -86,7 +86,7 @@
 
 .btn-primary {
   background-color: var(--primary);
-  color: var(--bg-dark);
+  color: var(--bg);
 }
 
 .btn-primary:hover {

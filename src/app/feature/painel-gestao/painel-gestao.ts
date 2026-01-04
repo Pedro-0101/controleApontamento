@@ -1,13 +1,13 @@
 import { Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { LoggerService } from '../../core/services/logger/logger.service';
-import { MarcacaoService } from '../../core/services/marcacao/marcacao.service';
 import { MarcacaoDia } from '../../models/marcacaoDia/marcacao-dia';
 import { TabelaFuncionarios } from './tabela-funcionarios/tabela-funcionarios';
+import { FiltrosTabelaMarcacoes } from './tabela-funcionarios/filtros-tabela-marcacoes/filtros-tabela-marcacoes';
 
 @Component({
   selector: 'app-painel-gestao',
-  imports: [TabelaFuncionarios],
+  imports: [FiltrosTabelaMarcacoes, TabelaFuncionarios],
   templateUrl: './painel-gestao.html',
   styleUrl: './painel-gestao.css',
   providers: [DatePipe]
@@ -15,7 +15,6 @@ import { TabelaFuncionarios } from './tabela-funcionarios/tabela-funcionarios';
 export class PainelGestao {
 
   private loggerService = inject(LoggerService);
-  private marcacaoService = inject(MarcacaoService);
 
   protected isLoading = signal(true);
   protected marcacoesDia = signal<MarcacaoDia[]>([]);

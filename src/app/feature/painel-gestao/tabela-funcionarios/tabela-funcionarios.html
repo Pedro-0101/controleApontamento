@@ -12,23 +12,15 @@
         <th>Trabalhador ID</th>
         <th>Data</th>
         <th>Hora</th>
-        <th>status</th>
+        <th>Status</th>
       </tr>
     </thead>
     <tbody>
-      @for (marcacao of marcacoesDia(); track marcacao.id) {
-        <tr>
-          <td>{{ marcacao.id }}</td>
-          <td>{{ marcacao.cpf }}</td>
-          <td>{{ marcacao.matricula }}</td>
-          <td>{{ marcacao.nome }}</td>
-          <td>{{ marcacao.data }}</td>
-          <td>{{ marcacao.marcacoes }}</td>
-          <td>{{ marcacao.status }}</td>
-        </tr>
+      @for (item of marcacoesDia(); track item.id) {
+        <app-linha-tabela-marcacoes [marcacao]="item" />
       } @empty {
         <tr>
-        <td colspan="5" style="text-align: center;">Nenhuma marcação encontrada.</td>
+          <td colspan="7" style="text-align: center;">Nenhuma marcação encontrada.</td>
         </tr>
       }
     </tbody>

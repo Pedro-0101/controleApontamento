@@ -91,14 +91,14 @@ export class MarcacaoService {
         continue;
       }
 
-      const marcacaoDia: MarcacaoDia = {
-        id: marcacao.id,
-        cpf: marcacao.cpf,
-        matricula: marcacao.matriculaFuncionario,
-        nome: nome,
-        data: dateStr,
-        marcacoes: [horaStr]
-      };
+      const marcacaoDia = new MarcacaoDia(
+        marcacao.id,
+        marcacao.cpf,
+        marcacao.matriculaFuncionario,
+        nome,
+        dateStr,
+        [horaStr]
+      );
 
       marcacoesDia.push(marcacaoDia);
     }

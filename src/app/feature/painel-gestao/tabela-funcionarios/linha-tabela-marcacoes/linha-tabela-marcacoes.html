@@ -1,0 +1,11 @@
+<td>{{ marcacao().id }}</td>
+<td>{{ marcacao().cpf }}</td>
+<td>{{ marcacao().matricula }}</td>
+<td>{{ marcacao().nome }}</td>
+<td>{{ marcacao().getDataFormatada() }}</td>
+<td>{{ marcacao().getMarcacoesFormatadas() }}</td>
+<td>
+  <span class="badge" [class]="'status-' + marcacao().getStatus().toLowerCase()">
+    {{ marcacao().getStatus() }}
+  </span>
+</td>

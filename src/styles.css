@@ -1,20 +1,47 @@
-/* You can add global styles to this file, and also import other style files */
-
 :root {
-  --bg-dark: oklch(0.1 0.05 98);
-  --bg: oklch(0.15 0.05 98);
-  --bg-light: oklch(0.2 0.05 98);
-  --text: oklch(0.96 0.00011 271.152);
-  --text-muted: oklch(0.76 0 98);
-  --highlight: oklch(0.5 0.08 98);
-  --border: oklch(0.4 0.08 98);
-  --border-muted: oklch(0.3 0.08 98);
-  --primary: oklch(0.76 0.2 98);
-  --secondary: oklch(0.76 0.2 278);
-  --danger: oklch(0.7 0.2 30);
-  --warning: oklch(0.7 0.2 100);
-  --success: oklch(0.7 0.2 160);
-  --info: oklch(0.7 0.2 260);
+
+  /* Cores para background */
+  --bg: oklch(98.89% 0.004 286.33);
+  --bg-secondary: oklch(96.47% 0.010 286.33);
+
+  /* Cores principais */
+  --primary: oklch(77.00% 0.149 97.84);
+  --secondary: oklch(98.12% 0.039 99.30);
+
+  /* Cores para bordas */
+  --border: oklch(81.18% 0.026 287.26);
+  --border-muted: oklch(90.00% 0.010 287.26);
+
+  /* Cores para realces e acentos */
+  --highlight: oklch(94.12% 0.012 286.33);
+  --accent: oklch(51.43% 0.273 272.97);
+
+  /* Cores para status alerts */
+  --danger: oklch(0.5 0.05 30);
+  --warning: oklch(0.5 0.05 100);
+  --success: oklch(0.5 0.05 160);
+  --info: oklch(0.5 0.05 260);
+
+  /* Cores para textos */
+  --text: oklch(11.90% 0.044 285.36);
+  --text-muted: oklch(45.00% 0.010 285.36);
+
+  /* Cores para badges de status */
+  --badge-success-bg: oklch(92.25% 0.027 153.2);
+  --badge-success-text: oklch(34.78% 0.058 153.2);
+  --badge-success-border: oklch(88.2% 0.04 153.2);
+
+  --badge-warning-bg: oklch(93% 0.04 90);
+  --badge-warning-text: oklch(32% 0.10 85);
+  --badge-warning-border: oklch(87% 0.06 90);
+
+  --badge-danger-bg: oklch(93% 0.03 25);
+  --badge-danger-text: oklch(32% 0.11 25);
+  --badge-danger-border: oklch(87% 0.05 25);
+
+  --badge-other-bg: oklch(94% 0.01 260);
+  --badge-other-text: oklch(30% 0.03 260);
+  --badge-other-border: oklch(88% 0.02 260);
 }
 
 * {
@@ -25,6 +52,6 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background-color: var(--color-primary-dark);
-  color: var(--color-white);
+  background-color: var(--bg);
+  color: var(--text);
 }

@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { LinhaTabela } from './linha-tabela';
+import { FiltrosTabelaMarcacoes } from './filtros-tabela-marcacoes';
 
-describe('LinhaTabela', () => {
-  let component: LinhaTabela;
-  let fixture: ComponentFixture<LinhaTabela>;
+describe('FiltrosTabelaMarcacoes', () => {
+  let component: FiltrosTabelaMarcacoes;
+  let fixture: ComponentFixture<FiltrosTabelaMarcacoes>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [LinhaTabela]
+      imports: [FiltrosTabelaMarcacoes]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(LinhaTabela);
+    fixture = TestBed.createComponent(FiltrosTabelaMarcacoes);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

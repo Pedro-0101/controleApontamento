@@ -17,20 +17,7 @@ th {
   font-weight: 600;
 }
 
-td {
-  padding: 12px;
-  border-bottom: 1px solid #dee2e6;
-}
-
-.text-center {
-  text-align: center;
-}
-
-tr:hover {
-  background-color: #f1f3f5;
-}
-
-.spinner {
+.loading-overlay {
   text-align: center;
   padding: 20px;
   color: #666;

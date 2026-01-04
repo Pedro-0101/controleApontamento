@@ -41,7 +41,7 @@ export class SelectUnit {
 
     this.admUnitService.setSelectedUnit(unitId);
 
-    this.router.navigate(['/marcacoes']);
+    this.router.navigate(['/painel-gestao']);
 
   }
 }
