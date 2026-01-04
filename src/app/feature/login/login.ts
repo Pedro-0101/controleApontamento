@@ -29,14 +29,14 @@ export class Login {
     // Tenta logar automaticamente se já houver sessão ativa
     this.loggerService.info("Login component", "Tentando login automático");
     if(await this.authService.login()) {
-      this.router.navigate(['/select-unit']);
+      this.router.navigate(['/painel-gestao']);
     }
   }
 
   async onSubmit(accessCode: string) {
     this.loggerService.info("Login component", "Enviando código de acesso");
     if (await this.authService.login(accessCode)) {
-      this.router.navigate(['/select-unit']);
+      this.router.navigate(['/painel-gestao']);
     } else {
       window.alert("Código de acesso inválido");
     }
