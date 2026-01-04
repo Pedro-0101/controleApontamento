@@ -19,12 +19,39 @@ export class DateHelper {
         return localDate;
     }
 
+    // Transforma uma string de data no formato 'DD/MM/YYYY' para um objeto Date
+    static fromStringDate(dateStr: string): Date | null {
+        if (!dateStr || typeof dateStr !== 'string') {
+            console.log('erro na data:', dateStr);
+            return null;
+        }
+        const parts = dateStr.split('/').map(p => p.trim());
+        if (parts.length !== 3) {
+            console.log('erro na data:', dateStr);
+            return null;
+        }
+        const day = Number(parts[0]);
+        const month = Number(parts[1]);
+        const year = Number(parts[2]);
+        if (Number.isNaN(day) || Number.isNaN(month) || Number.isNaN(year)) {
+            console.log('erro na data:', dateStr);
+            return null;
+        }
+        return new Date(year, month - 1, day);
+    }
+
     // Retorna uma string formatada de data no formato DD/MM/YYYY
     static getStringDate(date: Date): string {
         const year = date.getFullYear();
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
-        return `${day}/${month}/${year}`;
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+
+        if(isNaN(year) || isNaN(month) || isNaN(day)) {
+            console.log("erro na data:", date);
+            return '';
+        }
+
+        return `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
     }
 
     // Retorna uma string formatada de hora no formato HH:MM

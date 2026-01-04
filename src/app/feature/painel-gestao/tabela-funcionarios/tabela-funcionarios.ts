@@ -12,15 +12,12 @@ import { LinhaTabelaMarcacoes } from './linha-tabela-marcacoes/linha-tabela-marc
   styleUrl: './tabela-funcionarios.css',
 })
 export class TabelaFuncionarios {
-  
+
   private loggerService = inject(LoggerService);
   private marcacaoService = inject(MarcacaoService);
 
-  private isLoadingMarcacoesPainel = signal(true);
-  private marcacoesDiaTabelaPainel = signal<MarcacaoDia[]>([]);
-
-  readonly _isLoadingMarcacoesPainel = computed(() => this.isLoadingMarcacoesPainel());
-  readonly _marcacoesDiaTabelaPainel = computed(() => this.marcacoesDiaTabelaPainel());
+  readonly _isLoadingMarcacoesPainel = this.marcacaoService._isLoadingMarcacoes;
+  readonly _marcacoesDiaTabelaPainel = this.marcacaoService._marcacoesFiltradas;
 
   constructor() {
     this.loggerService.info('TabelaFuncionariosComponent', 'Componente inicializado');
@@ -30,22 +27,19 @@ export class TabelaFuncionarios {
     this.loadMarcacoes();
   }
 
-  private async loadMarcacoes() {
-    this.isLoadingMarcacoesPainel.set(true);
+  loadMarcacoes() {
+    this.loggerService.info('TabelaFuncionarios', 'Carregando marcações para a tabela periodo padrao hoje');
 
     try {
-        const today = new Date();
-        const dataInicio = DateHelper.getFirstDayOfMonth(today);
-        const dataFim = DateHelper.getLastDayOfMonth(today);
 
-        await this.marcacaoService.updateMarcacoes(dataInicio, dataFim);
-        const marcacoesFormatadas = this.marcacaoService.getMarcacoesFormatadas()();
-        this.marcacoesDiaTabelaPainel.set(marcacoesFormatadas);
-        
+      const todayRange = DateHelper.getTodayRange();
+      const dataInicio = todayRange.start;
+      const dataFim = todayRange.end;
+
+      this.marcacaoService.updateMarcacoes(dataInicio, dataFim);
+
     } catch (error) {
-       this.loggerService.error('TabelaFuncionarios', 'Erro', error);
-    } finally {
-        this.isLoadingMarcacoesPainel.set(false);
+      this.loggerService.error('TabelaFuncionarios', 'Erro', error);
     }
   }
 }

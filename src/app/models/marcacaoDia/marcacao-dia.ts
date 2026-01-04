@@ -14,7 +14,7 @@ export interface MarcacaoDia {
 }
 
 // 2. O tipo define os possíveis valores para o status
-export type statusMarcacaoDia = 'Ok' | 'Incompleto' | 'Pendente' | 'Falta' | 'Atraso' | 'Folga' | 'Ferias' | 'Corrigido' | 'Outro';
+export type statusMarcacaoDia = 'atraso' | 'corrigido' | 'falta' | 'ferias' | 'folga' | 'incompleto' | 'ok' | 'outro' | 'pendente';
 
 // 3. A classe implementa a interface e adiciona a LÓGICA (Comportamento)
 export class MarcacaoDia implements MarcacaoDia {
@@ -49,13 +49,13 @@ export class MarcacaoDia implements MarcacaoDia {
 
     getStatus(): statusMarcacaoDia {
         if (!this.marcacoes || this.marcacoes.length === 0) {
-            return "Falta";
+            return "falta";
         }
 
         if (this.marcacoes.length < 4 || this.marcacoes.length % 2 !== 0) {
-            return "Pendente";
+            return "pendente";
         }
-        return "Ok";
+        return "ok";
     }
 
     private ordenarMarcacoes(marcacoes: string[]): string[] {
@@ -77,7 +77,14 @@ export class MarcacaoDia implements MarcacaoDia {
     }
 
     getDataFormatada(): string {
-        return DateHelper.getStringDate(new Date(this.data));
+        const dataObj = DateHelper.fromStringDate(this.data);
+
+        if (!dataObj) {
+            console.error('MarcacaoDia.getDataFormatada: Data inválida', this.data);
+            return '';
+        }
+
+        return DateHelper.getStringDate(dataObj);
     }
 
     getMarcacoesFormatadas(): string {

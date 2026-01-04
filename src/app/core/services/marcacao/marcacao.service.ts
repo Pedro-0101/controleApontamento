@@ -18,27 +18,18 @@ export class MarcacaoService {
   private funcionarioService = inject(FuncionarioService);
 
   private marcacoes = signal<Marcacao[]>([]);
-  private marcacoesFormatadas = signal<MarcacaoDia[]>([]);
+  private marcacoesFiltradas = signal<MarcacaoDia[]>([]);
+  private marcacaoesFiltradasBackup = signal<MarcacaoDia[]>([]);
   private token = signal(this.apiSessionService.token());
   private apiUrl = environment.apiUrlListarMarcacoes;
-  private isUpdating = signal(false);
+  private isLoadingMarcacoes = signal(false);
 
-  readonly _isUpdatingMarcacoes = computed(() => this.isUpdating());
+  readonly _isLoadingMarcacoes = computed(() => this.isLoadingMarcacoes());
+  readonly _marcacoes = computed(() => this.marcacoes());
+  readonly _marcacoesFiltradas = computed(() => this.marcacoesFiltradas());
 
   constructor() {
     this.loggerService.info('MarcacaoService', 'Componente inicializado');
-  }
-
-  getMarcacoes() {
-    return this.marcacoes;
-  }
-
-  getMarcacoesFormatadas() {
-    return this.marcacoesFormatadas;
-  }
-
-  getIsUpdating() {
-    return this.isUpdating;
   }
 
   async updateMarcacoes(dataInicio: Date, dataFim: Date): Promise<Marcacao[]> {
@@ -46,7 +37,7 @@ export class MarcacaoService {
 
     try {
 
-      this.isUpdating.set(true);
+      this.isLoadingMarcacoes.set(true);
 
       const dataInicioStr = DateHelper.toStefaniniFormat(dataInicio);
       const dataFimStr = DateHelper.toStefaniniFormat(dataFim);
@@ -63,17 +54,18 @@ export class MarcacaoService {
       const marcacoesOrdenadas = marcacoes.sort((a, b) => a.cpf.localeCompare(b.cpf));
       const marcacoesPorDia = await this.formatarMarcacoesPorDia(marcacoesOrdenadas);
 
-      this.marcacoesFormatadas.set(marcacoesPorDia);
+      this.marcacoesFiltradas.set(marcacoesPorDia);
+      this.marcacaoesFiltradasBackup.set(marcacoesPorDia);
       this.loggerService.info('MarcacaoService', `${marcacoesPorDia.length} marcacoes formatadas`);
 
-      this.isUpdating.set(false);
+      this.isLoadingMarcacoes.set(false);
       return marcacoes;
 
     } catch (error) {
 
       this.loggerService.error('MarcacaoService', 'Erro ao atualizar marcações \n' + error);
       this.marcacoes.set([]);
-      this.isUpdating.set(false);
+      this.isLoadingMarcacoes.set(false);
       return this.marcacoes();
 
     }
@@ -143,6 +135,33 @@ export class MarcacaoService {
   }
 
   static getPossiveisStatus(): string[] {
-    return ['Atraso', 'Corrigido', 'Falta', 'Ferias', 'Folga', 'Incompleto', 'Ok', 'Outro', 'Pendente'];
+    return ['atraso', 'corrigido', 'falta', 'ferias', 'folga', 'incompleto', 'ok', 'outro', 'pendente'];
+  }
+
+  filtrarMarcacoesPorStatus(status: string | null): void {
+    this.loggerService.info('MarcacaoService', `Filtrando marcações por status: ${status}`);
+
+    if (!status) {
+      this.loggerService.error('MarcacaoService', 'Status inválido para filtragem');
+      return;
+    }
+
+    if(status.toLowerCase() === 'todos') {
+      this.marcacoesFiltradas.set(this.marcacaoesFiltradasBackup());
+      this.isLoadingMarcacoes.set(false);
+      return;
+    }
+
+    this.isLoadingMarcacoes.set(true);
+
+    const marcacoesFiltradas = this.marcacaoesFiltradasBackup();
+    const marcacoesFiltradasPorStatus = marcacoesFiltradas.filter(marcacaoDia => 
+      marcacaoDia.getStatus() === status.toLowerCase()
+    );
+
+    this.marcacoesFiltradas.set(marcacoesFiltradasPorStatus);
+    this.isLoadingMarcacoes.set(false);
+    this.loggerService.info('MarcacaoService', `${marcacoesFiltradasPorStatus.length} marcações encontradas com status ${status}`);
+    return;
   }
 }

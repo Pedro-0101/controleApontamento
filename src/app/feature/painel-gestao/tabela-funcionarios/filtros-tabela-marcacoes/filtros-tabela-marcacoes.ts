@@ -6,6 +6,7 @@ import { LoggerService } from '../../../../core/services/logger/logger.service';
 import { AdmUnit } from '../../../../models/admUnit/adm-unit';
 import { AdmUnitService } from '../../../../core/services/admUnits/adm-unit.service';
 import { MarcacaoService } from '../../../../core/services/marcacao/marcacao.service';
+import { TabelaFuncionarios } from '../tabela-funcionarios';
 
 @Component({
   selector: 'app-filtros-tabela-marcacoes',
@@ -20,7 +21,8 @@ export class FiltrosTabelaMarcacoes {
   private admUnitService = inject(AdmUnitService);
   private marcacaoService = inject(MarcacaoService);
 
-  _isUpdatingMarcacoes = this.marcacaoService._isUpdatingMarcacoes;
+  // Signal loading marcacoes
+  protected readonly _isLoadingMarcacoesFiltroPainel = this.marcacaoService._isLoadingMarcacoes;
 
   // Signals unidades
   private unidadesFiltroPainel = signal<AdmUnit[]>([]);
@@ -107,6 +109,7 @@ export class FiltrosTabelaMarcacoes {
       this.statusSelecionadoFiltroPainel.set(null);
     } else {
       this.statusSelecionadoFiltroPainel.set(statusSelecionado);
+      this.marcacaoService.filtrarMarcacoesPorStatus(statusSelecionado);
     }
   }
 
@@ -160,5 +163,8 @@ export class FiltrosTabelaMarcacoes {
 
     this.dataInicialFiltroPainel.set(dataInicio);
     this.dataFinalFiltroPainel.set(dataFim);
+
+    this.marcacaoService.updateMarcacoes(dataInicio, dataFim);
+
   }
 }
