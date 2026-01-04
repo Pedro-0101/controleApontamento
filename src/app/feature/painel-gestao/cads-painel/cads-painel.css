@@ -1,0 +1,19 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.cards-grid {
+  display: flex;
+  flex-wrap: wrap; /* Permite que os cards quebrem linha em telas menores */
+  gap: 24px;       /* Espaçamento entre os cards */
+  align-items: stretch;
+  justify-content: center;
+}
+
+/* Opcional: Garante que os cards tenham comportamento responsivo */
+.card-item {
+  flex: 1;
+  min-width: 280px; /* Evita que fiquem muito estreitos */
+  max-width: 320px; /* Mantém o tamanho próximo ao design original */
+}

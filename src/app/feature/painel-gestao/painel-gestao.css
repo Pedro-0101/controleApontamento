@@ -1,0 +1,29 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background-color: #f9fafb; /* Cor de fundo cinza claro (igual da imagem) */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Container que centraliza e dá margem ao conteúdo */
+.dashboard-content {
+  max-width: 1400px; /* Largura máxima para telas muito grandes */
+  margin: 0 auto;    /* Centraliza na tela */
+  padding: 32px 24px; /* Espaçamento interno (Topo/Baixo: 32px, Lados: 24px) */
+  
+  display: flex;
+  flex-direction: column;
+  gap: 24px; /* Espaço vertical consistente entre os componentes */
+}
+
+/* Opcional: Animação suave de entrada */
+.section-cards, 
+.section-filters, 
+.section-table {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

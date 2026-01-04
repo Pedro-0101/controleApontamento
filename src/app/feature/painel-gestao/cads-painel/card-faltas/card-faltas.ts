@@ -1,8 +1,9 @@
 import { Component } from '@angular/core';
+import { LucideAngularModule } from 'lucide-angular';
 
 @Component({
   selector: 'app-card-faltas',
-  imports: [],
+  imports: [LucideAngularModule],
   templateUrl: './card-faltas.html',
   styleUrl: './card-faltas.css',
 })

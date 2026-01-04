@@ -48,6 +48,8 @@ export class MarcacaoService {
       // Buscar marcações da API
       const marcacoes = await this.fetchMarcacoes(dataInicio, dataFim);
 
+      console.log(marcacoes);
+
       this.marcacoes.set(marcacoes);
       this.loggerService.info('MarcacaoService', `Marcações atualizadas: ${marcacoes.length} registros encontrados`);
 

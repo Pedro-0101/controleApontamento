@@ -14,7 +14,12 @@ import {
   LogIn,
   UserPlus,
   Eye,
-  Calendar
+  Calendar,
+  Bell,
+  Clock,
+  FileText,
+  Settings,
+  Download,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -36,7 +41,12 @@ export const appConfig: ApplicationConfig = {
       LogIn,
       UserPlus,
       Eye,
-      Calendar
+      Calendar,
+      Bell,
+      Clock,
+      FileText,
+      Settings,
+      Download,
     }))
   ]
 };

@@ -1,11 +1,11 @@
 import { Component } from '@angular/core';
+import { LucideAngularModule } from 'lucide-angular';
 
 @Component({
   selector: 'app-card-incompletos',
-  imports: [],
+  standalone: true,
+  imports: [LucideAngularModule],
   templateUrl: './card-incompletos.html',
   styleUrl: './card-incompletos.css',
 })
-export class CardIncompletos {
-
-}
+export class CardIncompletos {}

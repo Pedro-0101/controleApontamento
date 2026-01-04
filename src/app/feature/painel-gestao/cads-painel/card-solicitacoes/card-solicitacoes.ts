@@ -1,11 +1,11 @@
 import { Component } from '@angular/core';
+import { LucideAngularModule } from 'lucide-angular';
 
 @Component({
   selector: 'app-card-solicitacoes',
-  imports: [],
+  standalone: true,
+  imports: [LucideAngularModule],
   templateUrl: './card-solicitacoes.html',
   styleUrl: './card-solicitacoes.css',
 })
-export class CardSolicitacoes {
-
-}
+export class CardSolicitacoes {}

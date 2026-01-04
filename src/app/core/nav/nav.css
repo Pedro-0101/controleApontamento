@@ -1,0 +1,116 @@
+:host {
+  display: block;
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.navbar {
+  background-color: #fff;
+  height: 64px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Distribui os 3 blocos */
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+/* --- Estrutura de Layout (Esquerda/Centro/Direita) --- */
+.nav-section {
+  display: flex;
+  align-items: center;
+}
+
+/* Força as laterais a terem o mesmo tamanho para o centro ficar exato */
+.nav-section.start {
+  flex: 1;
+  justify-content: flex-start;
+}
+
+.nav-section.center {
+  flex: 0 1 auto; /* Ocupa apenas o necessário */
+}
+
+.nav-section.end {
+  flex: 1;
+  justify-content: flex-end;
+  gap: 16px; /* Espaço entre Config e Avatar */
+}
+
+/* --- Título --- */
+.nav-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  white-space: nowrap;
+}
+
+/* --- Busca (Centralizada) --- */
+.search-wrapper {
+  background-color: #f3f4f6;
+  border-radius: 8px; /* Mais arredondado */
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  height: 40px;
+  width: 400px; /* Busca um pouco mais larga */
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.search-wrapper:focus-within {
+  background-color: #fff;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.search-icon {
+  color: #9ca3af;
+  margin-right: 10px;
+}
+
+.search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  font-size: 0.95rem;
+  color: #374151;
+}
+
+/* --- Botão de Ícone (Settings) --- */
+.btn-icon {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  color: #6b7280; /* Cinza médio */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.btn-icon:hover {
+  background-color: #f3f4f6;
+  color: #1f2937;
+}
+
+/* --- Avatar --- */
+.user-avatar {
+  background-color: #1d4ed8;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.user-avatar:hover {
+  opacity: 0.9;
+}

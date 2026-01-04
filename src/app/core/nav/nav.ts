@@ -1,11 +1,11 @@
 import { Component } from '@angular/core';
+import { LucideAngularModule } from 'lucide-angular';
 
 @Component({
   selector: 'app-nav',
-  imports: [],
+  standalone: true,
+  imports: [LucideAngularModule],
   templateUrl: './nav.html',
   styleUrl: './nav.css',
 })
-export class Nav {
-
-}
+export class Nav {}
