@@ -61,14 +61,12 @@ export class DateHelper {
         return `${hours}:${minutes}`;
     }
 
-    // Retona primeiro dia do mes de uma data
-    static getFirstDayOfMonth(date: Date): Date {
-        return new Date(date.getFullYear(), date.getMonth(), 1);
+    static getDataInicioRequisicaoRelogio(): string {
+        return '01/01/2000 00:00:00';
     }
 
-    // Retona ultimo dia do mes de uma data
-    static getLastDayOfMonth(date: Date): Date {
-        return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    static getDataFimRequisicaoRelogio(): string {
+        return '31/12/2100 23:59:59';
     }
 
 

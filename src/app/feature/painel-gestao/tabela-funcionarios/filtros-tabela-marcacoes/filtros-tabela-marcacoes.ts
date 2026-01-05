@@ -4,9 +4,9 @@ import { TitleCasePipe } from '@angular/common';
 import { DateHelper } from '../../../../core/helpers/dateHelper';
 import { LoggerService } from '../../../../core/services/logger/logger.service';
 import { AdmUnit } from '../../../../models/admUnit/adm-unit';
-import { AdmUnitService } from '../../../../core/services/admUnits/adm-unit.service';
 import { MarcacaoService } from '../../../../core/services/marcacao/marcacao.service';
-import { TabelaFuncionarios } from '../tabela-funcionarios';
+import { RelogioService } from '../../../../core/services/relogio/relogio.service';
+import { Relogio } from '../../../../models/relogio/relogio';
 
 @Component({
   selector: 'app-filtros-tabela-marcacoes',
@@ -18,16 +18,14 @@ export class FiltrosTabelaMarcacoes {
 
   // Services
   private loggerService = inject(LoggerService);
-  private admUnitService = inject(AdmUnitService);
   private marcacaoService = inject(MarcacaoService);
+  private relogioService = inject(RelogioService);
 
   // Signal loading marcacoes
   protected readonly _isLoadingMarcacoesFiltroPainel = this.marcacaoService._isLoadingMarcacoes;
 
-  // Signals unidades
-  private unidadesFiltroPainel = signal<AdmUnit[]>([]);
-  private unidadeSelecionadaFiltroPainel = signal<AdmUnit | null>(null);
-  private carregandoUnidadesFiltroPainel = signal<boolean>(true);
+  // Signals relogios
+  private relogioSelecionadaFiltroPainel = signal<Relogio | null>(null);
 
   // Signals data inicial e final
   private dataInicialFiltroPainel = signal<Date | null>(null);
@@ -37,10 +35,10 @@ export class FiltrosTabelaMarcacoes {
   private statusPossiveisFiltroPainel = signal<string[]>(MarcacaoService.getPossiveisStatus());
   private statusSelecionadoFiltroPainel = signal<string | null>(null);
 
-  // Computeds unidades
-  readonly _unidadesFiltroPainel = computed(() => this.unidadesFiltroPainel());
-  readonly _unidadeSelecionadaFiltroPainel = computed(() => this.unidadeSelecionadaFiltroPainel());
-  readonly _carregandoUnidadesFiltroPainel = computed(() => this.carregandoUnidadesFiltroPainel());
+  // Computeds relogios
+  readonly _relogiosFiltroPainel = computed(() => this.marcacaoService._relogioMarcacoes());
+  readonly _relogioSelecionadaFiltroPainel = computed(() => this.relogioSelecionadaFiltroPainel());
+  readonly _carregandoRelogioFiltroPainel = this.relogioService._loadingRelogios;
 
   // Computeds data inicial e final
   readonly _dataInicialFiltroPainel = computed(() => this.dataInicialFiltroPainel());
@@ -58,45 +56,34 @@ export class FiltrosTabelaMarcacoes {
     'Este mês',
     'Mês passado',
   ];
-  readonly _periodosPossiveisFiltroPainel = computed(() => this.possiveisPeriodos);
+  readonly _periodosPossiveisFiltroPainel = this.possiveisPeriodos;
 
   ngOnInit() {
     this.loggerService.info('FiltroTabelaMarcacoesComponent', 'Componente inicializado');
 
-    this.carregarUnidades();
-
     this.dataInicialFiltroPainel.set(null);
     this.dataFinalFiltroPainel.set(null);
-    this.unidadeSelecionadaFiltroPainel.set(null);
+    this.relogioSelecionadaFiltroPainel.set(null);
     this.statusSelecionadoFiltroPainel.set(null);
   }
 
-  private async carregarUnidades(): Promise<AdmUnit[]> {
-    this.loggerService.info('FiltroTabelaMarcacoesComponent', 'Carregando unidades para o filtro do painel de marcações');
-
-    this.carregandoUnidadesFiltroPainel.set(true);
-
-    const unidades: AdmUnit[] = await this.admUnitService.getUnits();
-
-    this.carregandoUnidadesFiltroPainel.set(false);
-    this.unidadesFiltroPainel.set(unidades);
-    return unidades;
-  }
-
-  public aoSelecionarUnidade(event: Event): void {
+  public aoSelecionarRelogio(event: Event): void {
     const elementoSelect = event.target as HTMLSelectElement;
     const idSelecionado = parseInt(elementoSelect.value, 10);
 
-    this.loggerService.info('FiltroTabelaMarcacoesComponent', `Unidade alterada para ID: ${idSelecionado}`);
-
-    if (idSelecionado === 0) {
-      this.unidadeSelecionadaFiltroPainel.set(null);
-    } else {
-      const unidadeEncontrada = this.unidadesFiltroPainel()
-        .find(u => u.id === idSelecionado) || null;
-
-      this.unidadeSelecionadaFiltroPainel.set(unidadeEncontrada);
+    // Lógica para lidar com a opção "Todos" (geralmente value="0" ou "todas")
+    if (isNaN(idSelecionado) || idSelecionado === 0) {
+      this.relogioSelecionadaFiltroPainel.set(null);
+      // Chama o filtro passando null para limpar
+      this.marcacaoService.filtrarMarcacoesPorRelogio(null);
+      return;
     }
+
+    const relogio = this.relogioService.getRelogioFromId(idSelecionado);
+    this.relogioSelecionadaFiltroPainel.set(relogio);
+    
+    // Chama o novo método do serviço
+    this.marcacaoService.filtrarMarcacoesPorRelogio(relogio);
   }
 
   public aoSelecionarStatus(event: Event): void {
@@ -119,7 +106,6 @@ export class FiltrosTabelaMarcacoes {
 
     this.loggerService.info('FiltroTabelaMarcacoesComponent', `Data alterada para: ${opcao}`);
 
-    const hoje = new Date();
     let dataInicio: Date | null = null;
     let dataFim: Date | null = null;
 

@@ -3,6 +3,7 @@ import { AdmUnit } from '../../../models/admUnit/adm-unit';
 import { LoggerService } from '../logger/logger.service';
 import { ApiSessionService } from '../apiSession/api-session.service';
 import { environment } from '../../../../environments/environment';
+import { MarcacaoDia } from '../../../models/marcacaoDia/marcacao-dia';
 
 @Injectable({
   providedIn: 'root',

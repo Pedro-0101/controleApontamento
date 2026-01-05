@@ -6,6 +6,8 @@ import { IMarcacaoJson, Marcacao } from '../../../models/marcacao/marcacao';
 import { MarcacaoDia } from '../../../models/marcacaoDia/marcacao-dia';
 import { FuncionarioService } from '../funcionario/funcionario.service';
 import { DateHelper } from '../../helpers/dateHelper';
+import { Relogio } from '../../../models/relogio/relogio';
+import { RelogioService } from '../relogio/relogio.service';
 
 @Injectable({
   providedIn: 'root',
@@ -16,17 +18,20 @@ export class MarcacaoService {
   private loggerService = inject(LoggerService);
   private apiSessionService = inject(ApiSessionService);
   private funcionarioService = inject(FuncionarioService);
+  private relogioService = inject(RelogioService);
 
   private marcacoes = signal<Marcacao[]>([]);
   private marcacoesFiltradas = signal<MarcacaoDia[]>([]);
   private marcacaoesFiltradasBackup = signal<MarcacaoDia[]>([]);
-  private token = signal(this.apiSessionService.token());
+  private relogiosMarcacoes = signal<Relogio[]>([]);
   private apiUrl = environment.apiUrlListarMarcacoes;
   private isLoadingMarcacoes = signal(false);
 
+  private readonly token = this.apiSessionService.token();
   readonly _isLoadingMarcacoes = computed(() => this.isLoadingMarcacoes());
   readonly _marcacoes = computed(() => this.marcacoes());
   readonly _marcacoesFiltradas = computed(() => this.marcacoesFiltradas());
+  readonly _relogioMarcacoes = computed(() => this.relogiosMarcacoes());
 
   constructor() {
     this.loggerService.info('MarcacaoService', 'Componente inicializado');
@@ -56,6 +61,8 @@ export class MarcacaoService {
 
       this.marcacoesFiltradas.set(marcacoesPorDia);
       this.marcacaoesFiltradasBackup.set(marcacoesPorDia);
+      this.relogiosMarcacoes.set(this.getRelogiosFromMarcacoes())
+      
       this.loggerService.info('MarcacaoService', `${marcacoesPorDia.length} marcacoes formatadas`);
 
       this.isLoadingMarcacoes.set(false);
@@ -88,7 +95,7 @@ export class MarcacaoService {
         marcacoesDia[marcacoesDia.length - 1].data === dateStr;
 
       if (marcacaoExistente) {
-        marcacoesDia[marcacoesDia.length - 1].marcacoes.push(horaStr);
+        marcacoesDia[marcacoesDia.length - 1].marcacoes.push(marcacao);
         continue;
       }
 
@@ -98,7 +105,7 @@ export class MarcacaoService {
         marcacao.matriculaFuncionario,
         nome,
         dateStr,
-        [horaStr]
+        [marcacao]
       );
 
       marcacoesDia.push(marcacaoDia);
@@ -112,7 +119,7 @@ export class MarcacaoService {
     const body = {
       dataInicio: dataInicio,
       dataFim: dataFim,
-      tokenAcesso: this.token()
+      tokenAcesso: this.token
     };
 
     this.loggerService.info('MarcacaoService', 'Buscando marcações na API');
@@ -163,5 +170,38 @@ export class MarcacaoService {
     this.isLoadingMarcacoes.set(false);
     this.loggerService.info('MarcacaoService', `${marcacoesFiltradasPorStatus.length} marcações encontradas com status ${status}`);
     return;
+  }
+
+  filtrarMarcacoesPorRelogio(relogio: Relogio | null): void {
+    this.loggerService.info('MarcacaoService', `Filtrando marcações por relógio: ${relogio?.descricao}`);
+
+    // 1. Se o relógio for nulo (ou opção "Todos"), reseta a lista
+    if (!relogio) {
+      this.marcacoesFiltradas.set(this.marcacaoesFiltradasBackup());
+      this.isLoadingMarcacoes.set(false);
+      return;
+    }
+
+    this.isLoadingMarcacoes.set(true);
+
+    const listaCompleta = this.marcacaoesFiltradasBackup();
+    const numSerieAlvo = relogio.numSerie;
+
+    // 2. Filtra os dias onde HOUVE pelo menos uma batida naquele relógio
+    const marcacoesFiltradas = listaCompleta.filter(dia => {
+      // O método .some() retorna true se encontrar pelo menos um item que atenda à condição
+      return dia.marcacoes.some(m => m.numSerieRelogio === numSerieAlvo);
+    });
+
+    this.marcacoesFiltradas.set(marcacoesFiltradas);
+    this.isLoadingMarcacoes.set(false);
+
+    this.loggerService.info('MarcacaoService', `${marcacoesFiltradas.length} dias encontrados com registros no relógio ${relogio.descricao}`);
+  }
+
+  getRelogiosFromMarcacoes(): Relogio[] {
+
+    return this.relogioService.getRelogiosFromMarcacoes(this._marcacoesFiltradas());
+
   }
 }

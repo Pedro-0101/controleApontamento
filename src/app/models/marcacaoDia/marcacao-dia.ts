@@ -1,5 +1,7 @@
 import { ComentarioMarcacao } from "../comentarioMarcacao/comentario-marcacao";
 import { DateHelper } from "../../core/helpers/dateHelper";
+import { Marcacao } from "../marcacao/marcacao";
+import { Relogio } from "../relogio/relogio";
 
 // 1. A interface define apenas a ESTRUTURA DOS DADOS (Shape)
 export interface MarcacaoDia {
@@ -8,7 +10,7 @@ export interface MarcacaoDia {
     matricula: string;
     nome: string;
     data: string; // Formato 'YYYY-MM-DD'
-    marcacoes: string[]; // Array de horários no formato 'HH:mm'
+    marcacoes: Marcacao[]; // Array de horários no formato 'HH:mm'
     status?: statusMarcacaoDia;
     comentarios?: ComentarioMarcacao[];
 }
@@ -23,7 +25,7 @@ export class MarcacaoDia implements MarcacaoDia {
     matricula: string;
     nome: string;
     data: string;
-    marcacoes: string[];
+    marcacoes: Marcacao[];
     comentarios?: ComentarioMarcacao[];
 
     constructor(
@@ -32,7 +34,7 @@ export class MarcacaoDia implements MarcacaoDia {
         matricula: string,
         nome: string, 
         data: string, 
-        marcacoes: string[],
+        marcacoes: Marcacao[],
         comentarios?: ComentarioMarcacao[]
     ) {
         this.id = id;
@@ -58,20 +60,12 @@ export class MarcacaoDia implements MarcacaoDia {
         return "ok";
     }
 
-    private ordenarMarcacoes(marcacoes: string[]): string[] {
+    private ordenarMarcacoes(marcacoes: Marcacao[]): Marcacao[] {
         if (!marcacoes) return [];
         
         const marcacoesOrdenadas = [...marcacoes];
         
-        marcacoesOrdenadas.sort((a, b) => {
-            const [horaA, minutoA] = a.split(':').map(Number);
-            const [horaB, minutoB] = b.split(':').map(Number);
-            
-            if (horaA !== horaB) {
-                return horaA - horaB;
-            }
-            return minutoA - minutoB;
-        });
+        marcacoesOrdenadas.sort((a, b) => { return a.dataMarcacao.getTime() - b.dataMarcacao.getTime() });
         
         return marcacoesOrdenadas;
     }
@@ -88,11 +82,15 @@ export class MarcacaoDia implements MarcacaoDia {
     }
 
     getMarcacoesFormatadas(): string {
-        let marcacoesFormatadas = this.marcacoes.join(', ');
+        return this.marcacoes
+            .map(m => DateHelper.getStringTime(m.dataMarcacao))
+            .join(' - ');
+    }
 
-        marcacoesFormatadas = marcacoesFormatadas.replaceAll(', ', ' - ');
+    getRelogiosIds(): string[] {
+        let relogios: string[] = [];
+        this.marcacoes.map(m => relogios.push(m.numSerieRelogio))
 
-        return marcacoesFormatadas;
-
+        return relogios;
     }
 }

@@ -6,7 +6,7 @@
       <label for="periodo">Período</label>
       <select id="periodo" (change)="aoSelecionarPeriodo($event)" [disabled]="_isLoadingMarcacoesFiltroPainel()">
         <option value="todos">Todos</option>
-        @for(periodo of _periodosPossiveisFiltroPainel(); track periodo) {
+        @for(periodo of _periodosPossiveisFiltroPainel; track periodo) {
         <option [value]="periodo">
           {{ periodo }}
         </option>
@@ -17,17 +17,17 @@
     <div class="filter-item">
       <label for="unidade">Unidade</label>
 
-      <select id="unidade" (change)="aoSelecionarUnidade($event)" [disabled]="_carregandoUnidadesFiltroPainel() || _isLoadingMarcacoesFiltroPainel()">
+      <select id="unidade" (change)="aoSelecionarRelogio($event)" [disabled]="_carregandoRelogioFiltroPainel() || _isLoadingMarcacoesFiltroPainel()">
         <option value=0>Todas</option>
 
-        @for(unidade of _unidadesFiltroPainel(); track unidade.id) {
+        @for(unidade of _relogiosFiltroPainel(); track unidade.id) {
         <option [value]="unidade.id">
           {{ unidade.descricao | titlecase }}
         </option>
         }
       </select>
 
-      @if (_carregandoUnidadesFiltroPainel()) {
+      @if (_carregandoRelogioFiltroPainel()) {
       <span class="loading-text">Carregando...</span>
       }
     </div>
