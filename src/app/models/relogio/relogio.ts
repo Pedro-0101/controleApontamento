@@ -1,6 +1,6 @@
 export interface IRelogio {
   type: string;
-  id: number;
+  id: string;
   dataCriacao: string;
   descricao: string;
   numSerie: string;
@@ -10,7 +10,7 @@ export interface IRelogio {
 export class Relogio implements IRelogio {
 
   type: string = '';
-  id: number = 0;
+  id: string = '';
   dataCriacao: string = '';
   descricao: string = '';
   numSerie: string = '';
@@ -29,7 +29,7 @@ export class Relogio implements IRelogio {
       id: json.id,
       dataCriacao: json.DataCriacao,
       descricao: json.Descricao || '',
-      numSerie: json.NumSerieRelogio,
+      numSerie: String(json.NumSerieRelogio).replace(/\./g, '').replace(/^0+/, ''),
       status: json.Status
     });
   }

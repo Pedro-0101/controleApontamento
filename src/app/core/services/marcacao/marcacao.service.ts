@@ -62,6 +62,8 @@ export class MarcacaoService {
       this.marcacoesFiltradas.set(marcacoesPorDia);
       this.marcacaoesFiltradasBackup.set(marcacoesPorDia);
       this.relogiosMarcacoes.set(this.getRelogiosFromMarcacoes())
+
+      this.relogioService.updateRelogiosFromMarcacoes(marcacoesPorDia); // Atualizar os relogios das marcacoes
       
       this.loggerService.info('MarcacaoService', `${marcacoesPorDia.length} marcacoes formatadas`);
 
@@ -88,7 +90,6 @@ export class MarcacaoService {
 
       const nome = await this.funcionarioService.getNameByMatricula(marcacao.matriculaFuncionario);
       const dateStr = DateHelper.getStringDate(marcacao.dataMarcacao);
-      const horaStr = DateHelper.getStringTime(marcacao.dataMarcacao);
 
       const marcacaoExistente = marcacoesDia.length > 0 && 
         marcacoesDia[marcacoesDia.length - 1].cpf === marcacao.cpf &&
@@ -167,6 +168,7 @@ export class MarcacaoService {
     );
 
     this.marcacoesFiltradas.set(marcacoesFiltradasPorStatus);
+    this.relogioService.updateRelogiosFromMarcacoes(marcacoesFiltradasPorStatus);
     this.isLoadingMarcacoes.set(false);
     this.loggerService.info('MarcacaoService', `${marcacoesFiltradasPorStatus.length} marcações encontradas com status ${status}`);
     return;
@@ -175,7 +177,6 @@ export class MarcacaoService {
   filtrarMarcacoesPorRelogio(relogio: Relogio | null): void {
     this.loggerService.info('MarcacaoService', `Filtrando marcações por relógio: ${relogio?.descricao}`);
 
-    // 1. Se o relógio for nulo (ou opção "Todos"), reseta a lista
     if (!relogio) {
       this.marcacoesFiltradas.set(this.marcacaoesFiltradasBackup());
       this.isLoadingMarcacoes.set(false);
@@ -187,9 +188,7 @@ export class MarcacaoService {
     const listaCompleta = this.marcacaoesFiltradasBackup();
     const numSerieAlvo = relogio.numSerie;
 
-    // 2. Filtra os dias onde HOUVE pelo menos uma batida naquele relógio
     const marcacoesFiltradas = listaCompleta.filter(dia => {
-      // O método .some() retorna true se encontrar pelo menos um item que atenda à condição
       return dia.marcacoes.some(m => m.numSerieRelogio === numSerieAlvo);
     });
 
@@ -201,7 +200,7 @@ export class MarcacaoService {
 
   getRelogiosFromMarcacoes(): Relogio[] {
 
-    return this.relogioService.getRelogiosFromMarcacoes(this._marcacoesFiltradas());
+    return this.relogioService.getRelogiosFromMarcacoesDia(this._marcacoesFiltradas());
 
   }
 }

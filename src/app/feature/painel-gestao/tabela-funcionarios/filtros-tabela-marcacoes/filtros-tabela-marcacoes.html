@@ -15,14 +15,14 @@
     </div>
 
     <div class="filter-item">
-      <label for="unidade">Unidade</label>
+      <label for="relogio">Relogio</label>
 
-      <select id="unidade" (change)="aoSelecionarRelogio($event)" [disabled]="_carregandoRelogioFiltroPainel() || _isLoadingMarcacoesFiltroPainel()">
-        <option value=0>Todas</option>
+      <select id="relogio" (change)="aoSelecionarRelogio($event)" [disabled]="_carregandoRelogioFiltroPainel() || _isLoadingMarcacoesFiltroPainel()">
+        <option value='todos'>Todos</option>
 
-        @for(unidade of _relogiosFiltroPainel(); track unidade.id) {
-        <option [value]="unidade.id">
-          {{ unidade.descricao | titlecase }}
+        @for(relogio of _relogiosFiltroPainel(); track relogio.numSerie) {
+        <option [value]="relogio.numSerie">
+          {{ relogio.descricao | titlecase }}
         </option>
         }
       </select>

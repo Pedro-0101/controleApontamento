@@ -36,7 +36,7 @@ export class FiltrosTabelaMarcacoes {
   private statusSelecionadoFiltroPainel = signal<string | null>(null);
 
   // Computeds relogios
-  readonly _relogiosFiltroPainel = computed(() => this.marcacaoService._relogioMarcacoes());
+  readonly _relogiosFiltroPainel = computed(() => this.relogioService._relogiosMarcacoes());
   readonly _relogioSelecionadaFiltroPainel = computed(() => this.relogioSelecionadaFiltroPainel());
   readonly _carregandoRelogioFiltroPainel = this.relogioService._loadingRelogios;
 
@@ -69,20 +69,17 @@ export class FiltrosTabelaMarcacoes {
 
   public aoSelecionarRelogio(event: Event): void {
     const elementoSelect = event.target as HTMLSelectElement;
-    const idSelecionado = parseInt(elementoSelect.value, 10);
-
-    // Lógica para lidar com a opção "Todos" (geralmente value="0" ou "todas")
-    if (isNaN(idSelecionado) || idSelecionado === 0) {
+    const numSerieSelecionado = elementoSelect.value;
+    
+    if (numSerieSelecionado == 'todos') {
       this.relogioSelecionadaFiltroPainel.set(null);
-      // Chama o filtro passando null para limpar
       this.marcacaoService.filtrarMarcacoesPorRelogio(null);
       return;
     }
 
-    const relogio = this.relogioService.getRelogioFromId(idSelecionado);
+    const relogio = this.relogioService.getRelogioFromNumSerie(numSerieSelecionado);
     this.relogioSelecionadaFiltroPainel.set(relogio);
     
-    // Chama o novo método do serviço
     this.marcacaoService.filtrarMarcacoesPorRelogio(relogio);
   }
 

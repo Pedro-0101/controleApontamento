@@ -16,8 +16,13 @@ export class RelogioService {
   private apiUrl = environment.apiUrlListaRelogios;
   private readonly token = this.apiSessionService.token();
 
+  // Todos os relogios da empresa
   private relogios = signal<Relogio[]>([]);
   readonly _relogios = computed(() => this.relogios());
+
+  // Todos os relogios das marcacoes filtradas
+  private relogiosMarcacoes = signal<Relogio[]>([]);
+  readonly _relogiosMarcacoes = computed(() => this.relogiosMarcacoes());
 
   private loadingRelogios = signal<Boolean>(true);
   readonly _loadingRelogios = computed(() => this.loadingRelogios());
@@ -53,6 +58,8 @@ export class RelogioService {
 
   private async getRelogiosFromApi(): Promise<Relogio[]> {
 
+    this.loggerService.info("RelogioService", "Buscando relogios na api");
+
     const dataInicio = DateHelper.getDataInicioRequisicaoRelogio();
     const dataFim = DateHelper.getDataFimRequisicaoRelogio();
 
@@ -82,66 +89,65 @@ export class RelogioService {
     return listaBruta.map(r => Relogio.fromJson(r));
   }
 
-  getRelogiosFromMarcacoes(marcacoesDia: MarcacaoDia[]): Relogio[] {
+  updateRelogiosFromMarcacoes(marcacoesDia: MarcacaoDia[]): void {
+    const relogios = this.getRelogiosFromMarcacoesDia(marcacoesDia);
+
+    this.relogiosMarcacoes.set(relogios);
+  }
+
+  getRelogiosFromMarcacoesDia(marcacoesDia: MarcacaoDia[]): Relogio[] {
     this.loggerService.info("RelogioService", "Buscando informacoes de relogios das marcacoes");
-    this.loadingRelogios.set(true);
-
-    let numSerieRelogios: string[] = [];
-
+    
     if (marcacoesDia.length === 0) {
       return [];
     }
 
-    marcacoesDia.map(marcacaoDia => {
-      marcacaoDia.marcacoes.map(m => {
-        numSerieRelogios.push(m.numSerieRelogio)
-      })
-    })
+    this.loadingRelogios.set(true);
 
-    const numSerieRelogiosUnicos = [... new Set(numSerieRelogios)];
+    const numSerieSet = new Set<string>();
+    
+    marcacoesDia.forEach(m => {
+      this.getRelogiosFromMarcacao(m).forEach(numSerie => numSerieSet.add(numSerie));
+    });
+
+    const relogios = Array.from(numSerieSet).map(numSerie => 
+      this.getRelogioFromNumSerie(numSerie)
+    );
 
     this.loadingRelogios.set(false);
 
-    return numSerieRelogiosUnicos.map(r => this.getRelogioFromNumSerie(r));
-
+    return relogios;
   }
 
-  private getRelogioFromNumSerie(numSerie: string): Relogio {
+  private getRelogiosFromMarcacao(marcacao: MarcacaoDia): string[] {
+    return marcacao.marcacoes.map(m => this.normalizeNumSerie(m.numSerieRelogio));
+  }
 
-    let listaRelogios = this._relogios();
-    const relogioEncontrado = listaRelogios.find(r => r.numSerie === numSerie);
+  getRelogioFromNumSerie(numSerie: string): Relogio {
+    const relogios = this._relogios();
+    const buscaLimpa = this.normalizeNumSerie(numSerie);
+    
+    const relogioEncontrado = relogios.find(r => 
+        this.normalizeNumSerie(r.numSerie) === buscaLimpa
+    );
 
     if (!relogioEncontrado) {
       return new Relogio({
         type: 'Nao encontrado',
-        id: 0,
+        id: 'Nao encontrado',
         dataCriacao: 'Nao encontrado',
         descricao: 'Nao encontrado',
         numSerie: 'Nao encontrado',
         status: 0,
-      })
+      });
     }
 
     return relogioEncontrado;
-
   }
 
-  getRelogioFromId(id: number): Relogio {
-    let listaRelogios = this._relogios();
-    const relogioEncontrado = listaRelogios.find(r => r.id === id);
-
-    if (!relogioEncontrado) {
-      return new Relogio({
-        type: 'Nao encontrado',
-        id: 0,
-        dataCriacao: 'Nao encontrado',
-        descricao: 'Nao encontrado',
-        numSerie: 'Nao encontrado',
-        status: 0,
-      })
-    }
-
-    return relogioEncontrado;
+  private normalizeNumSerie(numSerie: string | undefined | null): string {
+    if (!numSerie) return '';
+    return numSerie.replace(/\./g, '').replace(/^0+/, '');
   }
 
 }
