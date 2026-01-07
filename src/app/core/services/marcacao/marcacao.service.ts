@@ -37,20 +37,17 @@ export class MarcacaoService {
     this.loggerService.info('MarcacaoService', 'Componente inicializado');
   }
 
-  async updateMarcacoes(dataInicio: Date, dataFim: Date): Promise<Marcacao[]> {
+  async updateMarcacoes(dataInicio: string, dataFim: string): Promise<Marcacao[]> {
     this.loggerService.info('MarcacaoService', 'Atualizando marcações');
 
     try {
 
       this.isLoadingMarcacoes.set(true);
 
-      const dataInicioStr = DateHelper.toStefaniniFormat(dataInicio);
-      const dataFimStr = DateHelper.toStefaniniFormat(dataFim);
-
-      this.loggerService.info('MarcacaoService', `Período de busca: ${dataInicioStr} a ${dataFimStr}`);
+      this.loggerService.info('MarcacaoService', `Período de busca: ${dataInicio} a ${dataFim}`);
 
       // Buscar marcações da API
-      const marcacoes = await this.fetchMarcacoes(dataInicioStr, dataFimStr);
+      const marcacoes = await this.fetchMarcacoes(dataInicio, dataFim);
 
       this.marcacoes.set(marcacoes);
       this.loggerService.info('MarcacaoService', `${marcacoes.length} registros encontrados`);

@@ -73,39 +73,57 @@ export class DateHelper {
     // Funcoes especificas para filtros de data
 
     // Retorna a data inicial e final para o filtro "Hoje"
-    static getTodayRange(): { start: Date; end: Date } {
+    static getTodayRange(): { start: string; end: string } {
         const today = new Date();
-        return { start: today, end: today };
+        let tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const start = DateHelper.getStringDate(today);
+        const end = DateHelper.getStringDate(tomorrow);
+        return { start: start, end: end };
     }
 
     // Retorna a data inicial e final para o filtro "Ontem"
-    static getYesterdayRange(): { start: Date; end: Date } {
-        const yesterday = new Date();
+    static getYesterdayRange(): { start: string; end: string } {
+        const today = new Date();
+        let yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
-        return { start: yesterday, end: yesterday };
+
+        const start = DateHelper.getStringDate(yesterday);
+        const end = DateHelper.getStringDate(today);
+        return { start: start, end: end };
     }
 
     // Retorna a data inicial e final para o filtro "Últimos N dias"
-    static getLastNDaysRange(n: number): { start: Date; end: Date } {
-        const end = new Date();
-        const start = new Date();
-        start.setDate(start.getDate() - n);
+    static getLastNDaysRange(n: number): { start: string; end: string } {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - n);
+
+        const start = DateHelper.getStringDate(startDate);
+        const end = DateHelper.getStringDate(endDate);
         return { start, end };
     }
 
     // Retorna a data inicial e final para o filtro "Este mês"
-    static getThisMonthRange(): { start: Date; end: Date } {
+    static getThisMonthRange(): { start: string; end: string } {
         const today = new Date();
-        const start = new Date(today.getFullYear(), today.getMonth(), 1);
-        const end = today;
+        const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        const endDate = today;
+
+        const start = DateHelper.getStringDate(startDate);
+        const end = DateHelper.getStringDate(endDate);
         return { start, end };
     }
 
     // Retorna a data inicial e final para o filtro "Mês passado"
-    static getLastMonthRange(): { start: Date; end: Date } {
+    static getLastMonthRange(): { start: string; end: string } {
         const today = new Date();
-        const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        const end = new Date(today.getFullYear(), today.getMonth(), 0);
+        const startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+
+        const start = DateHelper.getStringDate(startDate);
+        const end = DateHelper.getStringDate(endDate);
         return { start, end };
     }
 }

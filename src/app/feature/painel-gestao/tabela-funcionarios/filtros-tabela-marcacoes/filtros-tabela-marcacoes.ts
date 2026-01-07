@@ -28,8 +28,8 @@ export class FiltrosTabelaMarcacoes {
   private relogioSelecionadaFiltroPainel = signal<Relogio | null>(null);
 
   // Signals data inicial e final
-  private dataInicialFiltroPainel = signal<Date | null>(null);
-  private dataFinalFiltroPainel = signal<Date | null>(null);
+  private dataInicialFiltroPainel = signal<string | null>(null);
+  private dataFinalFiltroPainel = signal<string | null>(null);
 
   // Signal status
   private statusPossiveisFiltroPainel = signal<string[]>(MarcacaoService.getPossiveisStatus());
@@ -103,8 +103,8 @@ export class FiltrosTabelaMarcacoes {
 
     this.loggerService.info('FiltroTabelaMarcacoesComponent', `Data alterada para: ${opcao}`);
 
-    let dataInicio: Date | null = null;
-    let dataFim: Date | null = null;
+    let dataInicio: string | null = null;
+    let dataFim: string | null = null;
 
     switch (opcao) {
       case 'Hoje':
