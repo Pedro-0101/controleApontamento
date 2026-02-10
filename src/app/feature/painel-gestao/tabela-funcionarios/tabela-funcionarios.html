@@ -1,28 +1,93 @@
 <div class="table-container">
+  
+  <div class="table-controls">
+    <div class="search-box">
+      <input 
+        type="text" 
+        placeholder="Pesquisar por nome, matrícula ou CPF..." 
+        (input)="onSearch($event)"
+        class="search-input"
+      >
+    </div>
+
+    <div class="right-controls">
+      <div class="items-per-page">
+        <label>Itens por página:</label>
+        <select (change)="onItemsPerPageChange($event)">
+          @for (option of itemsPerPageOptions; track option) {
+            <option [value]="option" [selected]="option === itemsPerPage()">{{ option }}</option>
+          }
+        </select>
+      </div>
+
+      <button class="btn-export" (click)="abrirModalExportacao()">
+        <lucide-icon name="download" [size]="18"></lucide-icon>
+        Exportar
+      </button>
+    </div>
+  </div>
+
+  @if (exibindoModalExportacao()) {
+    <app-modal-exportacao 
+      [data]="_sortedMarcacoes()" 
+      (close)="fecharModalExportacao()"
+    ></app-modal-exportacao>
+  }
+
+  @if (selectedRecord()) {
+    <app-modal-detalhes-marcacao
+      [record]="selectedRecord()!"
+      (close)="fecharDetalhes()"
+      (updated)="recarregarDados()"
+    ></app-modal-detalhes-marcacao>
+  }
+
+
   @if (_isLoadingMarcacoesPainel()) {
-  <div class="loading-overlay">Carregando marcações...</div>
-  }@else {
-  <table>
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>CPF</th>
-        <th>Matricula</th>
-        <th>Trabalhador ID</th>
-        <th>Data</th>
-        <th>Hora</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (item of _marcacoesDiaTabelaPainel(); track item.id) {
-      <app-linha-tabela-marcacoes [marcacao]="item" />
-      } @empty {
-      <tr>
-        <td colspan="7" style="text-align: center;">Nenhuma marcação encontrada.</td>
-      </tr>
-      }
-    </tbody>
-  </table>
+    <div class="loading-overlay">Carregando marcações...</div>
+  } @else {
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th (click)="onSort('matricula')" class="sortable col-matricula">
+              Matrícula
+              @if(sortColumn() === 'matricula') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+            </th>
+            <th (click)="onSort('nome')" class="sortable col-nome">
+              Nome
+              @if(sortColumn() === 'nome') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+            </th>
+            <th (click)="onSort('data')" class="sortable col-data">
+              Data
+              @if(sortColumn() === 'data') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+            </th>
+            <th class="col-dia-semana">Dia Semana</th>
+            <th class="col-hora">Hora</th>
+            <th class="col-total-horas">Total Horas</th>
+            <th class="col-status">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of _paginatedMarcacoes(); track item.matricula + '_' + item.data) {
+            <tr app-linha-tabela-marcacoes [marcacao]="item" (openDetails)="abrirDetalhes($event)" class="clickable-row"></tr>
+          } @empty {
+            <tr>
+              <td colspan="7" style="text-align: center">Nenhuma marcação encontrada.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination-controls">
+      <div class="pagination-info">
+        Página {{ currentPage() }} de {{ _totalPages() }} (Total: {{ _totalItems() }} itens)
+      </div>
+      <div class="pagination-buttons">
+        <button (click)="prevPage()" [disabled]="currentPage() === 1" class="btn-pagination">Anterior</button>
+        <button (click)="nextPage()" [disabled]="currentPage() === _totalPages()" class="btn-pagination">Próximo</button>
+      </div>
+    </div>
   }
 </div>

@@ -5,9 +5,8 @@
     <div class="filter-item">
       <label for="periodo">Período</label>
       <select id="periodo" (change)="aoSelecionarPeriodo($event)" [disabled]="_isLoadingMarcacoesFiltroPainel()">
-        <option value="todos">Todos</option>
         @for(periodo of _periodosPossiveisFiltroPainel; track periodo) {
-        <option [value]="periodo">
+        <option [value]="periodo" [selected]="periodo === 'Hoje'">
           {{ periodo }}
         </option>
         }
@@ -51,11 +50,6 @@
     <button type="button" class="btn btn-outline">
       <lucide-icon name="trash-2" [size]="16"></lucide-icon>
       Limpar Filtros
-    </button>
-
-    <button type="button" class="btn btn-primary">
-      <lucide-icon name="download" [size]="16"></lucide-icon>
-      Exportar
     </button>
 
   </div>

@@ -1,5 +1,6 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { LoggerService } from '../logger/logger.service';
+import { EmployeeService } from '../employee/employee.service';
 
 @Injectable({
   providedIn: 'root',
@@ -7,19 +8,27 @@ import { LoggerService } from '../logger/logger.service';
 export class FuncionarioService {
 
   private loggerService = inject(LoggerService);
+  private employeeService = inject(EmployeeService);
 
   constructor() {
     this.loggerService.info("FuncionarioService", "Componente inicializado");
   }
 
+  /**
+   * Busca o nome do funcionário pela matrícula no banco de dados MySQL
+   * @param matricula - Matrícula do funcionário
+   * @returns Nome do funcionário ou "nome nao encontrado" se não existir
+   */
   async getNameByMatricula(matricula: string): Promise<string> {
-    // Simulação de uma chamada assíncrona, como uma requisição HTTP
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const names = ['Ana Silva', 'Bruno Cortez', 'Carla Costa', 'Daniel Silveira', 'Eduardo Lima'];
-        const name = names[Math.floor(Math.random() * names.length)];
-        resolve(name);
-      }, 10);
-    });
+    this.loggerService.info("FuncionarioService", `Buscando nome para matrícula: ${matricula}`);
+
+    try {
+      const nome = await this.employeeService.getEmployeeNameByMatricula(matricula);
+      this.loggerService.info("FuncionarioService", `Nome encontrado: ${nome}`);
+      return nome;
+    } catch (error) {
+      this.loggerService.error("FuncionarioService", `Erro ao buscar nome para matrícula ${matricula}:`, error);
+      return 'nome nao encontrado';
+    }
   }
 }

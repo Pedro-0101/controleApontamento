@@ -39,11 +39,11 @@ export class RelogioService {
 
     try {
       const response = await this.getRelogiosFromApi();
-      
+
       this.loggerService.info("RelogioService", `Retornados ${response.length} relógios`);
-  
-      this.relogios.set(response); 
-      
+
+      this.relogios.set(response);
+
       return response;
 
     } catch (error) {
@@ -97,7 +97,7 @@ export class RelogioService {
 
   getRelogiosFromMarcacoesDia(marcacoesDia: MarcacaoDia[]): Relogio[] {
     this.loggerService.info("RelogioService", "Buscando informacoes de relogios das marcacoes");
-    
+
     if (marcacoesDia.length === 0) {
       return [];
     }
@@ -105,12 +105,12 @@ export class RelogioService {
     this.loadingRelogios.set(true);
 
     const numSerieSet = new Set<string>();
-    
+
     marcacoesDia.forEach(m => {
       this.getRelogiosFromMarcacao(m).forEach(numSerie => numSerieSet.add(numSerie));
     });
 
-    const relogios = Array.from(numSerieSet).map(numSerie => 
+    const relogios = Array.from(numSerieSet).map(numSerie =>
       this.getRelogioFromNumSerie(numSerie)
     );
 
@@ -126,9 +126,9 @@ export class RelogioService {
   getRelogioFromNumSerie(numSerie: string): Relogio {
     const relogios = this._relogios();
     const buscaLimpa = this.normalizeNumSerie(numSerie);
-    
-    const relogioEncontrado = relogios.find(r => 
-        this.normalizeNumSerie(r.numSerie) === buscaLimpa
+
+    const relogioEncontrado = relogios.find(r =>
+      this.normalizeNumSerie(r.numSerie) === buscaLimpa
     );
 
     if (!relogioEncontrado) {
@@ -145,7 +145,7 @@ export class RelogioService {
     return relogioEncontrado;
   }
 
-  private normalizeNumSerie(numSerie: string | undefined | null): string {
+  public normalizeNumSerie(numSerie: string | undefined | null): string {
     if (!numSerie) return '';
     return numSerie.replace(/\./g, '').replace(/^0+/, '');
   }

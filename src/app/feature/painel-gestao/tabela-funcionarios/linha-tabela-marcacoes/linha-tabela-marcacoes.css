@@ -1,55 +1,114 @@
-:host {
-  display: table-row;
-  border-bottom: 1px solid var(--border-muted);
-  color: var(--text-muted);
-  cursor: default;
+
+.input-comentario {
+    width: 220px;
+    min-width: 220px;
+    max-width: 220px;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background-color: transparent;
+    transition: all 0.2s;
+    font-size: 0.9em;
+    font-family: inherit;
+    resize: none;
+    line-height: 1.4;
+    display: block;
+    field-sizing: content;
+    max-height: 5.8em; 
+    overflow-y: auto;
+    min-height: 34px;
+    box-sizing: border-box;
 }
 
-:host:hover {
-  background-color: var(--highlight);
-  color: var(--text);
+.input-comentario:hover {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
 }
 
-td {
-  padding: 12px;
+.input-comentario:focus {
+    background-color: white;
+    border-color: #80bdff;
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
 }
 
+.comentario-cell {
+    width: 220px;
+    min-width: 220px;
+    max-width: 220px;
+    padding: 4px !important;
+}
+
+/* Hora Pills */
+.hora-pill {
+    display: inline-block;
+    background-color: #f8f9fa;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 0.8rem;
+    margin: 2px;
+    border: 1px solid #dee2e6;
+    transition: all 0.15s;
+}
+
+.hora-pill.manual {
+    background-color: #fff3cd;
+    border-color: #ffeeba;
+    color: #856404;
+    font-weight: 600;
+}
+
+.hora-pill:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Status Badge */
 .badge {
-  padding: 4px 10px;
-  border-radius: 50px;
-  font-size: 0.9rem;
-  font-weight: 300;
-  white-space: nowrap;
-  display: inline-block;
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-/* Possiveis status: 'Ok' | 'Incompleto' | 'Pendente' | 'Falta' | 'Atraso' | 'Folga' | 'Ferias' | 'Corrigido' | 'Outro' */
-
-/* --- Variações de Cores --- */
-.status-ok, .status-corrigido, .status-ferias, .status-folga {
-  background-color: var(--badge-success-bg);
-  color: var(--badge-success-text);
-  border: 1px solid var(--badge-success-border);
+.status-ok { 
+    background-color: #d1e7dd; 
+    color: #0f5132; 
 }
 
-/* Exemplo 2: Pendente/Incompleto (Amarelo) */
-.status-pendente, .status-incompleto {
-  background-color: var(--badge-warning-bg);
-  color: var(--badge-warning-text);
-  border: 1px solid var(--badge-warning-border);
+.status-falta { 
+    background-color: #f8d7da; 
+    color: #842029; 
 }
 
-/* Exemplo 3: Erro/Ausente/Falta (Vermelho) */
-.status-atraso, .status-falta {
-  background-color: var(--badge-danger-bg);
-  color: var(--badge-danger-text);
-  border: 1px solid var(--badge-danger-border);
+.status-pendente { 
+    background-color: #fff3cd; 
+    color: #856404; 
 }
 
-/* Exemplo 4: Neutro/Desconhecido (Cinza) */
-.status-desconhecido, .status-inativo, .status-outro {
-  background-color: var(--badge-other-bg);
-  color: var(--badge-other-text);
-  border: 1px solid var(--badge-other-border);
+.status-incompleto { 
+    background-color: #fff3cd; 
+    color: #856404; 
 }
 
+.status-atraso { 
+    background-color: #f8d7da; 
+    color: #842029; 
+}
+
+.comment-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #0d6efd;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.comment-empty {
+    color: #adb5bd;
+    font-style: italic;
+}

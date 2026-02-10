@@ -1,11 +1,17 @@
-<td>{{ marcacao().id }}</td>
-<td>{{ marcacao().id }}</td>
-<td>{{ marcacao().cpf }}</td>
-<td>{{ marcacao().matricula }}</td>
-<td>{{ marcacao().nome }}</td>
-<td>{{ marcacao().getDataFormatada() }}</td>
-<td>{{ marcacao().getMarcacoesFormatadas() }}</td>
-<td>
+
+<td class="col-matricula" (click)="abrirDetalhes()">{{ marcacao().matricula }}</td>
+<td class="col-nome" (click)="abrirDetalhes()">{{ marcacao().nome }}</td>
+<td class="col-data" (click)="abrirDetalhes()">{{ marcacao().getDataFormatada() }}</td>
+<td class="col-dia-semana" (click)="abrirDetalhes()">{{ marcacao().getDiaSemana() }}</td>
+<td class="col-hora" (click)="abrirDetalhes()">
+  @for (m of marcacao().marcacoes; track $index) {
+    <span class="hora-pill" [class.manual]="m.numSerieRelogio === 'MANUAL'">
+      {{ formatHora(m.dataMarcacao) }}
+    </span>
+  }
+</td>
+<td class="col-total-horas" (click)="abrirDetalhes()">{{ marcacao().getHorasTrabalhadas() }}</td>
+<td class="col-status" (click)="abrirDetalhes()">
   <span class="badge" [class]="'status-' + marcacao().getStatus().toLowerCase()">
     {{ marcacao().getStatus() }}
   </span>

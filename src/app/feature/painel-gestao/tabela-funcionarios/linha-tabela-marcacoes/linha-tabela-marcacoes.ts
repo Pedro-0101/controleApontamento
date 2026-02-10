@@ -1,14 +1,45 @@
-import { Component, input } from '@angular/core';
+import { Component, computed, inject, input, Output, EventEmitter } from '@angular/core';
+import { MarcacaoService } from '../../../../core/services/marcacao/marcacao.service';
 import { MarcacaoDia } from '../../../../models/marcacaoDia/marcacao-dia';
+import { DateHelper } from '../../../../core/helpers/dateHelper';
 
 @Component({
-  selector: 'app-linha-tabela-marcacoes',
-  imports: [],
+  selector: 'tr[app-linha-tabela-marcacoes]',
   templateUrl: './linha-tabela-marcacoes.html',
   styleUrl: './linha-tabela-marcacoes.css',
 })
 export class LinhaTabelaMarcacoes {
-  
-  marcacao = input.required<MarcacaoDia>();
 
+  private marcacaoService = inject(MarcacaoService);
+
+  marcacao = input.required<MarcacaoDia>();
+  @Output() openDetails = new EventEmitter<MarcacaoDia>();
+
+  abrirDetalhes() {
+    this.openDetails.emit(this.marcacao());
+  }
+
+  formatHora(dataMarcacao: Date): string {
+    const hours = dataMarcacao.getHours().toString().padStart(2, '0');
+    const minutes = dataMarcacao.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
+  saveComment(event: Event) {
+    const input = event.target as any;
+    const novoComentario = input.value;
+    const m = this.marcacao();
+
+    // Data no formato DD/MM/YYYY, converter para YYYY-MM-DD
+    const dataIso = DateHelper.toIsoDate(m.data);
+
+    this.marcacaoService.saveComment(m.matricula, dataIso, novoComentario)
+      .then(() => {
+        // Sucesso visual ou notificação opcional
+      })
+      .catch(err => {
+        console.error('Erro ao salvar comentário', err);
+        // Opcional: Reverter valor no input
+      });
+  }
 }

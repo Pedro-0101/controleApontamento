@@ -51,10 +51,9 @@ export class FiltrosTabelaMarcacoes {
   private possiveisPeriodos: string[] = [
     'Hoje',
     'Ontem',
+    'Últimos 3 dias',
     'Últimos 7 dias',
-    'Últimos 30 dias',
-    'Este mês',
-    'Mês passado',
+    'Últimos 15 dias',
   ];
   readonly _periodosPossiveisFiltroPainel = this.possiveisPeriodos;
 
@@ -70,7 +69,7 @@ export class FiltrosTabelaMarcacoes {
   public aoSelecionarRelogio(event: Event): void {
     const elementoSelect = event.target as HTMLSelectElement;
     const numSerieSelecionado = elementoSelect.value;
-    
+
     if (numSerieSelecionado == 'todos') {
       this.relogioSelecionadaFiltroPainel.set(null);
       this.marcacaoService.filtrarMarcacoesPorRelogio(null);
@@ -79,7 +78,7 @@ export class FiltrosTabelaMarcacoes {
 
     const relogio = this.relogioService.getRelogioFromNumSerie(numSerieSelecionado);
     this.relogioSelecionadaFiltroPainel.set(relogio);
-    
+
     this.marcacaoService.filtrarMarcacoesPorRelogio(relogio);
   }
 
@@ -117,25 +116,20 @@ export class FiltrosTabelaMarcacoes {
         dataInicio = yesterdayRange.start;
         dataFim = yesterdayRange.end;
         break;
+      case 'Últimos 3 dias':
+        const last3DaysRange = DateHelper.getLastNDaysRange(3);
+        dataInicio = last3DaysRange.start;
+        dataFim = last3DaysRange.end;
+        break;
       case 'Últimos 7 dias':
         const last7DaysRange = DateHelper.getLastNDaysRange(7);
         dataInicio = last7DaysRange.start;
         dataFim = last7DaysRange.end;
         break;
-      case 'Últimos 30 dias':
-        const last30DaysRange = DateHelper.getLastNDaysRange(30);
-        dataInicio = last30DaysRange.start;
-        dataFim = last30DaysRange.end;
-        break;
-      case 'Este mês':
-        const thisMonthrange = DateHelper.getThisMonthRange();
-        dataInicio = thisMonthrange.start;
-        dataFim = thisMonthrange.end;
-        break;
-      case 'Mês passado':
-        const lastMonthRange = DateHelper.getLastMonthRange();
-        dataInicio = lastMonthRange.start;
-        dataFim = lastMonthRange.end;
+      case 'Últimos 15 dias':
+        const last15DaysRange = DateHelper.getLastNDaysRange(15);
+        dataInicio = last15DaysRange.start;
+        dataFim = last15DaysRange.end;
         break;
       default:
         const todayRangeDefault = DateHelper.getTodayRange();

@@ -46,7 +46,7 @@ export class DateHelper {
         const month = date.getMonth() + 1;
         const day = date.getDate();
 
-        if(isNaN(year) || isNaN(month) || isNaN(day)) {
+        if (isNaN(year) || isNaN(month) || isNaN(day)) {
             console.log("erro na data:", date);
             return '';
         }
@@ -125,5 +125,11 @@ export class DateHelper {
         const start = DateHelper.getStringDate(startDate);
         const end = DateHelper.getStringDate(endDate);
         return { start, end };
+    }
+    // Converte DD/MM/YYYY para YYYY-MM-DD
+    static toIsoDate(dateStr: string): string {
+        const parts = dateStr.split('/');
+        if (parts.length !== 3) return dateStr;
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
     }
 }

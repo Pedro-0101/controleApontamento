@@ -1,0 +1,168 @@
+<div class="modal-overlay" (click)="close.emit()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    
+    <!-- Loading Overlay -->
+    @if(isLoadingInitial()) {
+      <div class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Carregando informações...</p>
+      </div>
+    }
+
+    <div class="modal-header">
+      <div class="header-info">
+        <h3>Detalhes da Marcação</h3>
+        <p>{{ record().nome }} - {{ record().matricula }}</p>
+      </div>
+      <button class="btn-close" (click)="close.emit()">
+        <lucide-icon name="x" [size]="20"></lucide-icon>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="detail-row">
+        <div class="detail-item">
+          <label>Data</label>
+          <span>{{ record().getDataFormatada() }} ({{ record().getDiaSemana() }})</span>
+        </div>
+        <div class="detail-item">
+          <label>Status</label>
+          <span class="badge" [class]="'status-' + record().getStatus().toLowerCase()">
+            {{ record().getStatus() }}
+          </span>
+        </div>
+        <div class="detail-item">
+          <label>Total Horas</label>
+          <span class="total-hours">{{ getTotalHoras() }}</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <label class="section-title">Horários Registrados</label>
+        <div class="marcacoes-list">
+          @for (m of getMarcacoes(); track $index) {
+            <div class="marcacao-item" [class.manual]="m.numSerieRelogio === 'MANUAL'">
+              <lucide-icon name="clock" [size]="14"></lucide-icon>
+              <span class="hora">{{ formatHora(m.dataMarcacao) }}</span>
+              @if(m.numSerieRelogio === 'MANUAL') {
+                <span class="badge-manual">(Manual)</span>
+                <button class="btn-icon" (click)="editarPontoManual(m.id, formatHora(m.dataMarcacao))" title="Editar">
+                  <lucide-icon name="edit-2" [size]="12"></lucide-icon>
+                </button>
+                <button class="btn-icon btn-danger" (click)="deletarPontoManual(m.id)" title="Deletar">
+                  <lucide-icon name="trash-2" [size]="12"></lucide-icon>
+                </button>
+              }
+            </div>
+          } @empty {
+            <p class="empty-msg">Nenhum horário registrado.</p>
+          }
+        </div>
+      </div>
+
+      <div class="section manual-entry">
+        <label class="section-title">Adicionar Ponto Manual</label>
+        <div class="input-group">
+          <input type="time" [(ngModel)]="novoPontoHora" class="input-text" placeholder="HH:MM">
+          <button class="btn btn-primary" (click)="adicionarPontoManual()" [disabled]="isSaving()">
+            @if(isSaving()) {
+              <div class="btn-spinner"></div>
+            } @else {
+              <lucide-icon name="plus" [size]="16"></lucide-icon>
+            }
+            Adicionar
+          </button>
+        </div>
+      </div>
+
+      <div class="section">
+        <label class="section-title">Comentários ({{ getComentarios().length }})</label>
+        <div class="comments-thread">
+          @for (comentario of getComentarios(); track $index) {
+            <div class="comment-item">
+              <div class="comment-header">
+                <lucide-icon name="user" [size]="14"></lucide-icon>
+                <span class="comment-author">{{ comentario.criado_por }}</span>
+                <span class="comment-time">{{ comentario.getRelativeTime() }}</span>
+              </div>
+              <div class="comment-body">{{ comentario.comentario }}</div>
+            </div>
+          } @empty {
+            <p class="empty-msg">Nenhum comentário ainda.</p>
+          }
+        </div>
+        
+        <div class="comment-input-area">
+          <textarea 
+            [(ngModel)]="novoComentario" 
+            class="textarea-comentario" 
+            placeholder="Adicionar novo comentário..."
+            maxlength="255"
+            rows="2"
+          ></textarea>
+          <div class="comment-actions">
+            <span class="char-count">{{ novoComentario().length }}/255</span>
+            <button class="btn btn-primary btn-sm" (click)="adicionarComentario()" [disabled]="isSaving() || !novoComentario().trim()">
+              @if(isSaving()) {
+                <div class="btn-spinner"></div>
+              } @else {
+                <lucide-icon name="send" [size]="14"></lucide-icon>
+              }
+              Enviar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section history-section">
+        <label class="section-title">
+          <lucide-icon name="history" [size]="16"></lucide-icon>
+          Histórico (Últimos 7 dias)
+        </label>
+        
+        @if(isLoadingHistory()) {
+          <div class="loading-small">
+            <div class="spinner-small"></div>
+            <p class="empty-msg">Carregando histórico...</p>
+          </div>
+        } @else if (employeeHistory()) {
+          <div class="history-timeline">
+            @for (day of getHistoryDays(); track day.date) {
+              <div class="history-day">
+                <div class="history-date">{{ formatHistoryDate(day.date) }}</div>
+                <div class="history-content">
+                  @if(day.marcacoes.length > 0) {
+                    <div class="history-item">
+                      <lucide-icon name="clock" [size]="12"></lucide-icon>
+                      <span>{{ day.marcacoes.length }} registro(s)</span>
+                    </div>
+                  }
+                  @if(day.pontosManuais.length > 0) {
+                    <div class="history-item manual">
+                      <lucide-icon name="edit-3" [size]="12"></lucide-icon>
+                      <span>{{ day.pontosManuais.length }} ponto(s) manual(is)</span>
+                    </div>
+                  }
+                  @if(day.comentarios.length > 0) {
+                    <div class="history-item">
+                      <lucide-icon name="message-square" [size]="12"></lucide-icon>
+                      <span>{{ day.comentarios.length }} comentário(s)</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            } @empty {
+              <p class="empty-msg">Nenhum registro encontrado.</p>
+            }
+          </div>
+        } @else {
+          <p class="empty-msg">Erro ao carregar histórico.</p>
+        }
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="close.emit()">Fechar</button>
+    </div>
+  </div>
+</div>
