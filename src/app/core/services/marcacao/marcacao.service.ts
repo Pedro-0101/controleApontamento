@@ -255,6 +255,7 @@ export class MarcacaoService {
                 numSerieRelogio: 'MANUAL',
                 tipoRegistro: 99 // Tipo customizado para manual
               }));
+              console.log('Manual point added with ID:', p.id, 'for date:', dateObj);
             });
             // Re-ordenar marcações após inserção manual
             md.marcacoes.sort((a, b) => a.dataMarcacao.getTime() - b.dataMarcacao.getTime());
@@ -330,7 +331,7 @@ export class MarcacaoService {
     }
   }
 
-  private async fetchManualPointsBatch(matriculas: string[], dataInicio: string, dataFim: string): Promise<any[]> {
+  async fetchManualPointsBatch(matriculas: string[], dataInicio: string, dataFim: string): Promise<any[]> {
     const body = { matriculas, dataInicio, dataFim };
 
     try {

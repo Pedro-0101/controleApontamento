@@ -25,6 +25,11 @@ export class Sidebar {
       label: 'Relógios',
       route: '/relogios',
       icon: 'clock'
+    },
+    {
+      label: 'Relatórios',
+      route: '/relatorios',
+      icon: 'file-text'
     }
   ];
 }

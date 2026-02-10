@@ -36,6 +36,8 @@ import {
   Save,
   ChevronLeft,
   ChevronRight,
+  Inbox,
+  Watch
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -79,6 +81,8 @@ export const appConfig: ApplicationConfig = {
       Save,
       ChevronLeft,
       ChevronRight,
+      Inbox,
+      Watch
     }))
   ]
 };

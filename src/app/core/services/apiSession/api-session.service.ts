@@ -11,7 +11,7 @@ export class ApiSessionService {
 
   private logger = inject(LoggerService);
 
-  private tokenSession: WritableSignal<string | null> = signal(null);
+  tokenSession = signal<string | null>(null);
   private chaveEmpresa = environment.chaveEmpresa;
   private usuarioEmpresa = environment.usuarioEmpresa;
   private senhaEmpresa = environment.senhaEmpresa;

@@ -140,7 +140,7 @@ app.post('/api/marcacoes/manual/batch', async (req, res) => {
   try {
     const placeholders = matriculas.map(() => '?').join(',');
     const query = `
-      SELECT matricula_funcionario, DATE_FORMAT(data, '%Y-%m-%d') as data, TIME_FORMAT(hora, '%H:%i') as hora, criado_por, criado_em
+      SELECT id, matricula_funcionario, DATE_FORMAT(data, '%Y-%m-%d') as data, TIME_FORMAT(hora, '%H:%i') as hora, criado_por, criado_em
       FROM ponto_manual
       WHERE matricula_funcionario IN (${placeholders})
       AND data BETWEEN ? AND ?
@@ -178,7 +178,7 @@ app.get('/api/employee/:matricula/history', async (req, res) => {
     
     // Buscar pontos manuais dos últimos 7 dias
     const [pontosManuais] = await pool.query(
-      `SELECT DATE_FORMAT(data, '%Y-%m-%d') as data, TIME_FORMAT(hora, '%H:%i') as hora, criado_por, criado_em
+      `SELECT id, DATE_FORMAT(data, '%Y-%m-%d') as data, TIME_FORMAT(hora, '%H:%i') as hora, criado_por, criado_em
        FROM ponto_manual 
        WHERE matricula_funcionario = ? 
        AND data BETWEEN ? AND ?

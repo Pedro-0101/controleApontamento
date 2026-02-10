@@ -1,0 +1,57 @@
+<div class="multi-select-wrapper">
+  <div class="multi-select-header" (click)="toggleDropdown()">
+    <div class="selected-count">
+      @if (selectedEmployees().length === 0) {
+        <span class="placeholder">Selecione funcionários...</span>
+      } @else {
+        <span class="count-badge">{{ selectedEmployees().length }} selecionado(s)</span>
+      }
+    </div>
+    <lucide-icon name="chevron-down" [size]="16" [class.rotated]="isDropdownOpen()"></lucide-icon>
+  </div>
+
+  @if (isDropdownOpen()) {
+    <div class="multi-select-dropdown">
+      <!-- Search Bar -->
+      <div class="search-wrapper">
+        <lucide-icon name="search" [size]="16"></lucide-icon>
+        <input
+          type="text"
+          class="search-input"
+          placeholder="Buscar funcionário..."
+          [(ngModel)]="searchTerm"
+          (click)="$event.stopPropagation()"
+        >
+      </div>
+
+      <!-- Select All -->
+      <div class="select-all-option" (click)="toggleSelectAll(); $event.stopPropagation()">
+        <input
+          type="checkbox"
+          [checked]="isAllSelected()"
+          (click)="$event.stopPropagation()"
+        >
+        <label>Selecionar todos</label>
+      </div>
+
+      <!-- Options List -->
+      <div class="options-list">
+        @for (emp of filteredEmployees(); track emp.matricula) {
+          <div 
+            class="option-item"
+            (click)="toggleEmployee(emp.matricula); $event.stopPropagation()"
+          >
+            <input
+              type="checkbox"
+              [checked]="isEmployeeSelected(emp.matricula)"
+              (click)="$event.stopPropagation()"
+            >
+            <label>{{ emp.matricula }} - {{ emp.nome }}</label>
+          </div>
+        } @empty {
+          <div class="empty-message">Nenhum funcionário encontrado</div>
+        }
+      </div>
+    </div>
+  }
+</div>

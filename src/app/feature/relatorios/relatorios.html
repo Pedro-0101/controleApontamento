@@ -1,0 +1,202 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1>Relatórios de Marcações</h1>
+    <p>Gere relatórios detalhados de marcações por período, funcionário ou relógio</p>
+  </div>
+
+  <!-- Filters Section -->
+  <div class="filters-card">
+    <h2>Filtros do Relatório</h2>
+    
+    <div class="filter-grid">
+      <!-- Date Range -->
+      <div class="form-group">
+        <label for="dataInicio">Data Início *</label>
+        <input 
+          type="date" 
+          id="dataInicio"
+          [(ngModel)]="dataInicio"
+          class="input-text"
+          [max]="dataFim()"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="dataFim">Data Fim *</label>
+        <input 
+          type="date" 
+          id="dataFim"
+          [(ngModel)]="dataFim"
+          class="input-text"
+          [min]="dataInicio()"
+        >
+      </div>
+
+      <!-- Employee Filter -->
+      <div class="form-group">
+        <label>Funcionário (opcional)</label>
+        <app-multi-select-employees
+          [employees]="employees()"
+          (selectionChange)="onEmployeeSelectionChange($event)"
+        />
+      </div>
+
+      <!-- Clock Filter -->
+      <div class="form-group">
+        <label for="clock">Relógio (opcional)</label>
+        <select 
+          id="clock"
+          [(ngModel)]="selectedClock"
+          class="input-select"
+        >
+          <option value="">Todos os relógios</option>
+          @for (clock of relogios(); track clock.numSerie) {
+            <option [value]="clock.numSerie">{{ clock.numSerie }} - {{ clock.descricao }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="filter-actions">
+      <button 
+        class="btn btn-primary"
+        (click)="gerarRelatorio()"
+        [disabled]="isLoading() || !dataInicio() || !dataFim()"
+      >
+        @if (isLoading()) {
+          <div class="spinner" style="width: 16px; height: 16px;"></div>
+        } @else {
+          <lucide-icon name="file-text" [size]="16"></lucide-icon>
+        }
+        Gerar Relatório
+      </button>
+
+      <button 
+        class="btn btn-outline"
+        (click)="limparFiltros()"
+        [disabled]="isLoading()"
+      >
+        <lucide-icon name="x" [size]="16"></lucide-icon>
+        Limpar Filtros
+      </button>
+
+      @if (hasGenerated() && marcacoesPorDia().length > 0) {
+        <button 
+          class="btn btn-outline"
+          (click)="exportarCSV()"
+        >
+          <lucide-icon name="download" [size]="16"></lucide-icon>
+          Exportar CSV
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Results Section -->
+  @if (hasGenerated()) {
+    <div class="results-card">
+      @if (isLoading()) {
+        <div class="loading-container">
+          <div class="spinner"></div>
+          <p>Carregando marcações...</p>
+        </div>
+      } @else if (marcacoesPorDia().length === 0) {
+        <div class="empty-state">
+          <lucide-icon name="inbox" [size]="48"></lucide-icon>
+          <h3>Nenhuma marcação encontrada</h3>
+          <p>Não há marcações para os filtros selecionados.</p>
+        </div>
+      } @else {
+        <!-- Summary -->
+        <div class="summary-section">
+          <div class="summary-item">
+            <lucide-icon name="calendar" [size]="20"></lucide-icon>
+            <div>
+              <span class="summary-label">Período</span>
+              <span class="summary-value">{{ formatDateToDDMMYYYY(dataInicio()) }} a {{ formatDateToDDMMYYYY(dataFim()) }}</span>
+            </div>
+          </div>
+          
+          <div class="summary-item">
+            <lucide-icon name="user" [size]="20"></lucide-icon>
+            <div>
+              <span class="summary-label">Total de Funcionários/Dias</span>
+              <span class="summary-value">{{ marcacoesPorDia().length }} registros</span>
+            </div>
+          </div>
+
+          <div class="summary-item">
+            <lucide-icon name="clock" [size]="20"></lucide-icon>
+            <div>
+              <span class="summary-label">Total de Marcações</span>
+              <span class="summary-value">{{ marcacoes().length }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table by Day -->
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Matrícula</th>
+                <th>CPF</th>
+                <th>Data</th>
+                <th>Marcações</th>
+                <th>Horas</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (dia of paginatedMarcacoesPorDia; track dia.matricula + dia.data) {
+                <tr>
+                  <td>{{ dia.matricula }}</td>
+                  <td>{{ dia.cpf }}</td>
+                  <td>{{ dia.getDataFormatada() }}</td>
+                  <td>
+                    <div class="marcacoes-list">
+                      @for (m of dia.marcacoes; track m.id || $index) {
+                        <span class="badge badge-hora" [class.badge-manual]="m.numSerieRelogio === 'MANUAL'">
+                          {{ formatDateTime(m.dataMarcacao).split(' ')[1] }}
+                          @if (m.numSerieRelogio === 'MANUAL') {
+                            <span class="manual-indicator">*</span>
+                          }
+                        </span>
+                      }
+                    </div>
+                  </td>
+                  <td>{{ dia.getHorasTrabalhadas() }}</td>
+                  <td>
+                    <span class="badge" [ngClass]="'status-' + dia.getStatus()">
+                      {{ dia.getStatus() }}
+                    </span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <app-pagination
+          [totalItems]="marcacoesPorDia().length"
+          [itemsPerPage]="itemsPerPage()"
+          [currentPage]="currentPage()"
+          (pageChange)="onPageChange($event)"
+          (itemsPerPageChange)="onItemsPerPageChange($event)"
+        />
+
+        <!-- Legend -->
+        @if (hasManualPoints()) {
+          <div class="report-legend">
+            <div class="legend-item">
+              <span class="badge badge-hora badge-manual">00:00 <span class="manual-indicator">*</span></span>
+              <span class="legend-text">Marcações com asterisco (*) são pontos inseridos manualmente</span>
+            </div>
+          </div>
+        }
+      }
+    </div>
+  }
+</div>

@@ -115,6 +115,7 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
     if (!confirm('Deseja realmente deletar este ponto manual?')) return;
 
     this.isSaving.set(true);
+    console.log('Deleting manual point with ID:', pontoId);
     try {
       await this.marcacaoService.deletePontoManual(pontoId);
       await this.loadEmployeeHistory();
