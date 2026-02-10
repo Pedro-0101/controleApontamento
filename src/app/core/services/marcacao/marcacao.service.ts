@@ -167,8 +167,7 @@ export class MarcacaoService {
             [] // Array vazio de marcações
           );
 
-          marcacoesDia.push(marcacaoDia);
-          this.loggerService.info('MarcacaoService', `Funcionário ${funcionario.nome} (${funcionario.matricula}) adicionado sem marcação`);
+          marcacoesDia.push(marcacaoDia)
         }
       }
     } catch (error) {
@@ -251,6 +250,7 @@ export class MarcacaoService {
               );
 
               md.marcacoes.push(new Marcacao({
+                id: p.id, // Preserve ID for delete/edit operations
                 dataMarcacao: dateObj,
                 numSerieRelogio: 'MANUAL',
                 tipoRegistro: 99 // Tipo customizado para manual

@@ -1,0 +1,15 @@
+/* Using global styles from styles.css */
+
+/* Minimal overrides - most styles inherited from global */
+
+.num-serie {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  color: var(--color-gray-800);
+}
+
+.num-serie lucide-icon {
+  color: var(--color-primary);
+}

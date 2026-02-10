@@ -1,19 +1,21 @@
 <div class="table-container">
   
-  <div class="table-controls">
-    <div class="search-box">
+  <!-- Search and controls will use global styles -->
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-xl); background: white; border-bottom: 1px solid var(--color-gray-200);">
+    <div style="position: relative; flex: 1; max-width: 400px;">
       <input 
         type="text" 
         placeholder="Pesquisar por nome, matrícula ou CPF..." 
         (input)="onSearch($event)"
-        class="search-input"
+        class="input-text"
+        style="width: 100%; padding-left: 40px;"
       >
     </div>
 
-    <div class="right-controls">
-      <div class="items-per-page">
-        <label>Itens por página:</label>
-        <select (change)="onItemsPerPageChange($event)">
+    <div style="display: flex; align-items: center; gap: var(--spacing-lg);">
+      <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+        <label style="margin: 0; font-size: var(--font-size-sm); color: var(--color-gray-600);">Itens por página:</label>
+        <select (change)="onItemsPerPageChange($event)" class="input-select" style="min-width: 80px;">
           @for (option of itemsPerPageOptions; track option) {
             <option [value]="option" [selected]="option === itemsPerPage()">{{ option }}</option>
           }
@@ -44,10 +46,13 @@
 
 
   @if (_isLoadingMarcacoesPainel()) {
-    <div class="loading-overlay">Carregando marcações...</div>
+    <div class="loading-container">
+      <div class="spinner"></div>
+      <p>Carregando marcações...</p>
+    </div>
   } @else {
-    <div class="table-wrapper">
-      <table>
+    <div class="table-container">
+      <table class="data-table">
         <thead>
           <tr>
             <th (click)="onSort('matricula')" class="sortable col-matricula">
@@ -80,13 +85,13 @@
       </table>
     </div>
 
-    <div class="pagination-controls">
-      <div class="pagination-info">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-xl); background: white; border-top: 1px solid var(--color-gray-200);">
+      <span style="color: var(--color-gray-500); font-size: var(--font-size-sm);">
         Página {{ currentPage() }} de {{ _totalPages() }} (Total: {{ _totalItems() }} itens)
-      </div>
-      <div class="pagination-buttons">
-        <button (click)="prevPage()" [disabled]="currentPage() === 1" class="btn-pagination">Anterior</button>
-        <button (click)="nextPage()" [disabled]="currentPage() === _totalPages()" class="btn-pagination">Próximo</button>
+      </span>
+      <div style="display: flex; gap: var(--spacing-sm);">
+        <button (click)="prevPage()" [disabled]="currentPage() === 1" class="btn btn-outline" style="min-width: 100px;">Anterior</button>
+        <button (click)="nextPage()" [disabled]="currentPage() === _totalPages()" class="btn btn-outline" style="min-width: 100px;">Próximo</button>
       </div>
     </div>
   }

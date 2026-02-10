@@ -1,0 +1,96 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-content">
+      <h1>
+        <lucide-icon name="users" [size]="28"></lucide-icon>
+        Colaboradores
+      </h1>
+      <p class="subtitle">Gerenciar funcionários da empresa</p>
+    </div>
+    <button class="btn btn-primary" (click)="openCreateModal()">
+      <lucide-icon name="plus" [size]="18"></lucide-icon>
+      Adicionar Colaborador
+    </button>
+  </div>
+
+  @if(isLoading()) {
+    <div class="loading-container">
+      <div class="spinner"></div>
+      <p>Carregando colaboradores...</p>
+    </div>
+  } @else {
+    <div class="table-container">
+      <app-search-filter
+        searchPlaceholder="Pesquisar por nome, matrícula ou empresa..."
+        filterLabel="Status:"
+        [filterOptions]="filterOptions()"
+        (searchChange)="onSearchChange($event)"
+        (filterChange)="onFilterChange($event)"
+      ></app-search-filter>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Matrícula</th>
+            <th>Empresa</th>
+            <th>Status</th>
+            <th class="actions-column">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (employee of paginatedEmployees(); track employee.id) {
+            <tr>
+              <td class="employee-name">
+                <lucide-icon name="user" [size]="16"></lucide-icon>
+                {{ employee.nome }}
+              </td>
+              <td>{{ employee.matricula }}</td>
+              <td>{{ employee.empresa }}</td>
+              <td>
+                <span class="badge" [class]="getStatusClass(employee.ativo)">
+                  {{ getStatusLabel(employee.ativo) }}
+                </span>
+              </td>
+              <td class="actions-cell">
+                <button class="btn-icon" (click)="openEditModal(employee)" title="Editar">
+                  <lucide-icon name="edit" [size]="16"></lucide-icon>
+                </button>
+                <button class="btn-icon btn-danger" (click)="deleteEmployee(employee)" title="Excluir">
+                  <lucide-icon name="trash-2" [size]="16"></lucide-icon>
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="empty-state">
+                <lucide-icon name="users" [size]="48"></lucide-icon>
+                <p>Nenhum colaborador encontrado</p>
+                <button class="btn btn-primary btn-sm" (click)="openCreateModal()">
+                  Adicionar Primeiro Colaborador
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <app-pagination
+        [totalItems]="filteredEmployees().length"
+        [itemsPerPage]="itemsPerPage()"
+        [currentPage]="currentPage()"
+        (pageChange)="onPageChange($event)"
+        (itemsPerPageChange)="onItemsPerPageChange($event)"
+      ></app-pagination>
+    </div>
+  }
+
+  @if(showModal()) {
+    <app-modal-colaborador
+      [mode]="modalMode()"
+      [employee]="selectedEmployee()"
+      (close)="closeModal()"
+      (save)="handleSave()"
+    ></app-modal-colaborador>
+  }
+</div>

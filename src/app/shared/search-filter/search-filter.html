@@ -1,0 +1,33 @@
+<div class="search-filter-container">
+  <div class="search-box">
+    <lucide-icon name="search" [size]="18" class="search-icon"></lucide-icon>
+    <input
+      type="text"
+      class="search-input"
+      [placeholder]="searchPlaceholder()"
+      [value]="searchText()"
+      (input)="onSearchInput($any($event.target).value)"
+    />
+    @if (searchText()) {
+      <button class="btn-clear" (click)="clearSearch()" title="Limpar pesquisa">
+        <lucide-icon name="x" [size]="16"></lucide-icon>
+      </button>
+    }
+  </div>
+
+  @if (showFilter() && filterOptions().length > 0) {
+    <div class="filter-box">
+      <label for="filter">{{ filterLabel() }}</label>
+      <select
+        id="filter"
+        class="filter-select"
+        [value]="selectedFilter()"
+        (change)="onFilterChange($any($event.target).value)"
+      >
+        @for (option of filterOptions(); track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+    </div>
+  }
+</div>

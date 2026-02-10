@@ -1,0 +1,144 @@
+import { Component, inject, OnInit, signal, computed } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { LucideAngularModule } from 'lucide-angular';
+import { EmployeeService } from '../../core/services/employee/employee.service';
+import { Employee } from '../../models/employee/employee';
+import { ModalColaborador } from './modal-colaborador/modal-colaborador';
+import { Pagination } from '../../shared/pagination/pagination';
+import { SearchFilter, FilterOption } from '../../shared/search-filter/search-filter';
+
+@Component({
+  selector: 'app-colaboradores',
+  standalone: true,
+  imports: [CommonModule, LucideAngularModule, ModalColaborador, Pagination, SearchFilter],
+  templateUrl: './colaboradores.html',
+  styleUrl: './colaboradores.css'
+})
+export class Colaboradores implements OnInit {
+  private employeeService = inject(EmployeeService);
+
+  allEmployees = signal<Employee[]>([]);
+  searchText = signal('');
+  statusFilter = signal('all');
+  currentPage = signal(1);
+  itemsPerPage = signal(25);
+  isLoading = signal(false);
+  showModal = signal(false);
+  modalMode = signal<'create' | 'edit'>('create');
+  selectedEmployee = signal<Employee | null>(null);
+
+  filterOptions = signal<FilterOption[]>([
+    { label: 'Todos', value: 'all' },
+    { label: 'Ativos', value: '1' },
+    { label: 'Inativos', value: '0' }
+  ]);
+
+  // Filtered employees based on search and filter
+  filteredEmployees = computed(() => {
+    let result = this.allEmployees();
+
+    // Apply search filter
+    const search = this.searchText().toLowerCase();
+    if (search) {
+      result = result.filter(emp =>
+        emp.nome.toLowerCase().includes(search) ||
+        emp.matricula.toLowerCase().includes(search) ||
+        emp.empresa.toLowerCase().includes(search)
+      );
+    }
+
+    // Apply status filter
+    const status = this.statusFilter();
+    if (status !== 'all') {
+      result = result.filter(emp => emp.ativo === parseInt(status));
+    }
+
+    return result;
+  });
+
+  // Paginated employees
+  paginatedEmployees = computed(() => {
+    const filtered = this.filteredEmployees();
+    const start = (this.currentPage() - 1) * this.itemsPerPage();
+    const end = start + this.itemsPerPage();
+    return filtered.slice(start, end);
+  });
+
+  async ngOnInit() {
+    await this.loadEmployees();
+  }
+
+  async loadEmployees() {
+    this.isLoading.set(true);
+    try {
+      const employees = await this.employeeService.getAllEmployees();
+      this.allEmployees.set(employees);
+    } catch (error) {
+      console.error('Erro ao carregar colaboradores:', error);
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
+  onSearchChange(search: string) {
+    this.searchText.set(search);
+    this.currentPage.set(1); // Reset to first page on search
+  }
+
+  onFilterChange(filter: string) {
+    this.statusFilter.set(filter);
+    this.currentPage.set(1); // Reset to first page on filter
+  }
+
+  onPageChange(page: number) {
+    this.currentPage.set(page);
+  }
+
+  onItemsPerPageChange(items: number) {
+    this.itemsPerPage.set(items);
+    this.currentPage.set(1);
+  }
+
+  openCreateModal() {
+    this.modalMode.set('create');
+    this.selectedEmployee.set(null);
+    this.showModal.set(true);
+  }
+
+  openEditModal(employee: Employee) {
+    this.modalMode.set('edit');
+    this.selectedEmployee.set(employee);
+    this.showModal.set(true);
+  }
+
+  async deleteEmployee(employee: Employee) {
+    if (!confirm(`Deseja realmente excluir ${employee.nome}?`)) return;
+
+    try {
+      await this.employeeService.deleteEmployee(employee.id);
+      await this.loadEmployees();
+      alert('Colaborador excluído com sucesso!');
+    } catch (error) {
+      alert('Erro ao excluir colaborador.');
+      console.error(error);
+    }
+  }
+
+  closeModal() {
+    this.showModal.set(false);
+    this.selectedEmployee.set(null);
+  }
+
+  async handleSave() {
+    await this.loadEmployees();
+    this.closeModal();
+  }
+
+  getStatusClass(ativo: number): string {
+    return ativo === 1 ? 'status-ativo' : 'status-inativo';
+  }
+
+  getStatusLabel(ativo: number): string {
+    return ativo === 1 ? 'Ativo' : 'Inativo';
+  }
+}

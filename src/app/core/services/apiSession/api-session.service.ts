@@ -45,7 +45,6 @@ export class ApiSessionService {
       if (token && token.trim() !== '') {
         this.tokenSession.set(token);
         this.logger.info("ApiSessionService", "Sessão iniciada com sucesso");
-        this.logger.info("ApiSessionService", "Token: " + token);
         return;
       }
 

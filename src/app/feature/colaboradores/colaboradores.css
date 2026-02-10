@@ -1,0 +1,17 @@
+/* Using global styles from styles.css */
+
+.employee-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  color: var(--color-gray-800);
+}
+
+.employee-name lucide-icon {
+  color: var(--color-gray-400);
+}
+
+.actions-column {
+  width: 120px;
+}

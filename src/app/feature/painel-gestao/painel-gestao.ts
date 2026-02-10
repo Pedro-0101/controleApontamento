@@ -5,11 +5,10 @@ import { MarcacaoDia } from '../../models/marcacaoDia/marcacao-dia';
 import { TabelaFuncionarios } from './tabela-funcionarios/tabela-funcionarios';
 import { FiltrosTabelaMarcacoes } from './tabela-funcionarios/filtros-tabela-marcacoes/filtros-tabela-marcacoes';
 import { CadsPainel } from "./cads-painel/cads-painel";
-import { Nav } from "../../core/nav/nav";
 
 @Component({
   selector: 'app-painel-gestao',
-  imports: [FiltrosTabelaMarcacoes, TabelaFuncionarios, CadsPainel, Nav],
+  imports: [FiltrosTabelaMarcacoes, TabelaFuncionarios, CadsPainel],
   templateUrl: './painel-gestao.html',
   styleUrl: './painel-gestao.css',
   providers: [DatePipe]

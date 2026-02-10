@@ -1,0 +1,73 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-content">
+      <h1>
+        <lucide-icon name="clock" [size]="28"></lucide-icon>
+        Relógios
+      </h1>
+      <p class="subtitle">Lista de relógios de ponto da empresa</p>
+    </div>
+  </div>
+
+  @if(isLoading()) {
+    <div class="loading-container">
+      <div class="spinner"></div>
+      <p>Carregando relógios...</p>
+    </div>
+  } @else {
+    <div class="table-container">
+      <app-search-filter
+        searchPlaceholder="Pesquisar por número de série, descrição ou tipo..."
+        filterLabel="Status:"
+        [filterOptions]="filterOptions()"
+        (searchChange)="onSearchChange($event)"
+        (filterChange)="onFilterChange($event)"
+      ></app-search-filter>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Número de Série</th>
+            <th>Descrição</th>
+            <th>Tipo</th>
+            <th>Data Criação</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (relogio of paginatedRelogios(); track relogio.numSerie) {
+            <tr>
+              <td class="num-serie">
+                <lucide-icon name="clock" [size]="16"></lucide-icon>
+                {{ relogio.numSerie }}
+              </td>
+              <td>{{ relogio.descricao }}</td>
+              <td>{{ relogio.type }}</td>
+              <td>{{ relogio.dataCriacao }}</td>
+              <td>
+                <span class="badge" [class]="getStatusClass(relogio.status)">
+                  {{ getStatusLabel(relogio.status) }}
+                </span>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="empty-state">
+                <lucide-icon name="clock" [size]="48"></lucide-icon>
+                <p>Nenhum relógio encontrado</p>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <app-pagination
+        [totalItems]="filteredRelogios().length"
+        [itemsPerPage]="itemsPerPage()"
+        [currentPage]="currentPage()"
+        (pageChange)="onPageChange($event)"
+        (itemsPerPageChange)="onItemsPerPageChange($event)"
+      ></app-pagination>
+    </div>
+  }
+</div>

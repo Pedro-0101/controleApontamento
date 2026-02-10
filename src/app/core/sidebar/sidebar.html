@@ -1,0 +1,20 @@
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">
+      <lucide-icon name="clipboard-check" [size]="32"></lucide-icon>
+      <span class="logo-text">Controle</span>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section">
+      <span class="nav-section-title">NAVEGAÇÃO</span>
+      @for (item of menuItems; track item.route) {
+        <a [routerLink]="item.route" routerLinkActive="active" class="nav-item">
+          <lucide-icon [name]="item.icon" [size]="20"></lucide-icon>
+          <span>{{ item.label }}</span>
+        </a>
+      }
+    </div>
+  </nav>
+</aside>

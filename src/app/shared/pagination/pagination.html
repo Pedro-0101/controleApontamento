@@ -1,0 +1,60 @@
+<div class="pagination-container">
+  <div class="pagination-info">
+    <span class="text-muted">
+      Mostrando {{ getStartItem() }} a {{ getEndItem() }} de {{ totalItems() }} resultados
+    </span>
+    
+    <div class="items-per-page">
+      <label for="perPage">Por página:</label>
+      <select 
+        id="perPage" 
+        [value]="itemsPerPage()" 
+        (change)="changeItemsPerPage(+$any($event.target).value)"
+        class="input-select"
+      >
+        <option [value]="10">10</option>
+        <option [value]="25">25</option>
+        <option [value]="50">50</option>
+        <option [value]="100">100</option>
+      </select>
+    </div>
+  </div>
+
+  <nav class="pagination-nav" aria-label="Paginação">
+    <button 
+      class="btn-page" 
+      (click)="previousPage()" 
+      [disabled]="currentPage() === 1"
+      title="Página anterior"
+    >
+      <lucide-icon name="chevron-left" [size]="16"></lucide-icon>
+      Anterior
+    </button>
+
+    <div class="page-numbers">
+      @for (page of pageNumbers(); track $index) {
+        @if (page === '...') {
+          <span class="ellipsis">...</span>
+        } @else {
+          <button 
+            class="btn-page-number" 
+            [class.active]="page === currentPage()"
+            (click)="goToPage(+page)"
+          >
+            {{ page }}
+          </button>
+        }
+      }
+    </div>
+
+    <button 
+      class="btn-page" 
+      (click)="nextPage()" 
+      [disabled]="currentPage() === totalPages()"
+      title="Próxima página"
+    >
+      Próxima
+      <lucide-icon name="chevron-right" [size]="16"></lucide-icon>
+    </button>
+  </nav>
+</div>

@@ -1,3 +1,20 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: #f9fafb;
+}
+
+.main-content {
+  margin-left: 240px; /* Width of sidebar */
+  min-height: 100vh;
+  background: #f9fafb;
+}
+
+/* Ensure router outlet content fills the space */
+router-outlet {
+  display: none;
+}
+
 :root {
   --color-primary-dark: #000000;
   --color-secondary-dark: #000401;

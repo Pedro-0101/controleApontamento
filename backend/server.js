@@ -284,6 +284,198 @@ app.post('/api/employees/batch', async (req, res) => {
   }
 });
 
+// Rota para buscar todos os funcionários (ativos e inativos)
+app.get('/api/employees', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, matricula, empresa, nome, qrcod, ativo FROM qrcod_2023 ORDER BY nome ASC'
+    );
+
+    res.json({
+      success: true,
+      employees: rows,
+      count: rows.length
+    });
+  } catch (error) {
+    console.error('Erro ao buscar funcionários:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao buscar funcionários no banco de dados'
+    });
+  }
+});
+
+// Rota para criar novo funcionário
+app.post('/api/employees', async (req, res) => {
+  const { matricula, empresa, nome, qrcod, ativo } = req.body;
+
+  if (!matricula || !nome) {
+    return res.status(400).json({
+      success: false,
+      error: 'Matrícula e nome são obrigatórios'
+    });
+  }
+
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO qrcod_2023 (matricula, empresa, nome, qrcod, ativo) VALUES (?, ?, ?, ?, ?)',
+      [matricula, empresa || '', nome, qrcod || '', ativo !== undefined ? ativo : 1]
+    );
+
+    // Buscar o funcionário criado para retornar
+    const [rows] = await pool.query(
+      'SELECT id, matricula, empresa, nome, qrcod, ativo FROM qrcod_2023 WHERE id = ?',
+      [result.insertId]
+    );
+
+    res.json({
+      success: true,
+      employee: rows[0],
+      message: 'Funcionário criado com sucesso'
+    });
+  } catch (error) {
+    console.error('Erro ao criar funcionário:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({
+        success: false,
+        error: 'Matrícula já cadastrada'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao criar funcionário no banco de dados'
+    });
+  }
+});
+
+// Rota para atualizar funcionário
+app.put('/api/employees/:id', async (req, res) => {
+  const { id } = req.params;
+  const { matricula, empresa, nome, qrcod, ativo } = req.body;
+
+  if (!matricula || !nome) {
+    return res.status(400).json({
+      success: false,
+      error: 'Matrícula e nome são obrigatórios'
+    });
+  }
+
+  try {
+    await pool.query(
+      'UPDATE qrcod_2023 SET matricula = ?, empresa = ?, nome = ?, qrcod = ?, ativo = ? WHERE id = ?',
+      [matricula, empresa || '', nome, qrcod || '', ativo !== undefined ? ativo : 1, id]
+    );
+
+    // Buscar o funcionário atualizado
+    const [rows] = await pool.query(
+      'SELECT id, matricula, empresa, nome, qrcod, ativo FROM qrcod_2023 WHERE id = ?',
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Funcionário não encontrado'
+      });
+    }
+
+    res.json({
+      success: true,
+      employee: rows[0],
+      message: 'Funcionário atualizado com sucesso'
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar funcionário:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({
+        success: false,
+        error: 'Matrícula já cadastrada'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao atualizar funcionário no banco de dados'
+    });
+  }
+});
+
+// Rota para deletar funcionário
+app.delete('/api/employees/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [result] = await pool.query(
+      'DELETE FROM qrcod_2023 WHERE id = ?',
+      [id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Funcionário não encontrado'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Funcionário deletado com sucesso'
+    });
+  } catch (error) {
+    console.error('Erro ao deletar funcionário:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao deletar funcionário no banco de dados'
+    });
+  }
+});
+
+// Rota para atualizar ponto manual
+app.put('/api/marcacoes/manual/:id', async (req, res) => {
+  const { id } = req.params;
+  const { hora, criadoPor } = req.body;
+
+  if (!hora) {
+    return res.status(400).json({ success: false, error: 'Hora é obrigatória' });
+  }
+
+  try {
+    const [result] = await pool.query(
+      'UPDATE ponto_manual SET hora = ?, criado_por = ? WHERE id = ?',
+      [hora, criadoPor, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: 'Ponto manual não encontrado' });
+    }
+
+    res.json({ success: true, message: 'Ponto manual atualizado com sucesso' });
+  } catch (error) {
+    console.error('Erro ao atualizar ponto manual:', error);
+    res.status(500).json({ success: false, error: 'Erro ao atualizar ponto manual' });
+  }
+});
+
+// Rota para deletar ponto manual
+app.delete('/api/marcacoes/manual/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [result] = await pool.query(
+      'DELETE FROM ponto_manual WHERE id = ?',
+      [id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: 'Ponto manual não encontrado' });
+    }
+
+    res.json({ success: true, message: 'Ponto manual deletado com sucesso' });
+  } catch (error) {
+    console.error('Erro ao deletar ponto manual:', error);
+    res.status(500).json({ success: false, error: 'Erro ao deletar ponto manual' });
+  }
+});
+
 // Rota para buscar todos os funcionários ativos (ativo=1)
 app.get('/api/employees/active', async (req, res) => {
   try {

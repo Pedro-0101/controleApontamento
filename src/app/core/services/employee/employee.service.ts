@@ -158,4 +158,105 @@ export class EmployeeService {
       return [];
     }
   }
+
+  /**
+   * Busca todos os funcionários (ativos e inativos)
+   * @returns Array de todos os funcionários
+   */
+  async getAllEmployees(): Promise<Employee[]> {
+    try {
+      this.logger.info('EmployeeService', 'Buscando todos os funcionários');
+
+      const response = await firstValueFrom(
+        this.http.get<{ success: boolean; employees: any[]; count: number }>(`${this.apiUrl}/employees`)
+      );
+
+      if (response.success) {
+        this.logger.info('EmployeeService', `${response.count} funcionários encontrados`);
+        return response.employees.map(emp => Employee.fromJson(emp));
+      }
+
+      this.logger.warn('EmployeeService', 'Nenhum funcionário encontrado');
+      return [];
+    } catch (error: any) {
+      this.logger.error('EmployeeService', 'Erro ao buscar funcionários:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Cria um novo funcionário
+   * @param employee - Dados do funcionário
+   * @returns Funcionário criado
+   */
+  async createEmployee(employee: Partial<Employee>): Promise<Employee | null> {
+    try {
+      this.logger.info('EmployeeService', 'Criando novo funcionário');
+
+      const response = await firstValueFrom(
+        this.http.post<{ success: boolean; employee: any; message?: string }>(`${this.apiUrl}/employees`, employee)
+      );
+
+      if (response.success && response.employee) {
+        this.logger.info('EmployeeService', 'Funcionário criado com sucesso');
+        return Employee.fromJson(response.employee);
+      }
+
+      return null;
+    } catch (error: any) {
+      this.logger.error('EmployeeService', 'Erro ao criar funcionário:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Atualiza um funcionário existente
+   * @param id - ID do funcionário
+   * @param employee - Dados atualizados
+   * @returns Funcionário atualizado
+   */
+  async updateEmployee(id: number, employee: Partial<Employee>): Promise<Employee | null> {
+    try {
+      this.logger.info('EmployeeService', `Atualizando funcionário ID: ${id}`);
+
+      const response = await firstValueFrom(
+        this.http.put<{ success: boolean; employee: any; message?: string }>(`${this.apiUrl}/employees/${id}`, employee)
+      );
+
+      if (response.success && response.employee) {
+        this.logger.info('EmployeeService', 'Funcionário atualizado com sucesso');
+        return Employee.fromJson(response.employee);
+      }
+
+      return null;
+    } catch (error: any) {
+      this.logger.error('EmployeeService', 'Erro ao atualizar funcionário:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Deleta um funcionário
+   * @param id - ID do funcionário
+   * @returns True se deletado com sucesso
+   */
+  async deleteEmployee(id: number): Promise<boolean> {
+    try {
+      this.logger.info('EmployeeService', `Deletando funcionário ID: ${id}`);
+
+      const response = await firstValueFrom(
+        this.http.delete<{ success: boolean; message?: string }>(`${this.apiUrl}/employees/${id}`)
+      );
+
+      if (response.success) {
+        this.logger.info('EmployeeService', 'Funcionário deletado com sucesso');
+        return true;
+      }
+
+      return false;
+    } catch (error: any) {
+      this.logger.error('EmployeeService', 'Erro ao deletar funcionário:', error);
+      throw error;
+    }
+  }
 }
