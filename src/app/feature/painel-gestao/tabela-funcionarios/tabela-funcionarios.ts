@@ -56,11 +56,17 @@ export class TabelaFuncionarios {
 
       // Tratamento especial para métodos ou propriedades específicas
       if (column === 'data') {
-        // DateHelper.getStringDate retorna DD/MM/YYYY, converter para comparar
-        const [dayA, monthA, yearA] = a.data.split('/');
-        const [dayB, monthB, yearB] = b.data.split('/');
-        valueA = new Date(`${yearA}-${monthA}-${dayA}`).getTime();
-        valueB = new Date(`${yearB}-${monthB}-${dayB}`).getTime();
+        const dateA = a.data.includes('/') ? a.data.split('/') : a.data.split('-');
+        const dateB = b.data.includes('/') ? b.data.split('/') : b.data.split('-');
+
+        // Handle YYYY-MM-DD vs DD/MM/YYYY
+        if (dateA[0].length === 4) {
+          valueA = new Date(a.data).getTime();
+          valueB = new Date(b.data).getTime();
+        } else {
+          valueA = new Date(`${dateA[2]}-${dateA[1]}-${dateA[0]}`).getTime();
+          valueB = new Date(`${dateB[2]}-${dateB[1]}-${dateB[0]}`).getTime();
+        }
       }
 
       if (typeof valueA === 'string') valueA = valueA.toLowerCase();

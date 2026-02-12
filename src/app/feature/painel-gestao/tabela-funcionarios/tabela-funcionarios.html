@@ -59,6 +59,10 @@
               Matrícula
               @if(sortColumn() === 'matricula') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
             </th>
+            <th (click)="onSort('empresa')" class="sortable col-empresa">
+              Empresa
+              @if(sortColumn() === 'empresa') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+            </th>
             <th (click)="onSort('nome')" class="sortable col-nome">
               Nome
               @if(sortColumn() === 'nome') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }

@@ -75,23 +75,17 @@ export class DateHelper {
     // Retorna a data inicial e final para o filtro "Hoje"
     static getTodayRange(): { start: string; end: string } {
         const today = new Date();
-        let tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
-        const start = DateHelper.getStringDate(today);
-        const end = DateHelper.getStringDate(tomorrow);
-        return { start: start, end: end };
+        const dateStr = DateHelper.getStringDate(today);
+        return { start: dateStr, end: dateStr };
     }
 
     // Retorna a data inicial e final para o filtro "Ontem"
     static getYesterdayRange(): { start: string; end: string } {
-        const today = new Date();
         let yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
 
-        const start = DateHelper.getStringDate(yesterday);
-        const end = DateHelper.getStringDate(today);
-        return { start: start, end: end };
+        const dateStr = DateHelper.getStringDate(yesterday);
+        return { start: dateStr, end: dateStr };
     }
 
     // Retorna a data inicial e final para o filtro "Últimos N dias"

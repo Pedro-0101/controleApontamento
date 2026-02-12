@@ -14,21 +14,17 @@
     </div>
 
     <div class="filter-item">
-      <label for="relogio">Relogio</label>
+      <label for="empresa">Empresa</label>
 
-      <select id="relogio" (change)="aoSelecionarRelogio($event)" [disabled]="_carregandoRelogioFiltroPainel() || _isLoadingMarcacoesFiltroPainel()">
+      <select id="empresa" (change)="aoSelecionarEmpresa($event)" [disabled]="_isLoadingMarcacoesFiltroPainel()">
         <option value='todos'>Todos</option>
 
-        @for(relogio of _relogiosFiltroPainel(); track relogio.numSerie) {
-        <option [value]="relogio.numSerie">
-          {{ relogio.descricao | titlecase }}
+        @for(empresa of _empresasFiltroPainel(); track empresa) {
+        <option [value]="empresa">
+          {{ empresa | titlecase }}
         </option>
         }
       </select>
-
-      @if (_carregandoRelogioFiltroPainel()) {
-      <span class="loading-text">Carregando...</span>
-      }
     </div>
 
     <div class="filter-item">

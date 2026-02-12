@@ -19,9 +19,15 @@ export class LinhaTabelaMarcacoes {
     this.openDetails.emit(this.marcacao());
   }
 
-  formatHora(dataMarcacao: Date): string {
-    const hours = dataMarcacao.getHours().toString().padStart(2, '0');
-    const minutes = dataMarcacao.getMinutes().toString().padStart(2, '0');
+  formatHora(dataMarcacao: Date | string | undefined): string {
+    if (!dataMarcacao) return '--:--';
+
+    const date = dataMarcacao instanceof Date ? dataMarcacao : new Date(dataMarcacao);
+
+    if (isNaN(date.getTime())) return '--:--';
+
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
     return `${hours}:${minutes}`;
   }
 

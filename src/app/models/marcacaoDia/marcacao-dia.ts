@@ -14,6 +14,7 @@ export interface MarcacaoDia {
     status?: statusMarcacaoDia;
     comentarios?: ComentarioMarcacao[];
     comentario?: string; // Comentário do dia (String simples)
+    empresa?: string;
 }
 
 // 2. O tipo define os possíveis valores para o status
@@ -29,6 +30,7 @@ export class MarcacaoDia implements MarcacaoDia {
     marcacoes: Marcacao[];
     comentarios?: ComentarioMarcacao[];
     comentario?: string;
+    empresa?: string;
 
     constructor(
         id: number,
@@ -37,12 +39,14 @@ export class MarcacaoDia implements MarcacaoDia {
         nome: string,
         data: string,
         marcacoes: Marcacao[],
+        empresa?: string,
         comentarios?: ComentarioMarcacao[]
     ) {
         this.id = id;
         this.cpf = cpf;
         this.matricula = matricula;
         this.nome = nome;
+        this.empresa = empresa || '';
         this.comentarios = comentarios || [];
         this.data = data;
 

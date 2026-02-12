@@ -39,66 +39,6 @@
     padding: 4px !important;
 }
 
-/* Hora Pills */
-.hora-pill {
-    display: inline-block;
-    background-color: #f8f9fa;
-    padding: 4px 10px;
-    border-radius: 16px;
-    font-size: 0.8rem;
-    margin: 2px;
-    border: 1px solid #dee2e6;
-    transition: all 0.15s;
-}
-
-.hora-pill.manual {
-    background-color: #fff3cd;
-    border-color: #ffeeba;
-    color: #856404;
-    font-weight: 600;
-}
-
-.hora-pill:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* Status Badge */
-.badge {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.status-ok { 
-    background-color: #d1e7dd; 
-    color: #0f5132; 
-}
-
-.status-falta { 
-    background-color: #f8d7da; 
-    color: #842029; 
-}
-
-.status-pendente { 
-    background-color: #fff3cd; 
-    color: #856404; 
-}
-
-.status-incompleto { 
-    background-color: #fff3cd; 
-    color: #856404; 
-}
-
-.status-atraso { 
-    background-color: #f8d7da; 
-    color: #842029; 
-}
-
 .comment-count {
     display: inline-flex;
     align-items: center;

@@ -1,1 +1,16 @@
-<p>Oops - 401 - unauthorized works!</p>
+<div class="error-container">
+  <div class="error-card">
+    <div class="icon-wrapper">
+      <lucide-icon name="shield-alert" size="48"></lucide-icon>
+    </div>
+    <h1>401 - Sem Autorização</h1>
+    <p>
+      Você não tem autorização para acessar esta página. Por favor, faça login com uma conta
+      autorizada.
+    </p>
+    <button (click)="goToLogin()" class="btn-primary">
+      <lucide-icon name="log-in"></lucide-icon>
+      Ir para o Login
+    </button>
+  </div>
+</div>

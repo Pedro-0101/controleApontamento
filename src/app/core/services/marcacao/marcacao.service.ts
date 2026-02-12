@@ -40,6 +40,23 @@ export class MarcacaoService {
   readonly _marcacoes = computed(() => this.marcacoes());
   readonly _marcacoesFiltradas = computed(() => this.marcacoesFiltradas());
   readonly _relogioMarcacoes = computed(() => this.relogiosMarcacoes());
+  readonly _empresasFiltroPainel = computed(() => {
+    const list = this.marcacaoesFiltradasBackup();
+    const empresas = list.map(m => m.empresa).filter(e => !!e);
+    return [...new Set(empresas)].sort();
+  });
+
+  readonly _totalFaltas = computed(() => {
+    return this.marcacaoesFiltradasBackup().filter(m => m.getStatus() === 'falta').length;
+  });
+
+  readonly _totalPendentes = computed(() => {
+    return this.marcacaoesFiltradasBackup().filter(m => m.getStatus() === 'pendente').length;
+  });
+
+  readonly _totalIncompletos = computed(() => {
+    return this.marcacaoesFiltradasBackup().filter(m => m.getStatus() === 'pendente').length;
+  });
 
   private currentDataInicio = signal<string>('');
   private currentDataFim = signal<string>('');
@@ -65,6 +82,7 @@ export class MarcacaoService {
       const marcacoesOrdenadas = marcacoes.sort((a, b) => a.cpf.localeCompare(b.cpf));
       const marcacoesPorDia = await this.formatarMarcacoesPorDia(marcacoesOrdenadas, dataInicio, dataFim);
 
+      this.ordenarTodasMarcacoes(marcacoesPorDia);
       this.marcacoesFiltradas.set(marcacoesPorDia);
       this.marcacaoesFiltradasBackup.set(marcacoesPorDia);
       this.relogiosMarcacoes.set(this.getRelogiosFromMarcacoes())
@@ -103,12 +121,12 @@ export class MarcacaoService {
     const matriculasUnicas = [...new Set(marcacoes.map(m => m.matriculaFuncionario))];
 
     // 2. Buscar nomes em lote (1 chamada HTTP ao invés de N)
-    const nomesMap = new Map<string, string>();
+    const employeeDataMap = new Map<string, { nome: string, empresa: string }>();
     try {
-      const nomesBatch = await this.employeeService.getEmployeeNamesBatch(matriculasUnicas);
-      nomesBatch.forEach(item => nomesMap.set(item.matricula, item.nome));
+      const employeesBatch = await this.employeeService.getEmployeeNamesBatch(matriculasUnicas);
+      employeesBatch.forEach(item => employeeDataMap.set(item.matricula, { nome: item.nome, empresa: item.empresa }));
     } catch (error) {
-      this.loggerService.error('MarcacaoService', 'Erro ao buscar nomes em lote', error);
+      this.loggerService.error('MarcacaoService', 'Erro ao buscar dados dos funcionários em lote', error);
     }
 
     // 3. Agrupar marcações usando Map (Lookup O(1))
@@ -123,7 +141,9 @@ export class MarcacaoService {
         gruposMap.get(chave)!.marcacoes.push(marcacao);
       } else {
         // Criar novo grupo
-        const nome = nomesMap.get(marcacao.matriculaFuncionario) || 'nome nao encontrado';
+        const empData = employeeDataMap.get(marcacao.matriculaFuncionario);
+        const nome = empData ? empData.nome : 'nome nao encontrado';
+        const empresa = empData ? empData.empresa : '';
 
         const marcacaoDia = new MarcacaoDia(
           marcacao.id,
@@ -131,7 +151,8 @@ export class MarcacaoService {
           marcacao.matriculaFuncionario,
           nome,
           dateStr,
-          [marcacao]
+          [marcacao],
+          empresa
         );
         gruposMap.set(chave, marcacaoDia);
       }
@@ -164,7 +185,8 @@ export class MarcacaoService {
             funcionario.matricula,
             funcionario.nome,
             hoje,
-            [] // Array vazio de marcações
+            [], // Array vazio de marcações
+            funcionario.empresa
           );
 
           marcacoesDia.push(marcacaoDia)
@@ -374,36 +396,8 @@ export class MarcacaoService {
     return ['atraso', 'corrigido', 'falta', 'ferias', 'folga', 'incompleto', 'ok', 'outro', 'pendente'];
   }
 
-  filtrarMarcacoesPorStatus(status: string | null): void {
-    this.loggerService.info('MarcacaoService', `Filtrando marcações por status: ${status}`);
-
-    if (!status) {
-      this.loggerService.error('MarcacaoService', 'Status inválido para filtragem');
-      return;
-    }
-
-    if (status.toLowerCase() === 'todos') {
-      this.marcacoesFiltradas.set(this.marcacaoesFiltradasBackup());
-      this.isLoadingMarcacoes.set(false);
-      return;
-    }
-
-    this.isLoadingMarcacoes.set(true);
-
-    const marcacoesFiltradas = this.marcacaoesFiltradasBackup();
-    const marcacoesFiltradasPorStatus = marcacoesFiltradas.filter(marcacaoDia =>
-      marcacaoDia.getStatus() === status.toLowerCase()
-    );
-
-    this.marcacoesFiltradas.set(marcacoesFiltradasPorStatus);
-    this.relogioService.updateRelogiosFromMarcacoes(marcacoesFiltradasPorStatus);
-    this.isLoadingMarcacoes.set(false);
-    this.loggerService.info('MarcacaoService', `${marcacoesFiltradasPorStatus.length} marcações encontradas com status ${status}`);
-    return;
-  }
-
-  filtrarMarcacoesPorRelogio(relogio: Relogio | null): void {
-    if (!relogio) {
+  filtrarMarcacoesPorEmpresa(empresa: string | null): void {
+    if (!empresa || empresa.toLowerCase() === 'todas' || empresa.toLowerCase() === 'todos') {
       this.marcacoesFiltradas.set(this.marcacaoesFiltradasBackup());
       this.isLoadingMarcacoes.set(false);
       return;
@@ -412,14 +406,38 @@ export class MarcacaoService {
     this.isLoadingMarcacoes.set(true);
 
     const listaCompleta = this.marcacaoesFiltradasBackup();
-    const numSerieAlvo = this.relogioService.normalizeNumSerie(relogio.numSerie);
-
     const marcacoesFiltradas = listaCompleta.filter(dia => {
-      return dia.marcacoes.some(m => this.relogioService.normalizeNumSerie(m.numSerieRelogio) === numSerieAlvo);
+      return dia.empresa?.toLowerCase() === empresa.toLowerCase();
     });
 
     this.marcacoesFiltradas.set(marcacoesFiltradas);
     this.isLoadingMarcacoes.set(false);
+  }
+
+  // Ordenar marcações após qualquer atualização ou inserção manual
+  private ordenarTodasMarcacoes(marcacoesDia: MarcacaoDia[]): void {
+    marcacoesDia.forEach(md => {
+      md.marcacoes.sort((a, b) => a.dataMarcacao.getTime() - b.dataMarcacao.getTime());
+    });
+  }
+
+  private currentEmpresaFiltro = signal<string | null>(null);
+
+  filtrarMarcacoesPorStatus(status: string | null): void {
+    this.loggerService.info('MarcacaoService', `Filtrando marcações por status: ${status}`);
+
+    if (!status) return;
+
+    if (status.toLowerCase() === 'todos') {
+      this.marcacoesFiltradas.set(this.marcacaoesFiltradasBackup());
+      return;
+    }
+
+    const marcacoesFiltradas = this.marcacaoesFiltradasBackup().filter(dia =>
+      dia.getStatus() === status.toLowerCase()
+    );
+
+    this.marcacoesFiltradas.set(marcacoesFiltradas);
   }
 
   getRelogiosFromMarcacoes(): Relogio[] {

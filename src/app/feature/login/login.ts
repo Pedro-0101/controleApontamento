@@ -4,6 +4,7 @@ import { LoggerService } from '../../core/services/logger/logger.service';
 import { LucideAngularModule } from 'lucide-angular';
 import { AuthService } from '../../core/services/auth/auth.service';
 import { Router } from '@angular/router';
+import { ToastService } from '../../core/services/toast/toast.service';
 
 @Component({
   selector: 'app-login',
@@ -17,6 +18,7 @@ export class Login {
   private loggerService = inject(LoggerService);
   private authService = inject(AuthService);
   private router = inject(Router);
+  private toastService = inject(ToastService);
 
   // Signal reativo que atualiza automaticamente quando o token chega
   public sessionToken = this.startSessionService.token;
@@ -28,17 +30,17 @@ export class Login {
   async ngOnInit() {
     // Tenta logar automaticamente se já houver sessão ativa
     this.loggerService.info("Login component", "Tentando login automático");
-    if(await this.authService.login()) {
-      this.router.navigate(['/painel-gestao']);
+    if (await this.authService.login()) {
+      this.router.navigate(['/painel-pontos']);
     }
   }
 
   async onSubmit(accessCode: string) {
     this.loggerService.info("Login component", "Enviando código de acesso");
     if (await this.authService.login(accessCode)) {
-      this.router.navigate(['/painel-gestao']);
+      this.router.navigate(['/painel-pontos']);
     } else {
-      window.alert("Código de acesso inválido");
+      this.toastService.error("Código de acesso inválido");
     }
   }
 }

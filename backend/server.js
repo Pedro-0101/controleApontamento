@@ -259,17 +259,21 @@ app.post('/api/employees/batch', async (req, res) => {
       matriculas
     );
 
-    // Criar um mapa de matrícula -> nome
+    // Criar um mapa de matrícula -> {nome, empresa}
     const employeeMap = {};
     rows.forEach(row => {
-      employeeMap[row.matricula] = row.nome;
+      employeeMap[row.matricula] = { nome: row.nome, empresa: row.empresa };
     });
 
-    // Para cada matrícula solicitada, retornar nome ou "nome nao encontrado"
-    const result = matriculas.map(matricula => ({
-      matricula,
-      nome: employeeMap[matricula] || 'nome nao encontrado'
-    }));
+    // Para cada matrícula solicitada, retornar nome, empresa ou fallback
+    const result = matriculas.map(matricula => {
+      const data = employeeMap[matricula];
+      return {
+        matricula,
+        nome: data ? data.nome : 'nome nao encontrado',
+        empresa: data ? data.empresa : ''
+      };
+    });
 
     res.json({
       success: true,

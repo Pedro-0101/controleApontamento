@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
 
 @Component({
@@ -8,4 +8,6 @@ import { LucideAngularModule } from 'lucide-angular';
   templateUrl: './card-incompletos.html',
   styleUrl: './card-incompletos.css',
 })
-export class CardIncompletos {}
+export class CardIncompletos {
+  total = input<number>(0);
+}

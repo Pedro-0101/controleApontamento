@@ -19,13 +19,12 @@ export class FiltrosTabelaMarcacoes {
   // Services
   private loggerService = inject(LoggerService);
   private marcacaoService = inject(MarcacaoService);
-  private relogioService = inject(RelogioService);
 
   // Signal loading marcacoes
   protected readonly _isLoadingMarcacoesFiltroPainel = this.marcacaoService._isLoadingMarcacoes;
 
-  // Signals relogios
-  private relogioSelecionadaFiltroPainel = signal<Relogio | null>(null);
+  // Signals empresas
+  private empresaSelecionadaFiltroPainel = signal<string | null>(null);
 
   // Signals data inicial e final
   private dataInicialFiltroPainel = signal<string | null>(null);
@@ -35,10 +34,9 @@ export class FiltrosTabelaMarcacoes {
   private statusPossiveisFiltroPainel = signal<string[]>(MarcacaoService.getPossiveisStatus());
   private statusSelecionadoFiltroPainel = signal<string | null>(null);
 
-  // Computeds relogios
-  readonly _relogiosFiltroPainel = computed(() => this.relogioService._relogiosMarcacoes());
-  readonly _relogioSelecionadaFiltroPainel = computed(() => this.relogioSelecionadaFiltroPainel());
-  readonly _carregandoRelogioFiltroPainel = this.relogioService._loadingRelogios;
+  // Computeds empresas
+  readonly _empresasFiltroPainel = this.marcacaoService._empresasFiltroPainel;
+  readonly _empresaSelecionadaFiltroPainel = computed(() => this.empresaSelecionadaFiltroPainel());
 
   // Computeds data inicial e final
   readonly _dataInicialFiltroPainel = computed(() => this.dataInicialFiltroPainel());
@@ -62,24 +60,22 @@ export class FiltrosTabelaMarcacoes {
 
     this.dataInicialFiltroPainel.set(null);
     this.dataFinalFiltroPainel.set(null);
-    this.relogioSelecionadaFiltroPainel.set(null);
+    this.empresaSelecionadaFiltroPainel.set(null);
     this.statusSelecionadoFiltroPainel.set(null);
   }
 
-  public aoSelecionarRelogio(event: Event): void {
+  public aoSelecionarEmpresa(event: Event): void {
     const elementoSelect = event.target as HTMLSelectElement;
-    const numSerieSelecionado = elementoSelect.value;
+    const empresaSelecionada = elementoSelect.value;
 
-    if (numSerieSelecionado == 'todos') {
-      this.relogioSelecionadaFiltroPainel.set(null);
-      this.marcacaoService.filtrarMarcacoesPorRelogio(null);
+    if (empresaSelecionada == 'todos') {
+      this.empresaSelecionadaFiltroPainel.set(null);
+      this.marcacaoService.filtrarMarcacoesPorEmpresa(null);
       return;
     }
 
-    const relogio = this.relogioService.getRelogioFromNumSerie(numSerieSelecionado);
-    this.relogioSelecionadaFiltroPainel.set(relogio);
-
-    this.marcacaoService.filtrarMarcacoesPorRelogio(relogio);
+    this.empresaSelecionadaFiltroPainel.set(empresaSelecionada);
+    this.marcacaoService.filtrarMarcacoesPorEmpresa(empresaSelecionada);
   }
 
   public aoSelecionarStatus(event: Event): void {

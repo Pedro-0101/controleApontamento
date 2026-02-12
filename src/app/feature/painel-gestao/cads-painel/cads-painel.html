@@ -1,5 +1,5 @@
 <div class="cards-grid">
-  <app-card-faltas class="card-item"></app-card-faltas>
-  <app-card-incompletos class="card-item"></app-card-incompletos>
-  <app-card-solicitacoes class="card-item"></app-card-solicitacoes>
+  <app-card-faltas class="card-item" [total]="_totalFaltas()"></app-card-faltas>
+  <app-card-incompletos class="card-item" [total]="_totalIncompletos()"></app-card-incompletos>
+  <app-card-solicitacoes class="card-item" [total]="_totalPendentes()"></app-card-solicitacoes>
 </div>
