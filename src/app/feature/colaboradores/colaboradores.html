@@ -7,10 +7,18 @@
       </h1>
       <p class="subtitle">Gerenciar funcionários da empresa</p>
     </div>
-    <button class="btn btn-primary" (click)="openCreateModal()">
-      <lucide-icon name="plus" [size]="18"></lucide-icon>
-      Adicionar Colaborador
-    </button>
+    <div class="header-actions">
+      @if (selectedEmployeeIds().length > 0) {
+        <button class="btn btn-danger" (click)="batchDeactivate()">
+          <lucide-icon name="shield-alert" [size]="18"></lucide-icon>
+          Desativar Selecionados ({{ selectedEmployeeIds().length }})
+        </button>
+      }
+      <button class="btn btn-primary" (click)="openCreateModal()">
+        <lucide-icon name="plus" [size]="18"></lucide-icon>
+        Adicionar Colaborador
+      </button>
+    </div>
   </div>
 
   @if(isLoading()) {
@@ -31,6 +39,9 @@
       <table class="data-table">
         <thead>
           <tr>
+            <th class="checkbox-column">
+              <input type="checkbox" [checked]="isAllSelected()" (change)="toggleAll()">
+            </th>
             <th>Nome</th>
             <th>Matrícula</th>
             <th>Empresa</th>
@@ -41,6 +52,9 @@
         <tbody>
           @for (employee of paginatedEmployees(); track employee.id) {
             <tr>
+              <td>
+                <input type="checkbox" [checked]="selectedEmployeeIds().includes(employee.id)" (change)="toggleEmployee(employee.id)">
+              </td>
               <td class="employee-name">
                 <lucide-icon name="user" [size]="16"></lucide-icon>
                 {{ employee.nome }}

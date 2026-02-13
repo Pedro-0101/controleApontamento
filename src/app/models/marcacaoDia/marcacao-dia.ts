@@ -59,14 +59,53 @@ export class MarcacaoDia implements MarcacaoDia {
     }
 
     getStatus(): statusMarcacaoDia {
-        if (!this.marcacoes || this.marcacoes.length === 0) {
+        const dataObj = DateHelper.fromStringDate(this.data);
+        if (!dataObj) return "pendente";
+
+        const diaSemana = dataObj.getDay();
+        const numMarcacoes = this.marcacoes?.length || 0;
+        const minutosTrabalhados = this.getWorkedMinutes();
+        const horasTrabalhadas = minutosTrabalhados / 60;
+
+        // Domingo: Não precisa bater ponto
+        if (diaSemana === 0) {
+            return "ok";
+        }
+
+        if (numMarcacoes === 0) {
             return "falta";
         }
 
-        if (this.marcacoes.length < 4 || this.marcacoes.length % 2 !== 0) {
-            return "pendente";
+        // Sábado: 2+ pontos e 4+ horas
+        if (diaSemana === 6) {
+            if (numMarcacoes >= 2 && numMarcacoes % 2 === 0) {
+                return horasTrabalhadas >= 4 ? "ok" : "atraso";
+            }
+            return "incompleto";
         }
-        return "ok";
+
+        // Dias de semana: 4+ pontos e 8+ horas
+        if (numMarcacoes >= 4 && numMarcacoes % 2 === 0) {
+            return horasTrabalhadas >= 8 ? "ok" : "atraso";
+        }
+
+        return "incompleto";
+    }
+
+    getWorkedMinutes(): number {
+        if (!this.marcacoes || this.marcacoes.length < 2) return 0;
+
+        let totalMs = 0;
+        for (let i = 0; i < this.marcacoes.length - 1; i += 2) {
+            const entrada = this.marcacoes[i].dataMarcacao.getTime();
+            const saida = this.marcacoes[i + 1].dataMarcacao.getTime();
+
+            if (saida > entrada) {
+                totalMs += (saida - entrada);
+            }
+        }
+
+        return Math.floor(totalMs / (1000 * 60));
     }
 
     private ordenarMarcacoes(marcacoes: Marcacao[]): Marcacao[] {
@@ -101,20 +140,9 @@ export class MarcacaoDia implements MarcacaoDia {
     getHorasTrabalhadas(): string {
         if (!this.marcacoes || this.marcacoes.length < 2) return '--:--';
 
-        let totalMs = 0;
-        // Calcula intervalos em pares (Entrada/Saída)
-        for (let i = 0; i < this.marcacoes.length - 1; i += 2) {
-            const entrada = this.marcacoes[i].dataMarcacao.getTime();
-            const saida = this.marcacoes[i + 1].dataMarcacao.getTime();
+        const totalMinutes = this.getWorkedMinutes();
+        if (totalMinutes === 0) return '--:--';
 
-            if (saida > entrada) {
-                totalMs += (saida - entrada);
-            }
-        }
-
-        if (totalMs === 0) return '--:--';
-
-        const totalMinutes = Math.floor(totalMs / (1000 * 60));
         const hours = Math.floor(totalMinutes / 60);
         const minutes = totalMinutes % 60;
 

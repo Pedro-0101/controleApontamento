@@ -259,4 +259,23 @@ export class EmployeeService {
       throw error;
     }
   }
+  /**
+   * Desativa múltiplos funcionários (ativo=0)
+   * @param ids - Array de IDs dos funcionários
+   * @returns True se atualizado com sucesso
+   */
+  async deactivateEmployeesBatch(ids: number[]): Promise<boolean> {
+    try {
+      this.logger.info('EmployeeService', `Desativando ${ids.length} funcionários em lote`);
+
+      const response = await firstValueFrom(
+        this.http.post<{ success: boolean; message?: string }>(`${this.apiUrl}/employees/batch-deactivate`, { ids })
+      );
+
+      return response.success;
+    } catch (error: any) {
+      this.logger.error('EmployeeService', 'Erro ao desativar funcionários em lote:', error);
+      throw error;
+    }
+  }
 }

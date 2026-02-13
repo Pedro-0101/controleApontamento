@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
@@ -30,11 +30,13 @@ export class Relatorios {
   // Form data
   dataInicio = signal('');
   dataFim = signal('');
-  selectedEmployees = signal<string[]>([]); // Changed from single to multiple
-  selectedClock = signal('');
+  selectedEmployees = signal<string[]>([]);
+  selectedCompanies = signal<string[]>([]);
+  selectedClock = signal(''); // Keeping signal for possible legacy but focusing on companies
 
   // Options
   employees = signal<Employee[]>([]);
+  companies = signal<string[]>([]);
   relogios = signal<Relogio[]>([]);
 
   // Report data
@@ -48,28 +50,48 @@ export class Relatorios {
   itemsPerPage = signal(25);
 
   async ngOnInit() {
-    await this.loadEmployees();
-    await this.loadRelogios();
+    await this.loadInitialData();
     this.setDefaultDates();
   }
 
-  async loadEmployees() {
+  async loadInitialData() {
     try {
-      const emps = await this.employeeService.getAllEmployees();
-      this.employees.set(emps);
+      this.isLoading.set(true);
+      const [emps, clocks] = await Promise.all([
+        this.employeeService.getAllEmployees(),
+        this.relogioService.updateRelogios()
+      ]);
+      const activeEmps = emps.filter(e => e.ativo === 1);
+      this.employees.set(activeEmps);
+      this.relogios.set(clocks);
+
+      const distinctCompanies = [...new Set(activeEmps.map(e => e.empresa).filter(c => !!c))].sort();
+      this.companies.set(distinctCompanies);
     } catch (error) {
-      console.error('Erro ao carregar funcionários:', error);
+      console.error('Erro ao carregar dados iniciais:', error);
+    } finally {
+      this.isLoading.set(false);
     }
   }
 
-  async loadRelogios() {
-    try {
-      const clocks = await this.relogioService.updateRelogios();
-      this.relogios.set(clocks);
-    } catch (error) {
-      console.error('Erro ao carregar relógios:', error);
-    }
-  }
+  // Filtered employees based on selected companies
+  filteredEmployees = computed(() => {
+    const selected = this.selectedCompanies();
+    if (selected.length === 0) return this.employees();
+    return this.employees().filter((e: Employee) => selected.includes(e.empresa));
+  });
+
+  // Mock list of "Employees" to reuse multi-select for companies
+  companyOptions = computed(() => {
+    return this.companies().map(c => ({
+      id: 0,
+      nome: c,
+      matricula: c,
+      empresa: c,
+      qrcod: '',
+      ativo: 1
+    } as Employee));
+  });
 
   setDefaultDates() {
     const hoje = new Date();
@@ -179,6 +201,7 @@ export class Relatorios {
 
   limparFiltros() {
     this.selectedEmployees.set([]);
+    this.selectedCompanies.set([]);
     this.selectedClock.set('');
     this.setDefaultDates();
     this.marcacoes.set([]);
@@ -189,6 +212,13 @@ export class Relatorios {
 
   onEmployeeSelectionChange(selected: string[]) {
     this.selectedEmployees.set(selected);
+  }
+
+  onCompanySelectionChange(selected: string[]) {
+    this.selectedCompanies.set(selected);
+    // Clear employees that are no longer in the filtered list
+    const filteredMatriculas = this.filteredEmployees().map(e => e.matricula);
+    this.selectedEmployees.update(current => current.filter(m => filteredMatriculas.includes(m)));
   }
 
   // Pagination helpers
@@ -264,7 +294,7 @@ export class Relatorios {
       // Table
       const tableData = this.marcacoesPorDia().map(dia => [
         dia.matricula,
-        dia.cpf,
+        dia.nome,
         dia.getDataFormatada(),
         dia.marcacoes.map((m, i) => {
           const hora = this.formatDateTime(m.dataMarcacao).split(' ')[1];
@@ -276,7 +306,7 @@ export class Relatorios {
 
       autoTable(doc, {
         startY: 28,
-        head: [['Matrícula', 'CPF', 'Data', 'Marcações', 'Horas', 'Status']],
+        head: [['Matrícula', 'Nome', 'Data', 'Marcações', 'Horas', 'Status']],
         body: tableData,
         theme: 'grid',
         styles: { fontSize: 8 },
@@ -300,7 +330,7 @@ export class Relatorios {
   private prepareExportData() {
     return this.marcacoesPorDia().map(dia => ({
       'Matrícula': dia.matricula,
-      'CPF': dia.cpf,
+      'Nome': dia.nome,
       'Data': dia.getDataFormatada(),
       'Marcações': dia.marcacoes.map((m, i) => {
         const hora = this.formatDateTime(m.dataMarcacao).split(' ')[1];
@@ -370,6 +400,12 @@ export class Relatorios {
     // Convert to MarcacaoDia array
     const marcacoesDia: MarcacaoDia[] = [];
 
+    // Fetch employee names for all unique matriculas
+    const allMatriculas = [...new Set(marcacoes.map(m => m.matriculaFuncionario))];
+    const employees = await this.employeeService.getEmployeeNamesBatch(allMatriculas);
+    const nameMap = new Map<string, string>();
+    employees.forEach(e => nameMap.set(e.matricula, e.nome));
+
     grouped.forEach((employeeMap, cpf) => {
       employeeMap.forEach((marcacoesArray, dateKey) => {
         const firstMarcacao = marcacoesArray[0];
@@ -378,7 +414,7 @@ export class Relatorios {
           firstMarcacao.id,
           cpf,
           firstMarcacao.matriculaFuncionario,
-          '', // nome - will be empty for reports
+          nameMap.get(firstMarcacao.matriculaFuncionario) || '', // Attaching Name
           dateKey,
           marcacoesArray
         );
@@ -444,10 +480,11 @@ export class Relatorios {
       console.error('Erro ao buscar pontos manuais:', error);
     }
 
+    // Final sort: Date ASC, then Name ASC
     return marcacoesDia.sort((a, b) => {
-      const cpfCompare = a.cpf.localeCompare(b.cpf);
-      if (cpfCompare !== 0) return cpfCompare;
-      return a.data.localeCompare(b.data);
+      const dateCompare = a.data.localeCompare(b.data);
+      if (dateCompare !== 0) return dateCompare;
+      return a.nome.localeCompare(b.nome);
     });
   }
 }

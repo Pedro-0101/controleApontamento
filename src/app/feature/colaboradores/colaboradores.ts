@@ -26,6 +26,12 @@ export class Colaboradores implements OnInit {
   showModal = signal(false);
   modalMode = signal<'create' | 'edit'>('create');
   selectedEmployee = signal<Employee | null>(null);
+  selectedEmployeeIds = signal<number[]>([]);
+
+  isAllSelected = computed(() => {
+    const paginated = this.paginatedEmployees();
+    return paginated.length > 0 && paginated.every(emp => this.selectedEmployeeIds().includes(emp.id));
+  });
 
   filterOptions = signal<FilterOption[]>([
     { label: 'Todos', value: 'all' },
@@ -51,6 +57,9 @@ export class Colaboradores implements OnInit {
     const status = this.statusFilter();
     if (status !== 'all') {
       result = result.filter(emp => emp.ativo === parseInt(status));
+    } else {
+      // Por padrão, se não filtrado especificamente, mostramos apenas ativos conforme solicitado
+      result = result.filter(emp => emp.ativo === 1);
     }
 
     return result;
@@ -97,6 +106,55 @@ export class Colaboradores implements OnInit {
   onItemsPerPageChange(items: number) {
     this.itemsPerPage.set(items);
     this.currentPage.set(1);
+    this.selectedEmployeeIds.set([]);
+  }
+
+  toggleAll() {
+    const paginated = this.paginatedEmployees();
+    const allSelected = this.isAllSelected();
+
+    if (allSelected) {
+      const paginatedIds = paginated.map(e => e.id);
+      this.selectedEmployeeIds.update(current =>
+        current.filter(id => !paginatedIds.includes(id))
+      );
+    } else {
+      const newIds = paginated.map(e => e.id);
+      this.selectedEmployeeIds.update(current =>
+        [...new Set([...current, ...newIds])]
+      );
+    }
+  }
+
+  toggleEmployee(id: number) {
+    this.selectedEmployeeIds.update(current => {
+      if (current.includes(id)) {
+        return current.filter(i => i !== id);
+      }
+      return [...current, id];
+    });
+  }
+
+  async batchDeactivate() {
+    const ids = this.selectedEmployeeIds();
+    if (ids.length === 0) return;
+
+    if (!confirm(`Deseja realmente desativar os ${ids.length} colaboradores selecionados?`)) {
+      return;
+    }
+
+    this.isLoading.set(true);
+    try {
+      await this.employeeService.deactivateEmployeesBatch(ids);
+      this.selectedEmployeeIds.set([]);
+      await this.loadEmployees();
+      alert('Colaboradores desativados com sucesso!');
+    } catch (error) {
+      console.error('Erro ao desativar colaboradores:', error);
+      alert('Erro ao realizar a operação de desativação.');
+    } finally {
+      this.isLoading.set(false);
+    }
   }
 
   openCreateModal() {

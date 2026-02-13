@@ -34,30 +34,24 @@
         >
       </div>
 
+      <div class="form-group">
+        <label>Empresa (opcional)</label>
+        <app-multi-select-employees
+          [employees]="companyOptions()"
+          (selectionChange)="onCompanySelectionChange($event)"
+        />
+      </div>
+
       <!-- Employee Filter -->
       <div class="form-group">
         <label>Funcionário (opcional)</label>
         <app-multi-select-employees
-          [employees]="employees()"
+          [employees]="filteredEmployees()"
           (selectionChange)="onEmployeeSelectionChange($event)"
         />
       </div>
 
-      <!-- Clock Filter -->
-      <div class="form-group">
-        <label for="clock">Relógio (opcional)</label>
-        <select 
-          id="clock"
-          name="clock"
-          [(ngModel)]="selectedClock"
-          class="input-select"
-        >
-          <option value="">Todos os relógios</option>
-          @for (clock of relogios(); track clock.numSerie) {
-            <option [value]="clock.numSerie">{{ clock.numSerie }} - {{ clock.descricao }}</option>
-          }
-        </select>
-      </div>
+
     </div>
 
     <!-- Action Buttons -->
@@ -91,6 +85,22 @@
         >
           <lucide-icon name="download" [size]="16"></lucide-icon>
           Exportar CSV
+        </button>
+
+        <button 
+          class="btn btn-outline"
+          (click)="exportarExcel()"
+        >
+          <lucide-icon name="file-spreadsheet" [size]="16"></lucide-icon>
+          Exportar Excel
+        </button>
+
+        <button 
+          class="btn btn-outline"
+          (click)="exportarPDF()"
+        >
+          <lucide-icon name="file-code" [size]="16"></lucide-icon>
+          Exportar PDF
         </button>
       }
     </div>
@@ -144,8 +154,7 @@
             <thead>
               <tr>
                 <th>Matrícula</th>
-                <th>CPF</th>
-                <th>Data</th>
+                <th>Nome</th>
                 <th>Marcações</th>
                 <th>Horas</th>
                 <th>Status</th>
@@ -153,10 +162,19 @@
             </thead>
             <tbody>
               @for (dia of paginatedMarcacoesPorDia; track dia.matricula + dia.data) {
+                @if ($index === 0 || dia.data !== paginatedMarcacoesPorDia[$index - 1].data) {
+                  <tr class="date-group-row">
+                    <td colspan="5">
+                      <div class="date-header">
+                        <lucide-icon name="calendar" [size]="16"></lucide-icon>
+                        {{ dia.getDataFormatada() }} - {{ dia.getDiaSemana() }}
+                      </div>
+                    </td>
+                  </tr>
+                }
                 <tr>
                   <td>{{ dia.matricula }}</td>
-                  <td>{{ dia.cpf }}</td>
-                  <td>{{ dia.getDataFormatada() }}</td>
+                  <td>{{ dia.nome }}</td>
                   <td>
                     <div class="marcacoes-list">
                       @for (m of dia.marcacoes; track m.id || $index) {
