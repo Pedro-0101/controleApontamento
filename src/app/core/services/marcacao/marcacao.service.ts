@@ -566,6 +566,17 @@ export class MarcacaoService {
     }
   }
 
+  async saveStandardInterval(matricula: string, data: string): Promise<void> {
+    this.loggerService.info('MarcacaoService', `Lancando intervalo padrao para ${matricula} em ${data}`);
+
+    // 12:00
+    await this.saveManualMarcacao(matricula, data, '12:00');
+    // 13:00
+    await this.saveManualMarcacao(matricula, data, '13:00');
+    // Comentário
+    await this.saveComment(matricula, data, 'Comentário automático: Intervalo padrão inserido');
+  }
+
   async getAllEvents(): Promise<any[]> {
     try {
       const response = await firstValueFrom(

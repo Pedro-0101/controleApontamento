@@ -108,6 +108,35 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
     }
   }
 
+  async adicionarIntervaloPadrao() {
+    const marcacoes = this.getMarcacoes();
+
+    // Validar se já existem 4 ou mais pontos
+    if (marcacoes.length >= 4) {
+      this.toastService.warning('O funcionário já possui 4 ou mais pontos registrados. Não é possível inserir o intervalo padrão.');
+      return;
+    }
+
+    // Validar se 12:00 ou 13:00 já existem
+    const horasExistentes = marcacoes.map(m => this.formatHora(m.dataMarcacao));
+    if (horasExistentes.includes('12:00') || horasExistentes.includes('13:00')) {
+      this.toastService.warning('Já existe um ponto registrado às 12:00 ou 13:00. Verifique as marcações.');
+      return;
+    }
+
+    this.isSaving.set(true);
+    try {
+      const isoDate = DateHelper.toIsoDate(this.record().data);
+      await this.marcacaoService.saveStandardInterval(this.record().matricula, isoDate);
+      this.toastService.success('Intervalo padrão inserido!');
+      this.updated.emit();
+    } catch (error) {
+      this.toastService.error('Erro ao inserir intervalo padrão.');
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
   async adicionarPontoManual() {
     if (!this.novoPontoHora()) {
       this.toastService.warning('Informe a hora do ponto.');

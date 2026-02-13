@@ -38,7 +38,13 @@
       </div>
 
       <div class="section">
-        <label class="section-title">Horários Registrados</label>
+        <div class="section-header-row">
+          <label class="section-title">Horários Registrados</label>
+          <button class="btn btn-sm btn-outline" (click)="adicionarIntervaloPadrao()" [disabled]="isSaving()" title="Insere pontos 12:00 e 13:00 + comentário automático">
+            <lucide-icon name="plus-circle" [size]="14"></lucide-icon>
+            Intervalo Padrão
+          </button>
+        </div>
         <div class="marcacoes-list">
           @for (m of getMarcacoes(); track $index) {
             <div class="marcacao-item" [class.manual]="m.numSerieRelogio === 'MANUAL'">

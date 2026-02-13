@@ -109,8 +109,21 @@ export class TabelaFuncionarios {
     this.selectedRecord.set(null);
   }
 
-  recarregarDados() {
-    this.marcacaoService.refreshMarcacoes();
+  async recarregarDados() {
+    this.loggerService.info('TabelaFuncionarios', 'Recarregando dados após alteração no modal');
+    await this.marcacaoService.refreshMarcacoes();
+
+    // Sincronizar record selecionado se o modal estiver aberto
+    const atual = this.selectedRecord();
+    if (atual) {
+      const novo = this._marcacoesDiaTabelaPainel().find(m =>
+        m.matricula === atual.matricula && m.data === atual.data
+      );
+      if (novo) {
+        this.loggerService.info('TabelaFuncionarios', 'Sincronizando record do modal');
+        this.selectedRecord.set(novo);
+      }
+    }
   }
 
   // --- Modal Exportação ---
