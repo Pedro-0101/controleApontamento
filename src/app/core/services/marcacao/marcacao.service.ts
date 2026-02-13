@@ -47,15 +47,19 @@ export class MarcacaoService {
   });
 
   readonly _totalFaltas = computed(() => {
-    return this.marcacaoesFiltradasBackup().filter(m => m.getStatus() === 'falta').length;
+    return this.marcacaoesFiltradasBackup().filter(m => m.getStatus() === 'Falta').length;
   });
 
   readonly _totalPendentes = computed(() => {
-    return this.marcacaoesFiltradasBackup().filter(m => m.getStatus() === 'pendente').length;
+    return this.marcacaoesFiltradasBackup().filter(m => m.getStatus() === 'Pendente').length;
   });
 
   readonly _totalIncompletos = computed(() => {
-    return this.marcacaoesFiltradasBackup().filter(m => m.getStatus() === 'pendente').length;
+    return this.marcacaoesFiltradasBackup().filter(m => m.getStatus() === 'Incompleto').length;
+  });
+
+  readonly _totalAtrasos = computed(() => {
+    return this.marcacaoesFiltradasBackup().filter(m => m.getStatus() === 'Atraso').length;
   });
 
   private currentDataInicio = signal<string>('');
@@ -219,6 +223,10 @@ export class MarcacaoService {
           allMatriculas, isoInicio, isoFim
         );
 
+        const events = await this.fetchEventsBatch(
+          allMatriculas, isoInicio, isoFim
+        );
+
         // Map para acesso rápido: matricula:data -> comentarios[]
         const commentsMap = new Map<string, ComentarioMarcacao[]>();
         comments.forEach((c: any) => {
@@ -285,6 +293,19 @@ export class MarcacaoService {
             // Re-ordenar marcações após inserção manual
             md.marcacoes.sort((a, b) => a.dataMarcacao.getTime() - b.dataMarcacao.getTime());
           }
+
+          // Eventos (Status Fixos)
+          const isoDateMd = DateHelper.toIsoDate(md.data);
+          const activeEvent = events.find((e: any) =>
+            e.matricula_funcionario === String(md.matricula).trim() &&
+            isoDateMd >= e.data_inicio &&
+            isoDateMd <= e.data_fim
+          );
+
+          if (activeEvent) {
+            md.evento = activeEvent.tipo_evento;
+            md.evento_categoria = activeEvent.categoria;
+          }
         });
       }
     } catch (error) {
@@ -342,6 +363,34 @@ export class MarcacaoService {
     }
   }
 
+  async saveEvent(matricula: string, dataInicio: string, dataFim: string, tipoEvento: string, categoria: 'PERIODO' | 'FIXO' = 'PERIODO'): Promise<void> {
+    const criadoPor = this.authService._userName() || 'Sistema';
+    const body = { matricula, dataInicio, dataFim, tipoEvento, criadoPor, categoria };
+
+    try {
+      await firstValueFrom(
+        this.http.post<{ success: boolean, message: string }>(`${environment.apiUrlBackend}/employees/events`, body)
+      );
+    } catch (error) {
+      this.loggerService.error('MarcacaoService', 'Erro ao salvar evento:', error);
+      throw error;
+    }
+  }
+
+  async deleteEvent(id: number): Promise<void> {
+    const criadoPor = this.authService._userName() || 'Sistema';
+    try {
+      await firstValueFrom(
+        this.http.delete(`${environment.apiUrlBackend}/employees/events/${id}`, {
+          body: { criadoPor }
+        })
+      );
+    } catch (error) {
+      this.loggerService.error('MarcacaoService', 'Erro ao deletar evento:', error);
+      throw error;
+    }
+  }
+
   private async fetchCommentsBatch(matriculas: string[], dataInicio: string, dataFim: string): Promise<any[]> {
     const body = { matriculas, dataInicio, dataFim };
 
@@ -366,6 +415,20 @@ export class MarcacaoService {
       return response.success ? response.points : [];
     } catch (error) {
       this.loggerService.error('MarcacaoService', 'Erro ao buscar pontos manuais:', error);
+      return [];
+    }
+  }
+
+  async fetchEventsBatch(matriculas: string[], dataInicio: string, dataFim: string): Promise<any[]> {
+    const body = { matriculas, dataInicio, dataFim };
+
+    try {
+      const response = await firstValueFrom(
+        this.http.post<{ success: boolean, events: any[] }>(`${environment.apiUrlBackend}/employees/events/batch`, body)
+      );
+      return response.success ? response.events : [];
+    } catch (error) {
+      this.loggerService.error('MarcacaoService', 'Erro ao buscar eventos:', error);
       return [];
     }
   }
@@ -407,7 +470,15 @@ export class MarcacaoService {
   }
 
   static getPossiveisStatus(): string[] {
-    return ['Atraso', 'Corrigido', 'Falta', 'Férias', 'Folga', 'Incompleto', 'Ok', 'Outro', 'Pendente'];
+    return ['Atraso', 'Falta', 'Incompleto', 'Ok', 'Outro', 'Pendente'];
+  }
+
+  static getPossiveisStatusFixos(): string[] {
+    return ['BH', 'BH do Atraso', 'Atraso Confirmado', 'Falta Confirmada', 'Corrigido', 'Folga'];
+  }
+
+  static getPeriodEvents(): string[] {
+    return ['Ferias', 'Atestado', 'Afastado', 'Suspensao'];
   }
 
   filtrarMarcacoesPorEmpresa(empresa: string | null): void {
@@ -493,6 +564,32 @@ export class MarcacaoService {
     } catch (error) {
       this.loggerService.error('MarcacaoService', 'Erro ao buscar histórico mesclado:', error);
       return { marcacoes: [], pontosManuais: [], comentarios: [] };
+    }
+  }
+
+  async getAllEvents(): Promise<any[]> {
+    try {
+      const response = await firstValueFrom(
+        this.http.get<{ success: boolean; events: any[] }>(`${environment.apiUrlBackend}/employees/events/all`)
+      );
+      return response.success ? response.events : [];
+    } catch (error) {
+      this.loggerService.error('MarcacaoService', 'Erro ao buscar todos os eventos:', error);
+      return [];
+    }
+  }
+
+  async updateEvent(id: number, dataInicio: string, dataFim: string, tipoEvento: string): Promise<void> {
+    const criadoPor = this.authService._userName() || 'Sistema';
+    const body = { dataInicio, dataFim, tipoEvento, criadoPor };
+
+    try {
+      await firstValueFrom(
+        this.http.put<{ success: boolean; message: string }>(`${environment.apiUrlBackend}/employees/events/${id}`, body)
+      );
+    } catch (error) {
+      this.loggerService.error('MarcacaoService', 'Erro ao atualizar evento:', error);
+      throw error;
     }
   }
 }

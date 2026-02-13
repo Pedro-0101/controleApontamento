@@ -46,7 +46,12 @@ import {
   ChevronDown,
   ChevronUp,
   ShieldAlert,
-  FileQuestion
+  FileQuestion,
+  ShieldCheck,
+  RefreshCw,
+  ArrowRight,
+  SearchX,
+  KeyRound
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -100,7 +105,12 @@ export const appConfig: ApplicationConfig = {
       ChevronDown,
       ChevronUp,
       ShieldAlert,
-      FileQuestion
+      FileQuestion,
+      ShieldCheck,
+      RefreshCw,
+      ArrowRight,
+      SearchX,
+      KeyRound
     }))
   ]
 };

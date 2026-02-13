@@ -46,6 +46,16 @@ export class Sidebar {
       label: 'Relatórios',
       route: '/relatorios',
       icon: 'file-text'
-    }
+    },
+    {
+      label: 'Eventos',
+      route: '/eventos',
+      icon: 'calendar'
+    },
+    {
+      label: 'Auditoria',
+      route: '/auditoria',
+      icon: 'shield-check'
+    },
   ];
 }

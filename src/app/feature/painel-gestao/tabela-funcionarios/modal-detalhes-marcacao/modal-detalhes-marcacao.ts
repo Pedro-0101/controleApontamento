@@ -2,16 +2,18 @@ import { Component, EventEmitter, Output, inject, input, signal, OnInit, compute
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
-import { MarcacaoDia } from '../../../../models/marcacaoDia/marcacao-dia';
+import { MarcacaoDia, statusMarcacaoDia } from '../../../../models/marcacaoDia/marcacao-dia';
 import { MarcacaoService } from '../../../../core/services/marcacao/marcacao.service';
 import { DateHelper } from '../../../../core/helpers/dateHelper';
 import { ComentarioMarcacao } from '../../../../models/comentarioMarcacao/comentario-marcacao';
 import { ToastService } from '../../../../core/services/toast/toast.service';
+import { Marcacao } from '../../../../models/marcacao/marcacao';
 
 interface HistoryTableDay {
   date: string;
   horasFormatadas: { hora: string; tipo: 'auto' | 'manual' }[];
   totalHoras: string;
+  status: statusMarcacaoDia | string;
 }
 
 @Component({
@@ -29,12 +31,18 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
   @Output() close = new EventEmitter<void>();
   @Output() updated = new EventEmitter<void>();
 
+  DateHelper = DateHelper;
+
   novoComentario = signal('');
   novoPontoHora = signal('');
   isSaving = signal(false);
   isLoadingHistory = signal(false);
   isLoadingInitial = signal(true);
   employeeHistory = signal<any>(null);
+
+  novoStatusFixo = signal('');
+  statusDisponiveis = MarcacaoService.getPossiveisStatus();
+  statusFixos = MarcacaoService.getPossiveisStatusFixos();
 
   async ngOnInit() {
     this.isLoadingInitial.set(true);
@@ -159,6 +167,50 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
     }
   }
 
+  async salvarStatusFixo() {
+    if (!this.novoStatusFixo()) {
+      this.toastService.warning('Selecione um status.');
+      return;
+    }
+
+    this.isSaving.set(true);
+    try {
+      const isoDate = DateHelper.toIsoDate(this.record().data);
+      await this.marcacaoService.saveEvent(
+        this.record().matricula,
+        isoDate,
+        isoDate,
+        this.novoStatusFixo(),
+        'FIXO'
+      );
+
+      this.novoStatusFixo.set('');
+      await this.loadEmployeeHistory();
+      this.updated.emit();
+      this.toastService.success('Status fixo aplicado!');
+    } catch (error) {
+      this.toastService.error('Erro ao salvar status fixo.');
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
+  async removerStatusFixo(eventoId: number) {
+    if (!confirm('Deseja realmente remover este status fixo?')) return;
+
+    this.isSaving.set(true);
+    try {
+      await this.marcacaoService.deleteEvent(eventoId);
+      await this.loadEmployeeHistory();
+      this.updated.emit();
+      this.toastService.success('Status removido!');
+    } catch (error) {
+      this.toastService.error('Erro ao remover status.');
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
 
   getMarcacoes() {
     return this.record().marcacoes;
@@ -277,26 +329,37 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
       // Ordenar marcações por hora
       day.marcacoes.sort((a: any, b: any) => a.hora.localeCompare(b.hora));
 
-      // Calcular total de horas
-      let totalMs = 0;
-      for (let i = 0; i < day.marcacoes.length - 1; i += 2) {
-        const [h1, m1] = day.marcacoes[i].hora.split(':').map(Number);
-        const [h2, m2] = day.marcacoes[i + 1].hora.split(':').map(Number);
-        const entrada = h1 * 60 + m1;
-        const saida = h2 * 60 + m2;
-        if (saida > entrada) {
-          totalMs += (saida - entrada);
+      // Criar instância temporária de MarcacaoDia para calcular status e horas
+      const tempMarcacaoDia = new MarcacaoDia(
+        0,
+        this.record().cpf,
+        this.record().matricula,
+        this.record().nome,
+        day.date,
+        day.marcacoes.map((m: any) => new Marcacao({
+          dataMarcacao: new Date(`${day.date}T${m.hora}:00`),
+          numSerieRelogio: m.tipo === 'manual' ? 'MANUAL' : 'AUTO'
+        })),
+        this.record().empresa
+      );
+
+      // Vincular evento se existir para este dia
+      const history = this.employeeHistory();
+      if (history && history.eventos) {
+        const isoDate = day.date;
+        const activeEvent = history.eventos.find((e: any) =>
+          isoDate >= e.data_inicio && isoDate <= e.data_fim
+        );
+        if (activeEvent) {
+          tempMarcacaoDia.evento = activeEvent.tipo_evento;
         }
       }
-
-      const hours = Math.floor(totalMs / 60);
-      const minutes = totalMs % 60;
-      const totalHoras = totalMs > 0 ? `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}` : '--:--';
 
       return {
         date: day.date,
         horasFormatadas: day.marcacoes.map((m: any) => ({ hora: m.hora, tipo: m.tipo })),
-        totalHoras
+        totalHoras: tempMarcacaoDia.getHorasTrabalhadas(),
+        status: tempMarcacaoDia.getStatus()
       };
     }).sort((a, b) => b.date.localeCompare(a.date));
   }

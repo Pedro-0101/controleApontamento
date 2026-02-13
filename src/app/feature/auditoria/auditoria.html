@@ -1,0 +1,97 @@
+<div class="auditoria-container">
+  <div class="page-header">
+    <div class="header-content">
+      <h1>Logs de Auditoria</h1>
+      <p>Acompanhe em tempo real todas as alterações manuais do sistema.</p>
+    </div>
+    <button class="btn btn-primary" (click)="loadLogs()" [disabled]="isLoading()">
+      <lucide-icon name="refresh-cw" [size]="18" [class.spin]="isLoading()"></lucide-icon>
+      Atualizar
+    </button>
+  </div>
+
+  <div class="filter-card">
+    <div class="filter-grid">
+      <div class="filter-item">
+        <label>Data Início</label>
+        <input type="date" [(ngModel)]="dataInicio" (change)="loadLogs()" class="filter-input">
+      </div>
+      <div class="filter-item">
+        <label>Data Fim</label>
+        <input type="date" [(ngModel)]="dataFim" (change)="loadLogs()" class="filter-input">
+      </div>
+      <div class="filter-item">
+        <label>Usuário</label>
+        <input type="text" [(ngModel)]="usuarioFiltro" (keyup.enter)="loadLogs()" placeholder="Ex: Pedro" class="filter-input">
+      </div>
+      <div class="filter-item">
+        <label>Ação</label>
+        <select [(ngModel)]="acaoFiltro" (change)="loadLogs()" class="filter-input">
+          <option value="">Todas</option>
+          <option value="CREATE">CREATE</option>
+          <option value="UPDATE">UPDATE</option>
+          <option value="DELETE">DELETE</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-responsive">
+      <table class="audit-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Usuário</th>
+            <th>Ação</th>
+            <th>Tabela</th>
+            <th>ID Registro</th>
+            <th>Alterações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (log of logs(); track log.id) {
+            <tr>
+              <td class="col-time">{{ formatData(log.timestamp) }}</td>
+              <td class="col-user">
+                <div class="user-pill">
+                  <lucide-icon name="user" [size]="14"></lucide-icon>
+                  {{ log.usuario }}
+                </div>
+              </td>
+              <td class="col-action">
+                <span class="badge" [class]="getBadgeClass(log.acao)">{{ log.acao }}</span>
+              </td>
+              <td class="col-table">{{ log.tabela }}</td>
+              <td class="col-reg-id">#{{ log.registro_id }}</td>
+              <td class="col-changes">
+                <div class="changes-summary">
+                  @if (log.acao === 'CREATE') {
+                    <span class="new-data">Novo: {{ formatJson(log.dados_novos) }}</span>
+                  } @else if (log.acao === 'DELETE') {
+                    <span class="old-data">Apagado: {{ formatJson(log.dados_antigos) }}</span>
+                  } @else {
+                    <div class="update-diff">
+                      <div class="diff-box old">De: {{ formatJson(log.dados_antigos) }}</div>
+                      <lucide-icon name="arrow-right" [size]="12"></lucide-icon>
+                      <div class="diff-box new">Para: {{ formatJson(log.dados_novos) }}</div>
+                    </div>
+                  }
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="empty-state">
+                <div class="empty-content">
+                  <lucide-icon name="search-x" [size]="48"></lucide-icon>
+                  <p>Nenhum log encontrado para os filtros selecionados.</p>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

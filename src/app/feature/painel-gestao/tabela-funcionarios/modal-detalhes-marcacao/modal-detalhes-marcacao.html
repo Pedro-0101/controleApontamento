@@ -75,6 +75,40 @@
         </div>
       </div>
 
+      <div class="section event-management">
+        <label class="section-title">Definir Status Fixo</label>
+        <div class="input-group">
+          <select [(ngModel)]="novoStatusFixo" class="input-select">
+            <option value="">Selecione um status...</option>
+            @for (status of statusFixos; track status) {
+              <option [value]="status">{{ status }}</option>
+            }
+          </select>
+          <button class="btn btn-primary" (click)="salvarStatusFixo()" [disabled]="isSaving() || !novoStatusFixo()">
+            @if(isSaving()) {
+              <div class="btn-spinner"></div>
+            } @else {
+              <lucide-icon name="plus" [size]="16"></lucide-icon>
+            }
+            Confirmar
+          </button>
+        </div>
+
+        @if (employeeHistory()?.eventos) {
+          @for (e of employeeHistory().eventos; track e.id) {
+            @if (e.data_inicio === record().data || e.data_inicio === DateHelper.toIsoDate(record().data)) {
+              <div class="applied-event">
+                <span class="badge" [class]="'status-' + e.tipo_evento.toLowerCase()">{{ e.tipo_evento }}</span>
+                <span class="event-info">Aplicado por {{ e.criado_por }}</span>
+                <button class="btn-icon btn-danger" (click)="removerStatusFixo(e.id)" title="Remover Status">
+                  <lucide-icon name="trash-2" [size]="14"></lucide-icon>
+                </button>
+              </div>
+            }
+          }
+        }
+      </div>
+
       <div class="section">
         <label class="section-title">Comentários ({{ getComentarios().length }})</label>
         <div class="comments-thread">
@@ -136,6 +170,7 @@
                   <th>Data</th>
                   <th>Marcações</th>
                   <th>Total</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -156,10 +191,15 @@
                         {{ day.totalHoras }}
                       </span>
                     </td>
+                    <td class="col-status">
+                      <span class="badge" [class]="'status-' + day.status.toLowerCase()">
+                        {{ day.status }}
+                      </span>
+                    </td>
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="3" class="empty-msg">Nenhum registro nos últimos 7 dias.</td>
+                    <td colspan="4" class="empty-msg">Nenhum registro nos últimos 7 dias.</td>
                   </tr>
                 }
               </tbody>

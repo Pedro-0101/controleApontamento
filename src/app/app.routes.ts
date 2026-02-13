@@ -23,6 +23,16 @@ export const routes: Routes = [
     loadComponent: () => import('./feature/relatorios/relatorios').then(m => m.Relatorios),
     canActivate: [authGuardGuard]
   },
+  {
+    path: "auditoria",
+    loadComponent: () => import('./feature/auditoria/auditoria').then(m => m.Auditoria),
+    canActivate: [authGuardGuard]
+  },
+  {
+    path: "eventos",
+    loadComponent: () => import('./feature/eventos/eventos').then(m => m.EventosComponent),
+    canActivate: [authGuardGuard]
+  },
   { path: "404", component: NotFound },
   { path: "401", component: Unauthorized },
   { path: "", redirectTo: "login", pathMatch: "full" },

@@ -19,25 +19,37 @@ export class DateHelper {
         return localDate;
     }
 
-    // Transforma uma string de data no formato 'DD/MM/YYYY' para um objeto Date
+    // Transforma uma string de data (ISO ou DD/MM/YYYY) para um objeto Date
     static fromStringDate(dateStr: string): Date | null {
         if (!dateStr || typeof dateStr !== 'string') {
-            console.log('erro na data:', dateStr);
             return null;
         }
-        const parts = dateStr.split('/').map(p => p.trim());
-        if (parts.length !== 3) {
-            console.log('erro na data:', dateStr);
+
+        // Se contiver '-', assume Formato ISO (YYYY-MM-DD)
+        if (dateStr.includes('-')) {
+            const parts = dateStr.split('-');
+            if (parts.length < 3) return null;
+            // Year, Month (0-indexed), Day
+            return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        }
+
+        // Se contiver '/', assume Formato Brasileiro (DD/MM/YYYY)
+        const parts = dateStr.split('/');
+        if (parts.length < 3) {
             return null;
         }
-        const day = Number(parts[0]);
-        const month = Number(parts[1]);
-        const year = Number(parts[2]);
-        if (Number.isNaN(day) || Number.isNaN(month) || Number.isNaN(year)) {
-            console.log('erro na data:', dateStr);
+
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        const year = parseInt(parts[2], 10);
+
+        if (isNaN(day) || isNaN(month) || isNaN(year)) {
             return null;
         }
-        return new Date(year, month - 1, day);
+
+        const date = new Date(year, month - 1, day);
+
+        return date;
     }
 
     // Retorna uma string formatada de data no formato DD/MM/YYYY

@@ -1,16 +1,32 @@
-<div class="container">
-  <form class="form-login" (submit)="onSubmit(accessCodeInput.value); $event.preventDefault()">
-    <div class="form-group">
-      <label for="inputAccessCode">Código de acesso</label>
-      <div class="input-group">
-        <lucide-icon name="user"></lucide-icon>
-        <input type="password" id="inputAccessCode" name="inputAccessCode" placeholder="Código de acesso"
-          #accessCodeInput>
-      </div>
+<div class="login-container">
+  <div class="login-box">
+    <div class="login-brand">
+      <lucide-icon name="user-check" [size]="32" class="brand-icon"></lucide-icon>
+      <h2>Controle de Apontamento</h2>
     </div>
-    <button type="submit" class="btn btn-primary">
-      <lucide-icon name="log-in"></lucide-icon>
-      Iniciar sessão
-    </button>
-  </form>
+
+    <form class="login-form" (submit)="onSubmit(accessCodeInput.value); $event.preventDefault()">
+      <div class="form-field">
+        <label for="inputAccessCode">Código de Acesso</label>
+        <div class="input-container">
+          <input 
+            type="password" 
+            id="inputAccessCode" 
+            name="inputAccessCode" 
+            placeholder="Digite seu código"
+            #accessCodeInput
+            required
+          >
+        </div>
+      </div>
+
+      <button type="submit" class="login-button">
+        Entrar no Sistema
+      </button>
+    </form>
+    
+    <div class="login-info">
+      <p>Gerenciamento de Jornada de Trabalho</p>
+    </div>
+  </div>
 </div>

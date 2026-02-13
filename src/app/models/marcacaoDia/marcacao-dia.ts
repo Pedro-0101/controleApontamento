@@ -15,10 +15,13 @@ export interface MarcacaoDia {
     comentarios?: ComentarioMarcacao[];
     comentario?: string; // Comentário do dia (String simples)
     empresa?: string;
+    evento?: string; // Nome do evento/status
+    evento_categoria?: 'PERIODO' | 'FIXO'; // Categoria do evento
 }
 
 // 2. O tipo define os possíveis valores para o status
-export type statusMarcacaoDia = 'atraso' | 'corrigido' | 'falta' | 'ferias' | 'folga' | 'incompleto' | 'ok' | 'outro' | 'pendente';
+export type statusMarcacaoDia = 'Atraso' | 'Falta' | 'Incompleto' | 'Ok' | 'Outro' | 'Pendente';
+export type statusFixos = 'Ferias' | 'Folga' | 'Afastado' | 'Atestado' | 'BH' | 'BH do Atraso' | 'Atraso Confirmado' | 'Falta Confirmada' | 'Corrigido' | 'Suspensao';
 
 // 3. A classe implementa a interface e adiciona a LÓGICA (Comportamento)
 export class MarcacaoDia implements MarcacaoDia {
@@ -31,6 +34,8 @@ export class MarcacaoDia implements MarcacaoDia {
     comentarios?: ComentarioMarcacao[];
     comentario?: string;
     empresa?: string;
+    evento?: string;
+    evento_categoria?: 'PERIODO' | 'FIXO';
 
     constructor(
         id: number,
@@ -58,38 +63,60 @@ export class MarcacaoDia implements MarcacaoDia {
         return this.comentarios?.length || 0;
     }
 
-    getStatus(): statusMarcacaoDia {
+    getStatus(): statusMarcacaoDia | string {
+        // 1. Prioridade para Eventos de Período (Férias, Atestado, etc)
+        if (this.evento_categoria === 'PERIODO') {
+            return this.evento || "Evento";
+        }
+
+        // 2. Prioridade para Status Fixos (BH, Folga, etc)
+        if (this.evento_categoria === 'FIXO') {
+            return this.evento || "Status";
+        }
+
+        // Caso antigo onde categoria não estava definida (retrocompatibilidade temporária)
+        if (this.evento && !this.evento_categoria) {
+            return this.evento;
+        }
+
         const dataObj = DateHelper.fromStringDate(this.data);
-        if (!dataObj) return "pendente";
+        if (!dataObj) return "Pendente";
 
         const diaSemana = dataObj.getDay();
         const numMarcacoes = this.marcacoes?.length || 0;
         const minutosTrabalhados = this.getWorkedMinutes();
         const horasTrabalhadas = minutosTrabalhados / 60;
 
+        if (numMarcacoes % 2 !== 0) {
+            return "Incompleto";
+        }
+
         // Domingo: Não precisa bater ponto
         if (diaSemana === 0) {
-            return "ok";
+            return "Ok";
         }
 
         if (numMarcacoes === 0) {
-            return "falta";
+            return "Falta";
         }
 
         // Sábado: 2+ pontos e 4+ horas
         if (diaSemana === 6) {
-            if (numMarcacoes >= 2 && numMarcacoes % 2 === 0) {
-                return horasTrabalhadas >= 4 ? "ok" : "atraso";
+            if (numMarcacoes === 2 && horasTrabalhadas >= 4 && horasTrabalhadas <= 6) {
+                return "Ok";
             }
-            return "incompleto";
+            if (numMarcacoes === 4 && horasTrabalhadas >= 4) {
+                return "Ok";
+            }
+            return "Incompleto";
         }
 
         // Dias de semana: 4+ pontos e 8+ horas
-        if (numMarcacoes >= 4 && numMarcacoes % 2 === 0) {
-            return horasTrabalhadas >= 8 ? "ok" : "atraso";
+        if (numMarcacoes >= 4) {
+            return horasTrabalhadas >= 8 ? "Ok" : "Atraso";
         }
 
-        return "incompleto";
+        return "Incompleto";
     }
 
     getWorkedMinutes(): number {
@@ -138,7 +165,7 @@ export class MarcacaoDia implements MarcacaoDia {
     }
 
     getHorasTrabalhadas(): string {
-        if (!this.marcacoes || this.marcacoes.length < 2) return '--:--';
+        if (!this.marcacoes || this.marcacoes.length % 2 !== 0) return '--:--';
 
         const totalMinutes = this.getWorkedMinutes();
         if (totalMinutes === 0) return '--:--';
