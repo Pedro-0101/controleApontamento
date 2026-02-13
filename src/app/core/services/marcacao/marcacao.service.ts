@@ -89,11 +89,13 @@ export class MarcacaoService {
       const marcacoesPorDia = await this.formatarMarcacoesPorDia(marcacoesOrdenadas, dataInicio, dataFim);
 
       this.ordenarTodasMarcacoes(marcacoesPorDia);
-      this.marcacoesFiltradas.set(marcacoesPorDia);
       this.marcacaoesFiltradasBackup.set(marcacoesPorDia);
-      this.relogiosMarcacoes.set(this.getRelogiosFromMarcacoes())
 
-      this.relogioService.updateRelogiosFromMarcacoes(marcacoesPorDia); // Atualizar os relogios das marcacoes
+      // Aplicar filtros existentes ao invés de resetar para a lista completa
+      this.applyFilters();
+
+      this.relogiosMarcacoes.set(this.getRelogiosFromMarcacoes())
+      this.relogioService.updateRelogiosFromMarcacoes(marcacoesPorDia);
 
       this.isLoadingMarcacoes.set(false);
       return marcacoes;
