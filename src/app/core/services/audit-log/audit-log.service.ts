@@ -21,11 +21,16 @@ export class AuditLogService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrlBackend}/audit-logs`;
 
-  async getLogs(filters: { dataInicio?: string; dataFim?: string; usuario?: string; acao?: string }): Promise<AuditLog[]> {
+  async getLogs(filters: { dataInicio?: string; dataFim?: string; usuario?: string[]; acao?: string }): Promise<AuditLog[]> {
     let params = new HttpParams();
     if (filters.dataInicio) params = params.set('dataInicio', filters.dataInicio);
     if (filters.dataFim) params = params.set('dataFim', filters.dataFim);
-    if (filters.usuario) params = params.set('usuario', filters.usuario);
+
+    if (filters.usuario && filters.usuario.length > 0) {
+      filters.usuario.forEach(u => {
+        params = params.append('usuario', u);
+      });
+    }
     if (filters.acao) params = params.set('acao', filters.acao);
 
     try {

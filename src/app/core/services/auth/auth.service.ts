@@ -148,4 +148,15 @@ export class AuthService {
     return true;
   }
 
+  async getAdminUsers(): Promise<string[]> {
+    try {
+      const response = await firstValueFrom(
+        this.http.get<{ success: boolean; users: string[] }>(`${environment.apiUrlBackend}/auth/users`)
+      );
+      return response.success ? response.users : [];
+    } catch (error) {
+      this.logger.error("AuthService", "Erro ao buscar usuários administradores", error);
+      return [];
+    }
+  }
 }

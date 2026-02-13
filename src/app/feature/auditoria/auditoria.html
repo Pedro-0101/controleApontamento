@@ -21,8 +21,13 @@
         <input type="date" [(ngModel)]="dataFim" (change)="loadLogs()" class="filter-input">
       </div>
       <div class="filter-item">
-        <label>Usuário</label>
-        <input type="text" [(ngModel)]="usuarioFiltro" (keyup.enter)="loadLogs()" placeholder="Ex: Pedro" class="filter-input">
+        <label>Usuários</label>
+        <app-multi-select-dropdown 
+          [options]="adminUsers()" 
+          [initialValue]="usuarioFiltro()"
+          (selectionChange)="usuarioFiltro.set($event)"
+          placeholder="Filtrar por usuários...">
+        </app-multi-select-dropdown>
       </div>
       <div class="filter-item">
         <label>Ação</label>

@@ -665,6 +665,17 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Rota para buscar todos os usuários administradores
+app.get('/api/auth/users', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT nome_usuario FROM login_apontamento WHERE ativo = 1 ORDER BY nome_usuario ASC');
+    res.json({ success: true, users: rows.map(r => r.nome_usuario) });
+  } catch (error) {
+    console.error('Erro ao buscar usuários:', error);
+    res.status(500).json({ success: false, error: 'Erro ao buscar usuários' });
+  }
+});
+
 // --- Rota de Auditoria ---
 app.get('/api/audit-logs', async (req, res) => {
   const { dataInicio, dataFim, usuario, acao } = req.query;
@@ -687,8 +698,12 @@ app.get('/api/audit-logs', async (req, res) => {
       params.push(`${dataFim} 23:59:59`);
     }
     if (usuario) {
-      query += " AND usuario = ?";
-      params.push(usuario);
+      const userList = Array.isArray(usuario) ? usuario : [usuario];
+      if (userList.length > 0) {
+        const placeholders = userList.map(() => '?').join(',');
+        query += ` AND usuario IN (${placeholders})`;
+        params.push(...userList);
+      }
     }
     if (acao) {
       query += " AND acao = ?";

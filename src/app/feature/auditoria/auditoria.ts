@@ -1,19 +1,22 @@
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { AuditLog, AuditLogService } from '../../core/services/audit-log/audit-log.service';
 import { DateHelper } from '../../core/helpers/dateHelper';
+import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-select-dropdown';
+import { AuthService } from '../../core/services/auth/auth.service';
 
 @Component({
   selector: 'app-auditoria',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, MultiSelectDropdown],
   templateUrl: './auditoria.html',
   styleUrl: './auditoria.css'
 })
-export class Auditoria {
+export class Auditoria implements OnInit {
   private auditLogService = inject(AuditLogService);
+  private authService = inject(AuthService);
 
   logs = signal<AuditLog[]>([]);
   isLoading = signal(false);
@@ -21,13 +24,20 @@ export class Auditoria {
   // Filters
   dataInicio = signal(DateHelper.toIsoDate(DateHelper.getStringDate(new Date())));
   dataFim = signal(DateHelper.toIsoDate(DateHelper.getStringDate(new Date())));
-  usuarioFiltro = signal('');
+  usuarioFiltro = signal<string[]>([]);
   acaoFiltro = signal('');
+
+  adminUsers = signal<string[]>([]);
 
   constructor() {
     effect(() => {
       this.loadLogs();
     }, { allowSignalWrites: true });
+  }
+
+  async ngOnInit() {
+    const users = await this.authService.getAdminUsers();
+    this.adminUsers.set(users);
   }
 
   async loadLogs() {
