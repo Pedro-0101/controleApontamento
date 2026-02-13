@@ -302,7 +302,7 @@ export class MarcacaoService {
 
     try {
       await firstValueFrom(
-        this.http.post<{ success: boolean, message: string }>('http://localhost:3000/api/comments', body)
+        this.http.post<{ success: boolean, message: string }>(`${environment.apiUrlBackend}/comments`, body)
       );
     } catch (error) {
       this.loggerService.error('MarcacaoService', 'Erro ao salvar comentário:', error);
@@ -313,7 +313,7 @@ export class MarcacaoService {
   async deletePontoManual(id: number): Promise<void> {
     const criadoPor = this.authService._userName() || 'Sistema';
     await firstValueFrom(
-      this.http.delete(`http://localhost:3000/api/marcacoes/manual/${id}`, {
+      this.http.delete(`${environment.apiUrlBackend}/marcacoes/manual/${id}`, {
         body: { criadoPor }
       })
     );
@@ -321,7 +321,7 @@ export class MarcacaoService {
   async updatePontoManual(id: number, novaHora: string): Promise<void> {
     const criadoPor = this.authService._userName() || 'Sistema';
     await firstValueFrom(
-      this.http.put(`http://localhost:3000/api/marcacoes/manual/${id}`, {
+      this.http.put(`${environment.apiUrlBackend}/marcacoes/manual/${id}`, {
         hora: novaHora,
         criadoPor
       })
@@ -334,7 +334,7 @@ export class MarcacaoService {
 
     try {
       await firstValueFrom(
-        this.http.post<{ success: boolean, message: string }>('http://localhost:3000/api/marcacoes/manual', body)
+        this.http.post<{ success: boolean, message: string }>(`${environment.apiUrlBackend}/marcacoes/manual`, body)
       );
     } catch (error) {
       this.loggerService.error('MarcacaoService', 'Erro ao salvar ponto manual:', error);
@@ -347,7 +347,7 @@ export class MarcacaoService {
 
     try {
       const response = await firstValueFrom(
-        this.http.post<{ success: boolean, comments: any[] }>('http://localhost:3000/api/comments/batch', body)
+        this.http.post<{ success: boolean, comments: any[] }>(`${environment.apiUrlBackend}/comments/batch`, body)
       );
       return response.success ? response.comments : [];
     } catch (error) {
@@ -361,7 +361,7 @@ export class MarcacaoService {
 
     try {
       const response = await firstValueFrom(
-        this.http.post<{ success: boolean, points: any[] }>('http://localhost:3000/api/marcacoes/manual/batch', body)
+        this.http.post<{ success: boolean, points: any[] }>(`${environment.apiUrlBackend}/marcacoes/manual/batch`, body)
       );
       return response.success ? response.points : [];
     } catch (error) {
@@ -463,7 +463,7 @@ export class MarcacaoService {
   async getEmployeeHistory(matricula: string): Promise<any> {
     try {
       const response = await firstValueFrom(
-        this.http.get<{ success: boolean, history: any }>(`http://localhost:3000/api/employee/${matricula}/history`)
+        this.http.get<{ success: boolean, history: any }>(`${environment.apiUrlBackend}/employee/${matricula}/history`)
       );
 
       if (response.success) {

@@ -1,32 +1,32 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { LoggerService } from '../logger/logger.service';
+import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { CookiesService } from '../cookies/cookies.service';
 import { ApiSessionService } from '../apiSession/api-session.service';
 import { CryptoService } from '../crypto/crypto.service';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable({
   providedIn: 'root',
 })
 export class AuthService {
 
-  private logger              = inject(LoggerService);
-  private cookiesService      = inject(CookiesService);
+  private logger = inject(LoggerService);
+  private cookiesService = inject(CookiesService);
   private startSessionService = inject(ApiSessionService);
-  private cryptoService       = inject(CryptoService);
+  private cryptoService = inject(CryptoService);
+  private http = inject(HttpClient);
 
-  private userCodes: string[] = environment.dnpAccessCode.split(',');
-  private userNames: string[] = environment.dnpUserNames.split(',');
+  private userName = signal('');
+  private userCode = signal('');
+  private logedAt = signal('');
+  private authenticated = signal(false);
 
-  private userName  = signal('');
-  private userCode  = signal('');
-  private logedAt   = signal('');
-  private authenticated   = signal(false);
-
-  readonly _userName  = computed(() => this.userName());
-  readonly _userCode  = computed(() => this.userCode());
-  readonly _logedAt   = computed(() => this.logedAt());
-  readonly _authenticated   = computed(() => this.authenticated());
+  readonly _userName = computed(() => this.userName());
+  readonly _userCode = computed(() => this.userCode());
+  readonly _logedAt = computed(() => this.logedAt());
+  readonly _authenticated = computed(() => this.authenticated());
 
   constructor() {
     this.logger.info("AuthService", "Componente inicializado");
@@ -45,21 +45,28 @@ export class AuthService {
       return true;
     }
 
-    if (this.userCodes.filter(u => u === accessCode).length === 0) {
-      this.logger.info("AuthService", "Codigo de acesso inválido");
-      this.userName.set('');
-      this.userCode.set('');
-      this.authenticated.set(false);
-      this.logedAt.set('');
-      return false;
+    try {
+      const response = await firstValueFrom(
+        this.http.post<any>(`${environment.apiUrlBackend}/auth/login`, { accessCode })
+      );
+
+      if (response && response.success) {
+        return this.successLogin(response.user.accessCode, response.user.userName);
+      }
+    } catch (error) {
+      this.logger.error("AuthService", "Erro ao realizar login via API", error);
     }
 
-    return this.successLogin(accessCode!);
+    this.userName.set('');
+    this.userCode.set('');
+    this.authenticated.set(false);
+    this.logedAt.set('');
+    return false;
   }
 
-  private async successLogin(accessCode: string): Promise<boolean> {
-    
-    this.logger.info("AuthService", "Codigo de acesso válido");
+  private async successLogin(accessCode: string, username: string): Promise<boolean> {
+
+    this.logger.info("AuthService", "Login bem sucedido");
 
     try {
       await this.startSessionService.startSession();
@@ -68,13 +75,12 @@ export class AuthService {
       return false;
     }
 
-    let username = this.userNames[this.userCodes.indexOf(accessCode)];
     let date = new Date().toISOString();
 
     let cryptedCode = this.cryptoService.encryptPayload({ accessCode: accessCode });
     let cryptedName = this.cryptoService.encryptPayload({ userName: username });
     let cryptedDate = this.cryptoService.encryptPayload({ logedAt: date });
-    
+
     this.userName.set(username);
     this.userCode.set(accessCode);
     this.logedAt.set(date);
@@ -110,9 +116,21 @@ export class AuthService {
       return false;
     }
 
-    let accessCode = decryptedCodePayload.accessCode;
+    // Re-validate against database to ensure user is still active
+    try {
+      const accessCode = decryptedCodePayload.accessCode;
+      const response = await firstValueFrom(
+        this.http.post<any>(`${environment.apiUrlBackend}/auth/login`, { accessCode })
+      );
 
-    return this.successLogin(accessCode);
+      if (response && response.success) {
+        return this.successLogin(response.user.accessCode, response.user.userName);
+      }
+    } catch (error) {
+      this.logger.error("AuthService", "Erro ao validar cookies contra banco de dados", error);
+    }
+
+    return false;
   }
 
   logout() {
@@ -126,7 +144,7 @@ export class AuthService {
     this.cookiesService.deleteCookie('userName');
     this.cookiesService.deleteCookie('accessCode');
     this.cookiesService.deleteCookie('logedAt');
-    
+
     return true;
   }
 

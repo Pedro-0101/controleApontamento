@@ -523,6 +523,43 @@ app.post('/api/employees/batch-deactivate', async (req, res) => {
   }
 });
 
+// Rota de Login (Autenticação pelo Banco de Dados)
+app.post('/api/auth/login', async (req, res) => {
+  const { accessCode } = req.body;
+
+  if (!accessCode) {
+    return res.status(400).json({ success: false, error: 'Código de acesso é obrigatório' });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      'SELECT codigo_acesso, nome_usuario, ativo FROM login_apontamento WHERE codigo_acesso = ? AND ativo = 1',
+      [accessCode]
+    );
+
+    if (rows.length > 0) {
+      res.json({
+        success: true,
+        user: {
+          userName: rows[0].nome_usuario,
+          accessCode: rows[0].codigo_acesso
+        }
+      });
+    } else {
+      res.status(401).json({
+        success: false,
+        message: 'Código de acesso inválido ou usuário inativo'
+      });
+    }
+  } catch (error) {
+    console.error('Erro na autenticação:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro interno ao processar login'
+    });
+  }
+});
+
 // Rota de health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'API funcionando corretamente' });

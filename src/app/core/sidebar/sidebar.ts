@@ -1,5 +1,5 @@
-import { Component, inject } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, inject, signal } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { AuthService } from '../services/auth/auth.service';
 
@@ -12,7 +12,19 @@ import { AuthService } from '../services/auth/auth.service';
 })
 export class Sidebar {
   private authService = inject(AuthService);
+  private router = inject(Router);
+
   userName = this.authService._userName;
+  isMenuOpen = signal(false);
+
+  toggleMenu() {
+    this.isMenuOpen.update(v => !v);
+  }
+
+  logout() {
+    this.authService.logout();
+    this.router.navigate(['/login']);
+  }
 
   menuItems = [
     {

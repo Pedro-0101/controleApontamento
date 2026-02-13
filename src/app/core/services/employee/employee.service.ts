@@ -24,12 +24,14 @@ interface ActiveEmployeesResponse {
   error?: string;
 }
 
+import { environment } from '../../../../environments/environment';
+
 @Injectable({
   providedIn: 'root',
 })
 export class EmployeeService {
   private logger = inject(LoggerService);
-  private apiUrl = 'http://localhost:3000/api';
+  private apiUrl = environment.apiUrlBackend;
 
   constructor(private http: HttpClient) {
     this.logger.info('EmployeeService', 'Serviço inicializado');

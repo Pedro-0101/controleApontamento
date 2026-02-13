@@ -34,7 +34,7 @@ export class Relatorios {
   dataFim = signal('');
   selectedEmployees = signal<string[]>([]);
   selectedCompanies = signal<string[]>([]);
-  selectedClock = signal(''); // Keeping signal for possible legacy but focusing on companies
+  selectedClock = signal('');
 
   // Options
   employees = signal<Employee[]>([]);

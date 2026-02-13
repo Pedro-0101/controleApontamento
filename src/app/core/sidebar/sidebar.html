@@ -19,13 +19,25 @@
   </nav>
 
   <div class="sidebar-footer">
-    <div class="user-info">
-      <div class="user-avatar">
-        <lucide-icon name="user" [size]="18"></lucide-icon>
-      </div>
-      <div class="user-details">
-        <span class="user-name">{{ userName() }}</span>
-        <span class="user-status">Conectado</span>
+    <div class="user-menu-container">
+      @if (isMenuOpen()) {
+        <div class="user-dropdown">
+          <button (click)="logout()" class="dropdown-item logout">
+            <lucide-icon name="log-out" [size]="16"></lucide-icon>
+            <span>Sair do Sistema</span>
+          </button>
+        </div>
+      }
+      
+      <div class="user-info" (click)="toggleMenu()" [class.active]="isMenuOpen()">
+        <div class="user-avatar">
+          <lucide-icon name="user" [size]="18"></lucide-icon>
+        </div>
+        <div class="user-details">
+          <span class="user-name">{{ userName() }}</span>
+          <span class="user-status">Conectado</span>
+        </div>
+        <lucide-icon name="chevron-up" [size]="16" class="menu-chevron" [class.rotated]="isMenuOpen()"></lucide-icon>
       </div>
     </div>
   </div>
