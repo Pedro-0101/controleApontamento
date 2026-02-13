@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal, computed } from '@angular/core';
+import { Component, inject, OnInit, signal, computed, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { EmployeeService } from '../../core/services/employee/employee.service';
@@ -6,16 +6,19 @@ import { Employee } from '../../models/employee/employee';
 import { ModalColaborador } from './modal-colaborador/modal-colaborador';
 import { Pagination } from '../../shared/pagination/pagination';
 import { SearchFilter, FilterOption } from '../../shared/search-filter/search-filter';
+import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-select-dropdown';
 
 @Component({
   selector: 'app-colaboradores',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, ModalColaborador, Pagination, SearchFilter],
+  imports: [CommonModule, LucideAngularModule, ModalColaborador, Pagination, SearchFilter, MultiSelectDropdown],
   templateUrl: './colaboradores.html',
   styleUrl: './colaboradores.css'
 })
 export class Colaboradores implements OnInit {
   private employeeService = inject(EmployeeService);
+
+  @ViewChild(MultiSelectDropdown) multiSelect!: MultiSelectDropdown;
 
   allEmployees = signal<Employee[]>([]);
   searchText = signal('');
@@ -27,6 +30,23 @@ export class Colaboradores implements OnInit {
   modalMode = signal<'create' | 'edit'>('create');
   selectedEmployee = signal<Employee | null>(null);
   selectedEmployeeIds = signal<number[]>([]);
+  selectedCompanies = signal<string[]>([]);
+
+  distinctCompanies = computed(() => {
+    const emps = this.allEmployees();
+    return [...new Set(emps.map(e => e.empresa).filter(c => !!c))].sort();
+  });
+
+  companyOptions = computed(() => {
+    return this.distinctCompanies().map(c => ({
+      id: 0,
+      nome: c,
+      matricula: c,
+      empresa: c,
+      qrcod: '',
+      ativo: 1
+    } as Employee));
+  });
 
   isAllSelected = computed(() => {
     const paginated = this.paginatedEmployees();
@@ -57,9 +77,12 @@ export class Colaboradores implements OnInit {
     const status = this.statusFilter();
     if (status !== 'all') {
       result = result.filter(emp => emp.ativo === parseInt(status));
-    } else {
-      // Por padrão, se não filtrado especificamente, mostramos apenas ativos conforme solicitado
-      result = result.filter(emp => emp.ativo === 1);
+    }
+
+    // Apply company filter (multi-select)
+    const companies = this.selectedCompanies();
+    if (companies.length > 0) {
+      result = result.filter(emp => companies.includes(emp.empresa));
     }
 
     return result;
@@ -97,6 +120,14 @@ export class Colaboradores implements OnInit {
   onFilterChange(filter: string) {
     this.statusFilter.set(filter);
     this.currentPage.set(1); // Reset to first page on filter
+    this.selectedEmployeeIds.set([]); // Limpar seleção ao filtrar
+    this.multiSelect?.clearSelection(); // Limpar filtro de empresa
+  }
+
+  onCompanySelectionChange(selected: string[]) {
+    this.selectedCompanies.set(selected);
+    this.currentPage.set(1);
+    this.selectedEmployeeIds.set([]);
   }
 
   onPageChange(page: number) {

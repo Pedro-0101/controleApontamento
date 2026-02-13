@@ -44,6 +44,7 @@ import {
   AlertTriangle,
   Info,
   ChevronDown,
+  ChevronUp,
   ShieldAlert,
   FileQuestion
 } from 'lucide-angular';
@@ -97,6 +98,7 @@ export const appConfig: ApplicationConfig = {
       AlertTriangle,
       Info,
       ChevronDown,
+      ChevronUp,
       ShieldAlert,
       FileQuestion
     }))

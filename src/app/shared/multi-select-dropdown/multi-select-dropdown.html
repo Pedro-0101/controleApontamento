@@ -1,0 +1,62 @@
+<div class="multi-select-container">
+  <div class="multi-select-header" (click)="toggleDropdown()">
+    <div class="selected-count">
+      @if (selectedValues().length === 0) {
+        <span class="placeholder">{{ placeholder() }}</span>
+      } @else {
+        <span class="count-badge">{{ selectedValues().length }} selecionado(s)</span>
+      }
+    </div>
+    <lucide-icon [name]="isDropdownOpen() ? 'chevron-up' : 'chevron-down'" [size]="16"></lucide-icon>
+  </div>
+
+  @if (isDropdownOpen()) {
+    <div class="multi-select-dropdown">
+      <div class="dropdown-search">
+        <lucide-icon name="search" [size]="14" class="search-icon"></lucide-icon>
+        <label for="ddSearch" class="sr-only">{{ searchPlaceholder() }}</label>
+        <input
+          type="text"
+          id="ddSearch"
+          name="ddSearch"
+          class="search-input"
+          [placeholder]="searchPlaceholder()"
+          [ngModel]="searchTerm()"
+          (ngModelChange)="searchTerm.set($event)"
+          (click)="$event.stopPropagation()"
+        >
+      </div>
+
+      <div class="dropdown-options">
+        <label class="option-item select-all" (click)="$event.stopPropagation()">
+          <input
+            type="checkbox"
+            [checked]="isAllSelected()"
+            (change)="toggleSelectAll()"
+          >
+          <span>Selecionar Todos</span>
+        </label>
+
+        @for (option of filteredOptions(); track option.matricula) {
+          <label class="option-item" [class.selected]="isOptionSelected(option.matricula)" (click)="$event.stopPropagation()">
+            <input
+              type="checkbox"
+              [checked]="isOptionSelected(option.matricula)"
+              (change)="toggleOption(option.matricula)"
+            >
+            <div class="option-info">
+              <span class="option-name">{{ option.nome }}</span>
+              <span class="option-matricula">{{ option.matricula }}</span>
+            </div>
+          </label>
+        } @empty {
+          <div class="empty-options">Nenhum resultado encontrado</div>
+        }
+      </div>
+    </div>
+  }
+</div>
+
+@if (isDropdownOpen()) {
+  <div class="dropdown-overlay" (click)="toggleDropdown()"></div>
+}

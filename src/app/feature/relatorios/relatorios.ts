@@ -12,12 +12,12 @@ import { Pagination } from '../../shared/pagination/pagination';
 import { MarcacaoDia } from '../../models/marcacaoDia/marcacao-dia';
 import { DateHelper } from '../../core/helpers/dateHelper';
 import { MarcacaoService } from '../../core/services/marcacao/marcacao.service';
-import { MultiSelectEmployees } from '../../shared/multi-select-employees/multi-select-employees';
+import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-select-dropdown';
 
 @Component({
   selector: 'app-relatorios',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, Pagination, MultiSelectEmployees],
+  imports: [CommonModule, FormsModule, LucideAngularModule, Pagination, MultiSelectDropdown],
   templateUrl: './relatorios.html',
   styleUrl: './relatorios.css'
 })

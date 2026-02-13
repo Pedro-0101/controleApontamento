@@ -9,13 +9,13 @@
     </div>
     <div class="header-actions">
       @if (selectedEmployeeIds().length > 0) {
-        <button class="btn btn-danger" (click)="batchDeactivate()">
-          <lucide-icon name="shield-alert" [size]="18"></lucide-icon>
+        <button class="btn btn-danger btn-sm" (click)="batchDeactivate()">
+          <lucide-icon name="shield-alert" [size]="16"></lucide-icon>
           Desativar Selecionados ({{ selectedEmployeeIds().length }})
         </button>
       }
-      <button class="btn btn-primary" (click)="openCreateModal()">
-        <lucide-icon name="plus" [size]="18"></lucide-icon>
+      <button class="btn btn-primary btn-sm" (click)="openCreateModal()">
+        <lucide-icon name="plus" [size]="16"></lucide-icon>
         Adicionar Colaborador
       </button>
     </div>
@@ -28,13 +28,25 @@
     </div>
   } @else {
     <div class="table-container">
-      <app-search-filter
-        searchPlaceholder="Pesquisar por nome, matrícula ou empresa..."
-        filterLabel="Status:"
-        [filterOptions]="filterOptions()"
-        (searchChange)="onSearchChange($event)"
-        (filterChange)="onFilterChange($event)"
-      ></app-search-filter>
+      <div class="filters-layout">
+        <app-search-filter
+          class="flex-1"
+          searchPlaceholder="Pesquisar por nome ou matrícula..."
+          filterLabel="Status:"
+          [filterOptions]="filterOptions()"
+          (searchChange)="onSearchChange($event)"
+          (filterChange)="onFilterChange($event)"
+        ></app-search-filter>
+
+        <div class="company-filter-box">
+          <app-multi-select-dropdown
+            [options]="companyOptions()"
+            [placeholder]="'Selecione as empresas...'"
+            [searchPlaceholder]="'Buscar empresas...'"
+            (selectionChange)="onCompanySelectionChange($event)"
+          ></app-multi-select-dropdown>
+        </div>
+      </div>
 
       <table class="data-table">
         <thead>

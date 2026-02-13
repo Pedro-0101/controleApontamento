@@ -501,6 +501,28 @@ app.get('/api/employees/active', async (req, res) => {
   }
 });
 
+// Rota para desativar funcionários em lote
+app.post('/api/employees/batch-deactivate', async (req, res) => {
+  const { ids } = req.body;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ success: false, error: 'IDs inválidos' });
+  }
+
+  try {
+    const placeholders = ids.map(() => '?').join(',');
+    await pool.query(
+      `UPDATE qrcod_2023 SET ativo = 0 WHERE id IN (${placeholders})`,
+      ids
+    );
+
+    res.json({ success: true, message: 'Funcionários desativados com sucesso' });
+  } catch (error) {
+    console.error('Erro ao desativar funcionários em lote:', error);
+    res.status(500).json({ success: false, error: 'Erro ao desativar funcionários no banco de dados' });
+  }
+});
+
 // Rota de health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'API funcionando corretamente' });

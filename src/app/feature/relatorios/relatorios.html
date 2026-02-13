@@ -36,8 +36,10 @@
 
       <div class="form-group">
         <label>Empresa (opcional)</label>
-        <app-multi-select-employees
-          [employees]="companyOptions()"
+        <app-multi-select-dropdown
+          [options]="companyOptions()"
+          [placeholder]="'Selecione as empresas...'"
+          [searchPlaceholder]="'Buscar empresas...'"
           (selectionChange)="onCompanySelectionChange($event)"
         />
       </div>
@@ -45,8 +47,10 @@
       <!-- Employee Filter -->
       <div class="form-group">
         <label>Funcionário (opcional)</label>
-        <app-multi-select-employees
-          [employees]="filteredEmployees()"
+        <app-multi-select-dropdown
+          [options]="filteredEmployees()"
+          [placeholder]="'Selecione os funcionários...'"
+          [searchPlaceholder]="'Buscar por nome ou matrícula...'"
           (selectionChange)="onEmployeeSelectionChange($event)"
         />
       </div>

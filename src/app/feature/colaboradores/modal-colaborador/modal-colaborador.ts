@@ -24,7 +24,6 @@ export class ModalColaborador implements OnInit {
   nome = signal('');
   matricula = signal('');
   empresa = signal('');
-  qrcod = signal('');
   ativo = signal(true);
   isSaving = signal(false);
 
@@ -34,7 +33,6 @@ export class ModalColaborador implements OnInit {
       this.nome.set(emp.nome);
       this.matricula.set(emp.matricula);
       this.empresa.set(emp.empresa);
-      this.qrcod.set(emp.qrcod || '');
       this.ativo.set(emp.ativo === 1);
     }
   }
@@ -51,7 +49,6 @@ export class ModalColaborador implements OnInit {
         nome: this.nome(),
         matricula: this.matricula(),
         empresa: this.empresa(),
-        qrcod: this.qrcod(),
         ativo: this.ativo() ? 1 : 0
       };
 
