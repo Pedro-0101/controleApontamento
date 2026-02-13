@@ -7,6 +7,7 @@ import { ModalColaborador } from './modal-colaborador/modal-colaborador';
 import { Pagination } from '../../shared/pagination/pagination';
 import { SearchFilter, FilterOption } from '../../shared/search-filter/search-filter';
 import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-select-dropdown';
+import { QRCodeService } from '../../core/services/qrcode/qrcode.service';
 
 @Component({
   selector: 'app-colaboradores',
@@ -17,6 +18,7 @@ import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-se
 })
 export class Colaboradores implements OnInit {
   private employeeService = inject(EmployeeService);
+  private qrcodeService = inject(QRCodeService);
 
   @ViewChild(MultiSelectDropdown) multiSelect!: MultiSelectDropdown;
 
@@ -210,6 +212,15 @@ export class Colaboradores implements OnInit {
     } catch (error) {
       alert('Erro ao excluir colaborador.');
       console.error(error);
+    }
+  }
+
+  async generateCard(employee: Employee) {
+    try {
+      await this.qrcodeService.generateCardPDF(employee);
+    } catch (error) {
+      console.error('Erro ao gerar cartão:', error);
+      alert('Erro ao gerar cartão do colaborador.');
     }
   }
 
