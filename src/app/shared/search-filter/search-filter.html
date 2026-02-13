@@ -1,8 +1,11 @@
 <div class="search-filter-container">
   <div class="search-box">
+    <label for="searchInput" class="sr-only">Pesquisar</label>
     <lucide-icon name="search" [size]="18" class="search-icon"></lucide-icon>
     <input
       type="text"
+      id="searchInput"
+      name="searchInput"
       class="search-input"
       [placeholder]="searchPlaceholder()"
       [value]="searchText()"

@@ -8,6 +8,7 @@
       <label for="perPage">Por página:</label>
       <select 
         id="perPage" 
+        name="perPage"
         [value]="itemsPerPage()" 
         (change)="changeItemsPerPage(+$any($event.target).value)"
         class="input-select"

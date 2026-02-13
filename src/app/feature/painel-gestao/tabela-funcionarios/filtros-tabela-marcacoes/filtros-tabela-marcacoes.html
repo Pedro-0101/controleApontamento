@@ -4,7 +4,7 @@
 
     <div class="filter-item">
       <label for="periodo">Período</label>
-      <select id="periodo" (change)="aoSelecionarPeriodo($event)" [disabled]="_isLoadingMarcacoesFiltroPainel()">
+      <select id="periodo" name="periodo" (change)="aoSelecionarPeriodo($event)" [disabled]="_isLoadingMarcacoesFiltroPainel()">
         @for(periodo of _periodosPossiveisFiltroPainel; track periodo) {
         <option [value]="periodo" [selected]="periodo === 'Hoje'">
           {{ periodo }}
@@ -16,7 +16,7 @@
     <div class="filter-item">
       <label for="empresa">Empresa</label>
 
-      <select id="empresa" (change)="aoSelecionarEmpresa($event)" [disabled]="_isLoadingMarcacoesFiltroPainel()">
+      <select id="empresa" name="empresa" (change)="aoSelecionarEmpresa($event)" [disabled]="_isLoadingMarcacoesFiltroPainel()">
         <option value='todos'>Todos</option>
 
         @for(empresa of _empresasFiltroPainel(); track empresa) {
@@ -29,7 +29,7 @@
 
     <div class="filter-item">
       <label for="status">Status</label>
-      <select id="status" (change)="aoSelecionarStatus($event)" [disabled]="_isLoadingMarcacoesFiltroPainel()">
+      <select id="status" name="status" (change)="aoSelecionarStatus($event)" [disabled]="_isLoadingMarcacoesFiltroPainel()">
         <option value="todos">Todos</option>
         @for(status of _statusPossiveisFiltroPainel(); track status) {
         <option [value]="status">

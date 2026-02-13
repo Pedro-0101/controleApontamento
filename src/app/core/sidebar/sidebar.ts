@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
+import { AuthService } from '../services/auth/auth.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -10,6 +11,9 @@ import { LucideAngularModule } from 'lucide-angular';
   styleUrl: './sidebar.css'
 })
 export class Sidebar {
+  private authService = inject(AuthService);
+  userName = this.authService._userName;
+
   menuItems = [
     {
       label: 'Painel de Pontos',

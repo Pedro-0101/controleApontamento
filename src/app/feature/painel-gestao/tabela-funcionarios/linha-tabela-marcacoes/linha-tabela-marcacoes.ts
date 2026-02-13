@@ -15,12 +15,16 @@ export class LinhaTabelaMarcacoes {
   marcacao = input.required<MarcacaoDia>();
   @Output() openDetails = new EventEmitter<MarcacaoDia>();
 
+
+
   abrirDetalhes() {
     this.openDetails.emit(this.marcacao());
   }
 
   formatHora(dataMarcacao: Date | string | undefined): string {
     if (!dataMarcacao) return '--:--';
+
+
 
     const date = dataMarcacao instanceof Date ? dataMarcacao : new Date(dataMarcacao);
 

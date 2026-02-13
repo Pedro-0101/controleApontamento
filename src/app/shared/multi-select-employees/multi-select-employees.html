@@ -14,9 +14,12 @@
     <div class="multi-select-dropdown">
       <!-- Search Bar -->
       <div class="search-wrapper">
+        <label for="empSearch" class="sr-only">Buscar funcionário</label>
         <lucide-icon name="search" [size]="16"></lucide-icon>
         <input
           type="text"
+          id="empSearch"
+          name="empSearch"
           class="search-input"
           placeholder="Buscar funcionário..."
           [(ngModel)]="searchTerm"
@@ -28,10 +31,12 @@
       <div class="select-all-option" (click)="toggleSelectAll(); $event.stopPropagation()">
         <input
           type="checkbox"
+          id="selectAll"
+          name="selectAll"
           [checked]="isAllSelected()"
           (click)="$event.stopPropagation()"
         >
-        <label>Selecionar todos</label>
+        <label for="selectAll">Selecionar todos</label>
       </div>
 
       <!-- Options List -->
@@ -43,10 +48,12 @@
           >
             <input
               type="checkbox"
+              [id]="'emp-' + emp.matricula"
+              [name]="'emp-' + emp.matricula"
               [checked]="isEmployeeSelected(emp.matricula)"
               (click)="$event.stopPropagation()"
             >
-            <label>{{ emp.matricula }} - {{ emp.nome }}</label>
+            <label [for]="'emp-' + emp.matricula">{{ emp.matricula }} - {{ emp.nome }}</label>
           </div>
         } @empty {
           <div class="empty-message">Nenhum funcionário encontrado</div>

@@ -77,9 +77,25 @@ export class Marcacao {
 
   /**
    * Helper para converter o formato Microsoft JSON Date "/Date(123456789-0300)/"
+   * ou strings de data ISO 8601.
    */
   private static parseJsonDate(dateStr: string): Date {
-    const timestamp = dateStr.match(/\d+/);
-    return timestamp ? new Date(parseInt(timestamp[0], 10)) : new Date();
+    if (!dateStr) return new Date();
+
+    // 1. Tenta formato Microsoft JSON Date: /Date(1234567890000-0300)/
+    const timestampMatch = dateStr.match(/\/Date\((\d+)(?:[+-]\d+)?\)\//);
+    if (timestampMatch) {
+      return new Date(parseInt(timestampMatch[1], 10));
+    }
+
+    // 2. Tenta formato ISO ou similar
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+
+    // 3. Fallback
+    console.warn('Formato de data não reconhecido:', dateStr);
+    return new Date();
   }
 }

@@ -5,6 +5,7 @@
 <td class="col-data" (click)="abrirDetalhes()">{{ marcacao().getDataFormatada() }}</td>
 <td class="col-dia-semana" (click)="abrirDetalhes()">{{ marcacao().getDiaSemana() }}</td>
 <td class="col-hora" (click)="abrirDetalhes()">
+
   @for (m of marcacao().marcacoes; track $index) {
     <span class="hora-pill" [class.manual]="m.numSerieRelogio === 'MANUAL'">
       {{ formatHora(m.dataMarcacao) }}

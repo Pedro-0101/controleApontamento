@@ -61,9 +61,9 @@
       </div>
 
       <div class="section manual-entry">
-        <label class="section-title">Adicionar Ponto Manual</label>
+        <label for="pontoHora" class="sr-only">Hora do ponto</label>
         <div class="input-group">
-          <input type="time" [(ngModel)]="novoPontoHora" class="input-text" placeholder="HH:MM">
+          <input type="time" id="pontoHora" name="pontoHora" [(ngModel)]="novoPontoHora" class="input-text" placeholder="HH:MM">
           <button class="btn btn-primary" (click)="adicionarPontoManual()" [disabled]="isSaving()">
             @if(isSaving()) {
               <div class="btn-spinner"></div>
@@ -93,7 +93,10 @@
         </div>
         
         <div class="comment-input-area">
+          <label for="novoComentario" class="sr-only">Adicionar novo comentário</label>
           <textarea 
+            id="novoComentario"
+            name="novoComentario"
             [(ngModel)]="novoComentario" 
             class="textarea-comentario" 
             placeholder="Adicionar novo comentário..."

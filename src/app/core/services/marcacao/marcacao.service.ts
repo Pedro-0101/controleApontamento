@@ -35,7 +35,7 @@ export class MarcacaoService {
   private apiUrl = environment.apiUrlListarMarcacoes;
   private isLoadingMarcacoes = signal(false);
 
-  private readonly token = this.apiSessionService.token();
+
   readonly _isLoadingMarcacoes = computed(() => this.isLoadingMarcacoes());
   readonly _marcacoes = computed(() => this.marcacoes());
   readonly _marcacoesFiltradas = computed(() => this.marcacoesFiltradas());
@@ -112,8 +112,10 @@ export class MarcacaoService {
   }
 
   private async formatarMarcacoesPorDia(marcacoes: Marcacao[], dataInicio: string, dataFim: string): Promise<MarcacaoDia[]> {
+    this.loggerService.info('MarcacaoService', `Formatando ${marcacoes.length} marcações brutas`);
 
     if (marcacoes.length === 0) {
+      this.loggerService.warn('MarcacaoService', 'Nenhuma marcação recebida para formatar');
       return this.processarFuncionariosSemMarcacao([], dataInicio, dataFim);
     }
 
@@ -169,22 +171,23 @@ export class MarcacaoService {
     try {
       const funcionariosAtivos = await this.employeeService.getAllActiveEmployees();
 
-      // Obter data de hoje para funcionários sem marcação
-      const hoje = DateHelper.getStringDate(new Date());
+      // Obter data solicitada (se for um único dia, usamos ela)
+      const dataAlvo = dataInicio === dataFim ? dataInicio : DateHelper.getStringDate(new Date());
 
       // Criar um Set com as matrículas que já têm marcações
-      const matriculasComMarcacao = new Set(marcacoesDia.map(m => m.matricula));
+      const matriculasComMarcacao = new Set(marcacoesDia.map(m => String(m.matricula).trim()));
 
       // Adicionar funcionários ativos sem marcação
       for (const funcionario of funcionariosAtivos) {
-        if (!matriculasComMarcacao.has(funcionario.matricula)) {
+        const matriculaLimpa = String(funcionario.matricula).trim();
+        if (!matriculasComMarcacao.has(matriculaLimpa)) {
           // Funcionário ativo sem marcação - criar entrada com status "falta"
           const marcacaoDia = new MarcacaoDia(
             0, // ID 0 para indicar que não tem marcação real
             '', // CPF vazio (não temos na tabela de funcionários)
-            funcionario.matricula,
+            matriculaLimpa,
             funcionario.nome,
-            hoje,
+            dataAlvo,
             [], // Array vazio de marcações
             funcionario.empresa
           );
@@ -368,32 +371,43 @@ export class MarcacaoService {
   }
 
   private async fetchMarcacoes(dataInicio: string, dataFim: string): Promise<Marcacao[]> {
-    const body = {
-      dataInicio: dataInicio,
-      dataFim: dataFim,
-      tokenAcesso: this.token
-    };
-
-    const response = await fetch(this.apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-      throw new Error(`Erro na requisição: ${response.status} - ${response.statusText}`);
+    // Ajuste requested pelo usuário: adicionar sempre um dia ao dataFim
+    let dataFimAjustada = dataFim;
+    const dateObj = DateHelper.fromStringDate(dataFim);
+    if (dateObj) {
+      dateObj.setDate(dateObj.getDate() + 1);
+      dataFimAjustada = DateHelper.getStringDate(dateObj);
     }
 
-    const data = await response.json();
-    const listaBruta: IMarcacaoJson[] = data.d || [];
+    // Body exatamente conforme documentação fornecida pelo usuário
+    const body = {
+      dataInicio, // DD/MM/YYYY
+      dataFim: dataFimAjustada, // DD/MM/YYYY (ajustada +1 dia)
+      tokenAcesso: this.apiSessionService.token()
+    };
 
-    return listaBruta.map(item => Marcacao.fromJson(item));
+    try {
+      // Usando headers explícitos como no MarcacaoApiService (importante para alguns backends .NET)
+      const response = await firstValueFrom(
+        this.http.post<any>(this.apiUrl, body, {
+          headers: { 'Content-Type': 'application/json' }
+        })
+      );
+
+      const data = response?.d || response;
+      const listaBruta: IMarcacaoJson[] = Array.isArray(data) ? data : [];
+
+      this.loggerService.info('MarcacaoService', `Found ${listaBruta.length} raw records.`);
+
+      return listaBruta.map(item => Marcacao.fromJson(item));
+    } catch (error: any) {
+      this.loggerService.error('MarcacaoService', 'Erro na requisição API de marcações:', error);
+      throw error;
+    }
   }
 
   static getPossiveisStatus(): string[] {
-    return ['atraso', 'corrigido', 'falta', 'ferias', 'folga', 'incompleto', 'ok', 'outro', 'pendente'];
+    return ['Atraso', 'Corrigido', 'Falta', 'Férias', 'Folga', 'Incompleto', 'Ok', 'Outro', 'Pendente'];
   }
 
   filtrarMarcacoesPorEmpresa(empresa: string | null): void {

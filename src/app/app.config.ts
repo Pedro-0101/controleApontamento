@@ -38,7 +38,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Inbox,
-  Watch
+  Watch,
+  CheckCircle,
+  AlertCircle,
+  AlertTriangle,
+  Info,
+  ChevronDown,
+  ShieldAlert,
+  FileQuestion
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -84,7 +91,14 @@ export const appConfig: ApplicationConfig = {
       ChevronLeft,
       ChevronRight,
       Inbox,
-      Watch
+      Watch,
+      CheckCircle,
+      AlertCircle,
+      AlertTriangle,
+      Info,
+      ChevronDown,
+      ShieldAlert,
+      FileQuestion
     }))
   ]
 };

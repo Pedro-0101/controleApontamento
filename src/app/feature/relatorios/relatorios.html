@@ -15,6 +15,7 @@
         <input 
           type="date" 
           id="dataInicio"
+          name="dataInicio"
           [(ngModel)]="dataInicio"
           class="input-text"
           [max]="dataFim()"
@@ -26,6 +27,7 @@
         <input 
           type="date" 
           id="dataFim"
+          name="dataFim"
           [(ngModel)]="dataFim"
           class="input-text"
           [min]="dataInicio()"
@@ -46,6 +48,7 @@
         <label for="clock">Relógio (opcional)</label>
         <select 
           id="clock"
+          name="clock"
           [(ngModel)]="selectedClock"
           class="input-select"
         >
