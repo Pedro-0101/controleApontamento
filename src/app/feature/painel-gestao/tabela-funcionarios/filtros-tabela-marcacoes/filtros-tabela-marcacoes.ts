@@ -1,16 +1,14 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
-import { TitleCasePipe } from '@angular/common';
 import { DateHelper } from '../../../../core/helpers/dateHelper';
 import { LoggerService } from '../../../../core/services/logger/logger.service';
-import { AdmUnit } from '../../../../models/admUnit/adm-unit';
 import { MarcacaoService } from '../../../../core/services/marcacao/marcacao.service';
-import { RelogioService } from '../../../../core/services/relogio/relogio.service';
-import { Relogio } from '../../../../models/relogio/relogio';
+
+import { MultiSelectDropdown } from '../../../../shared/multi-select-dropdown/multi-select-dropdown';
 
 @Component({
   selector: 'app-filtros-tabela-marcacoes',
-  imports: [LucideAngularModule, TitleCasePipe],
+  imports: [LucideAngularModule, MultiSelectDropdown],
   templateUrl: './filtros-tabela-marcacoes.html',
   styleUrl: './filtros-tabela-marcacoes.css',
 })
@@ -24,27 +22,19 @@ export class FiltrosTabelaMarcacoes {
   protected readonly _isLoadingMarcacoesFiltroPainel = this.marcacaoService._isLoadingMarcacoes;
 
   // Signals empresas
-  private empresaSelecionadaFiltroPainel = signal<string | null>(null);
+  protected empresasSelecionadas = signal<string[]>([]);
+  readonly _empresasFiltroPainel = this.marcacaoService._empresasFiltroPainel;
 
   // Signals data inicial e final
   private dataInicialFiltroPainel = signal<string | null>(null);
   private dataFinalFiltroPainel = signal<string | null>(null);
 
-  // Signal status
+  // Signals status
   private statusPossiveisFiltroPainel = signal<string[]>(MarcacaoService.getPossiveisStatus());
-  private statusSelecionadoFiltroPainel = signal<string | null>(null);
-
-  // Computeds empresas
-  readonly _empresasFiltroPainel = this.marcacaoService._empresasFiltroPainel;
-  readonly _empresaSelecionadaFiltroPainel = computed(() => this.empresaSelecionadaFiltroPainel());
-
-  // Computeds data inicial e final
-  readonly _dataInicialFiltroPainel = computed(() => this.dataInicialFiltroPainel());
-  readonly _dataFinalFiltroPainel = computed(() => this.dataFinalFiltroPainel());
+  protected statusSelecionados = signal<string[]>([]);
 
   // Computed status
   readonly _statusPossiveisFiltroPainel = computed(() => this.statusPossiveisFiltroPainel());
-  readonly _statusSelecionadoFiltroPainel = computed(() => this.statusSelecionadoFiltroPainel());
 
   private possiveisPeriodos: string[] = [
     'Hoje',
@@ -57,39 +47,25 @@ export class FiltrosTabelaMarcacoes {
 
   ngOnInit() {
     this.loggerService.info('FiltroTabelaMarcacoesComponent', 'Componente inicializado');
-
-    this.dataInicialFiltroPainel.set(null);
-    this.dataFinalFiltroPainel.set(null);
-    this.empresaSelecionadaFiltroPainel.set(null);
-    this.statusSelecionadoFiltroPainel.set(null);
+    this.empresasSelecionadas.set([]);
+    this.statusSelecionados.set([]);
   }
 
-  public aoSelecionarEmpresa(event: Event): void {
-    const elementoSelect = event.target as HTMLSelectElement;
-    const empresaSelecionada = elementoSelect.value;
-
-    if (empresaSelecionada == 'todos') {
-      this.empresaSelecionadaFiltroPainel.set(null);
-      this.marcacaoService.filtrarMarcacoesPorEmpresa(null);
-      return;
-    }
-
-    this.empresaSelecionadaFiltroPainel.set(empresaSelecionada);
-    this.marcacaoService.filtrarMarcacoesPorEmpresa(empresaSelecionada);
+  public aoSelecionarEmpresa(empresas: string[]): void {
+    this.empresasSelecionadas.set(empresas);
+    this.marcacaoService.filtrarMarcacoesPorEmpresa(empresas);
   }
 
-  public aoSelecionarStatus(event: Event): void {
-    const elementoSelect = event.target as HTMLSelectElement;
-    const statusSelecionado = elementoSelect.value;
+  public aoSelecionarStatus(status: string[]): void {
+    this.statusSelecionados.set(status);
+    this.marcacaoService.filtrarMarcacoesPorStatus(status);
+  }
 
-    this.loggerService.info('FiltroTabelaMarcacoesComponent', `Status alterado para: ${statusSelecionado}`);
-
-    if (statusSelecionado === 'Todos') {
-      this.statusSelecionadoFiltroPainel.set(null);
-    } else {
-      this.statusSelecionadoFiltroPainel.set(statusSelecionado);
-      this.marcacaoService.filtrarMarcacoesPorStatus(statusSelecionado);
-    }
+  public limparFiltros(): void {
+    this.empresasSelecionadas.set([]);
+    this.statusSelecionados.set([]);
+    this.marcacaoService.filtrarMarcacoesPorEmpresa([]);
+    this.marcacaoService.filtrarMarcacoesPorStatus([]);
   }
 
   public aoSelecionarPeriodo(event: Event): void {

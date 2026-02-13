@@ -21,25 +21,14 @@
       
       <div class="form-grid">
         <div class="form-item">
-          <label>Colaborador</label>
-          <div class="searchable-select">
-            <div class="search-input-wrapper" *ngIf="!editingId()">
-              <lucide-icon name="search" [size]="14"></lucide-icon>
-              <input 
-                type="text" 
-                placeholder="Filtrar colaborador..." 
-                class="form-input search-filter"
-                [ngModel]="searchTerm()"
-                (ngModelChange)="searchTerm.set($event)"
-              >
-            </div>
-            <select [(ngModel)]="formData.matricula" class="form-input" [disabled]="!!editingId()">
-              <option value="">Selecione um colaborador...</option>
-              @for (emp of filteredEmployees(); track emp.matricula) {
-                <option [value]="emp.matricula">{{ emp.nome }} ({{ emp.matricula }})</option>
-              }
-            </select>
-          </div>
+          <label>Colaborador(es)</label>
+          <app-multi-select-dropdown
+            [options]="employees()"
+            [initialValue]="formData.matriculas"
+            placeholder="Selecione um ou mais colaboradores..."
+            (selectionChange)="formData.matriculas = $event"
+            [disabled]="!!editingId()"
+          ></app-multi-select-dropdown>
         </div>
         
         <div class="form-item">

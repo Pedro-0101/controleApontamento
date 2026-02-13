@@ -8,10 +8,12 @@ import { ToastService } from '../../core/services/toast/toast.service';
 import { AuthService } from '../../core/services/auth/auth.service';
 import { DateHelper } from '../../core/helpers/dateHelper';
 
+import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-select-dropdown';
+
 @Component({
   selector: 'app-eventos',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, MultiSelectDropdown],
   templateUrl: './eventos.html',
   styleUrl: './eventos.css'
 })
@@ -31,20 +33,11 @@ export class EventosComponent implements OnInit {
   editingId = signal<number | null>(null);
 
   formData = {
-    matricula: '',
+    matriculas: [] as string[],
     dataInicio: '',
     dataFim: '',
     tipoEvento: ''
   };
-
-  searchTerm = signal('');
-  filteredEmployees = computed(() => {
-    const term = this.searchTerm().toLowerCase();
-    return this.employees().filter(emp =>
-      emp.nome.toLowerCase().includes(term) ||
-      emp.matricula.toLowerCase().includes(term)
-    );
-  });
 
   statusPeriodo = MarcacaoService.getPeriodEvents();
 
@@ -74,7 +67,7 @@ export class EventosComponent implements OnInit {
   openAddForm() {
     this.editingId.set(null);
     this.formData = {
-      matricula: '',
+      matriculas: [],
       dataInicio: '',
       dataFim: '',
       tipoEvento: ''
@@ -85,7 +78,7 @@ export class EventosComponent implements OnInit {
   editEvent(event: any) {
     this.editingId.set(event.id);
     this.formData = {
-      matricula: event.matricula_funcionario,
+      matriculas: [event.matricula_funcionario],
       dataInicio: event.data_inicio,
       dataFim: event.data_fim,
       tipoEvento: event.tipo_evento
@@ -94,7 +87,7 @@ export class EventosComponent implements OnInit {
   }
 
   async saveEvent() {
-    if (!this.formData.matricula || !this.formData.dataInicio || !this.formData.dataFim || !this.formData.tipoEvento) {
+    if (this.formData.matriculas.length === 0 || !this.formData.dataInicio || !this.formData.dataFim || !this.formData.tipoEvento) {
       this.toastService.warning('Preencha todos os campos.');
       return;
     }
@@ -110,14 +103,18 @@ export class EventosComponent implements OnInit {
         );
         this.toastService.success('Evento atualizado!');
       } else {
-        await this.marcacaoService.saveEvent(
-          this.formData.matricula,
-          this.formData.dataInicio,
-          this.formData.dataFim,
-          this.formData.tipoEvento,
-          'PERIODO'
+        // Lançamento em massa
+        const promises = this.formData.matriculas.map(matricula =>
+          this.marcacaoService.saveEvent(
+            matricula,
+            this.formData.dataInicio,
+            this.formData.dataFim,
+            this.formData.tipoEvento,
+            'PERIODO'
+          )
         );
-        this.toastService.success('Evento lançado com sucesso!');
+        await Promise.all(promises);
+        this.toastService.success(`${this.formData.matriculas.length} eventos lançados com sucesso!`);
       }
       this.showForm.set(false);
       await this.loadEvents();

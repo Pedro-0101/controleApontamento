@@ -1,5 +1,5 @@
 <div class="multi-select-container">
-  <div class="multi-select-header" (click)="toggleDropdown()">
+  <div class="multi-select-header" (click)="toggleDropdown()" [class.disabled]="disabled()">
     <div class="selected-count">
       @if (selectedValues().length === 0) {
         <span class="placeholder">{{ placeholder() }}</span>
@@ -37,16 +37,18 @@
           <span>Selecionar Todos</span>
         </label>
 
-        @for (option of filteredOptions(); track option.matricula) {
-          <label class="option-item" [class.selected]="isOptionSelected(option.matricula)" (click)="$event.stopPropagation()">
+        @for (option of filteredOptions(); track getValue(option)) {
+          <label class="option-item" [class.selected]="isOptionSelected(getValue(option))" (click)="$event.stopPropagation()">
             <input
               type="checkbox"
-              [checked]="isOptionSelected(option.matricula)"
-              (change)="toggleOption(option.matricula)"
+              [checked]="isOptionSelected(getValue(option))"
+              (change)="toggleOption(getValue(option))"
             >
             <div class="option-info">
-              <span class="option-name">{{ option.nome }}</span>
-              <span class="option-matricula">{{ option.matricula }}</span>
+              <span class="option-name">{{ getLabel(option) }}</span>
+              @if (getSubLabel(option)) {
+                <span class="option-matricula">{{ getSubLabel(option) }}</span>
+              }
             </div>
           </label>
         } @empty {

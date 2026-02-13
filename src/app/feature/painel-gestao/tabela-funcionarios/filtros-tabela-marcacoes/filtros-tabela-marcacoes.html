@@ -14,36 +14,32 @@
     </div>
 
     <div class="filter-item">
-      <label for="empresa">Empresa</label>
-
-      <select id="empresa" name="empresa" (change)="aoSelecionarEmpresa($event)" [disabled]="_isLoadingMarcacoesFiltroPainel()">
-        <option value='todos'>Todos</option>
-
-        @for(empresa of _empresasFiltroPainel(); track empresa) {
-        <option [value]="empresa">
-          {{ empresa | titlecase }}
-        </option>
-        }
-      </select>
+      <label>Empresa</label>
+      <app-multi-select-dropdown
+        [options]="_empresasFiltroPainel()"
+        [initialValue]="empresasSelecionadas()"
+        placeholder="Todas"
+        (selectionChange)="aoSelecionarEmpresa($event)"
+        [disabled]="_isLoadingMarcacoesFiltroPainel()"
+      ></app-multi-select-dropdown>
     </div>
 
     <div class="filter-item">
-      <label for="status">Status</label>
-      <select id="status" name="status" (change)="aoSelecionarStatus($event)" [disabled]="_isLoadingMarcacoesFiltroPainel()">
-        <option value="todos">Todos</option>
-        @for(status of _statusPossiveisFiltroPainel(); track status) {
-        <option [value]="status">
-          {{ status }}
-        </option>
-        }
-      </select>
+      <label>Status</label>
+      <app-multi-select-dropdown
+        [options]="_statusPossiveisFiltroPainel()"
+        [initialValue]="statusSelecionados()"
+        placeholder="Todos"
+        (selectionChange)="aoSelecionarStatus($event)"
+        [disabled]="_isLoadingMarcacoesFiltroPainel()"
+      ></app-multi-select-dropdown>
     </div>
 
   </div>
 
   <div class="actions">
 
-    <button type="button" class="btn btn-outline">
+    <button type="button" class="btn btn-outline" (click)="limparFiltros()">
       <lucide-icon name="trash-2" [size]="16"></lucide-icon>
       Limpar Filtros
     </button>

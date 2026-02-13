@@ -64,6 +64,8 @@ export class MarcacaoService {
 
   private currentDataInicio = signal<string>('');
   private currentDataFim = signal<string>('');
+  private statusFiltro = signal<string[]>([]);
+  private empresasFiltro = signal<string[]>([]);
 
   constructor() {
   }
@@ -481,21 +483,36 @@ export class MarcacaoService {
     return ['Ferias', 'Atestado', 'Afastado', 'Suspensao'];
   }
 
-  filtrarMarcacoesPorEmpresa(empresa: string | null): void {
-    if (!empresa || empresa.toLowerCase() === 'todas' || empresa.toLowerCase() === 'todos') {
-      this.marcacoesFiltradas.set(this.marcacaoesFiltradasBackup());
-      this.isLoadingMarcacoes.set(false);
-      return;
+  filtrarMarcacoesPorEmpresa(empresas: string[]): void {
+    this.empresasFiltro.set(empresas);
+    this.applyFilters();
+  }
+
+  filtrarMarcacoesPorStatus(status: string[]): void {
+    this.statusFiltro.set(status);
+    this.applyFilters();
+  }
+
+  private applyFilters(): void {
+    this.isLoadingMarcacoes.set(true);
+    let filtradas = this.marcacaoesFiltradasBackup();
+
+    const empresas = this.empresasFiltro();
+    if (empresas.length > 0) {
+      filtradas = filtradas.filter(dia =>
+        dia.empresa && empresas.includes(dia.empresa)
+      );
     }
 
-    this.isLoadingMarcacoes.set(true);
+    const statuses = this.statusFiltro().map(s => s.toLowerCase());
+    if (statuses.length > 0) {
+      filtradas = filtradas.filter(dia => {
+        const statusDia = dia.getStatus().toLowerCase();
+        return statuses.includes(statusDia);
+      });
+    }
 
-    const listaCompleta = this.marcacaoesFiltradasBackup();
-    const marcacoesFiltradas = listaCompleta.filter(dia => {
-      return dia.empresa?.toLowerCase() === empresa.toLowerCase();
-    });
-
-    this.marcacoesFiltradas.set(marcacoesFiltradas);
+    this.marcacoesFiltradas.set(filtradas);
     this.isLoadingMarcacoes.set(false);
   }
 
@@ -506,24 +523,6 @@ export class MarcacaoService {
     });
   }
 
-  private currentEmpresaFiltro = signal<string | null>(null);
-
-  filtrarMarcacoesPorStatus(status: string | null): void {
-    this.loggerService.info('MarcacaoService', `Filtrando marcações por status: ${status}`);
-
-    if (!status) return;
-
-    if (status.toLowerCase() === 'todos') {
-      this.marcacoesFiltradas.set(this.marcacaoesFiltradasBackup());
-      return;
-    }
-
-    const marcacoesFiltradas = this.marcacaoesFiltradasBackup().filter(dia =>
-      dia.getStatus() === status.toLowerCase()
-    );
-
-    this.marcacoesFiltradas.set(marcacoesFiltradas);
-  }
 
   getRelogiosFromMarcacoes(): Relogio[] {
 
