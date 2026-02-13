@@ -224,6 +224,23 @@ export class Colaboradores implements OnInit {
     }
   }
 
+  async batchGenerateCards() {
+    const ids = this.selectedEmployeeIds();
+    if (ids.length === 0) return;
+
+    this.isLoading.set(true);
+    try {
+      const selectedEmployees = this.allEmployees().filter(emp => ids.includes(emp.id));
+      await this.qrcodeService.generateBatchCardsPDF(selectedEmployees);
+      alert(`${selectedEmployees.length} cartões gerados com sucesso!`);
+    } catch (error) {
+      console.error('Erro ao gerar cartões em lote:', error);
+      alert('Erro ao gerar cartões selecionados.');
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
   closeModal() {
     this.showModal.set(false);
     this.selectedEmployee.set(null);

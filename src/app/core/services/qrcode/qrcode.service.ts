@@ -9,7 +9,7 @@ import { Employee } from '../../../models/employee/employee';
 export class QRCodeService {
 
   private getLogoPath(company: string): string {
-    const comp = company.toLowerCase();
+    const comp = company ? company.toLowerCase() : '';
     if (comp.includes('dnp') && !comp.includes('mix')) {
       return '/images/DNP.jpeg';
     } else if (comp.includes('pinhal')) {
@@ -25,17 +25,67 @@ export class QRCodeService {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: [85, 55] // Standard CR80 card size
+      format: 'a4'
     });
 
-    const width = doc.internal.pageSize.getWidth();
-    const height = doc.internal.pageSize.getHeight();
+    await this.drawCard(doc, employee, 10, 10);
+    doc.save(`Cartao_${employee.matricula}.pdf`);
+  }
+
+  async generateBatchCardsPDF(employees: Employee[]): Promise<void> {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const cardWidth = 55;
+    const cardHeight = 85;
+    const marginX = 15;
+    const marginY = 15;
+    const gapX = 10;
+    const gapY = 10;
+
+    let currentX = marginX;
+    let currentY = marginY;
+    let count = 0;
+
+    for (const employee of employees) {
+      if (count > 0 && count % 6 === 0) {
+        doc.addPage();
+        currentX = marginX;
+        currentY = marginY;
+      } else if (count > 0) {
+        if (count % 2 === 0) {
+          currentX = marginX;
+          currentY += cardHeight + gapY;
+        } else {
+          currentX += cardWidth + gapX;
+        }
+      }
+
+      await this.drawCard(doc, employee, currentX, currentY);
+      count++;
+    }
+
+    doc.save(`Cartoes_Selecionados.pdf`);
+  }
+
+  private async drawCard(doc: jsPDF, employee: Employee, x: number, y: number): Promise<void> {
+    const cardWidth = 55;
+    const cardHeight = 85;
+
+    // 0. Add Border (Thin gray border to help cutting)
+    doc.setDrawColor(200);
+    doc.setLineWidth(0.1);
+    doc.rect(x, y, cardWidth, cardHeight);
 
     // 1. Add Logo
     const logoUrl = this.getLogoPath(employee.empresa);
     try {
       const imgData = await this.getImageData(logoUrl);
-      doc.addImage(imgData, 'JPEG', 5, 5, 45, 15);
+      // Adjust logo size to fit width well (90% of card width)
+      doc.addImage(imgData, 'JPEG', x + 5, y + 5, cardWidth - 10, 18);
     } catch (e) {
       console.error('Erro ao carregar logo:', e);
     }
@@ -46,27 +96,27 @@ export class QRCodeService {
         margin: 1,
         width: 150
       });
-      doc.addImage(qrDataUrl, 'PNG', (width - 35) / 2, 22, 35, 35);
+      doc.addImage(qrDataUrl, 'PNG', x + (cardWidth - 35) / 2, y + 25, 35, 35);
     } catch (e) {
       console.error('Erro ao gerar QR Code:', e);
     }
 
     // 3. Add Employee Info
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
-    doc.text(employee.nome, width / 2, 62, { align: 'center' });
+    // Wrap name if too long
+    const nameLines = doc.splitTextToSize(employee.nome.toUpperCase(), cardWidth - 10);
+    doc.text(nameLines, x + cardWidth / 2, y + 65, { align: 'center' });
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Matrícula: ${employee.matricula}`, width / 2, 68, { align: 'center' });
+    const yMatricula = y + 65 + (nameLines.length * 4);
+    doc.text(`Matrícula: ${employee.matricula}`, x + cardWidth / 2, yMatricula, { align: 'center' });
 
     doc.setFontSize(7);
     doc.setTextColor(100, 100, 100);
-    doc.text(employee.empresa, width / 2, 73, { align: 'center' });
-
-    // 4. Save/Download
-    doc.save(`Cartao_${employee.matricula}.pdf`);
+    doc.text(employee.empresa.toUpperCase(), x + cardWidth / 2, yMatricula + 4, { align: 'center' });
   }
 
   private getImageData(url: string): Promise<string> {
