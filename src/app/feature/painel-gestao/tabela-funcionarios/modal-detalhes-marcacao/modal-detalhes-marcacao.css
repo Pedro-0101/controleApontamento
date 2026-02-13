@@ -454,62 +454,82 @@
   color: #842029;
 }
 
-.history-table-wrapper {
+.history-container {
   max-height: 250px;
   overflow-y: auto;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
 }
 
 .history-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
 }
 
 .history-table th {
-  background-color: #f1f3f5;
-  padding: 8px;
+  background-color: #f8f9fa;
+  padding: 10px;
   text-align: left;
-  font-weight: 600;
-  border-bottom: 2px solid #dee2e6;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #6c757d;
+  text-transform: uppercase;
+  border-bottom: 2px solid #e9ecef;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .history-table td {
-  padding: 8px;
-  border-bottom: 1px solid #e9ecef;
+  padding: 10px;
+  border-bottom: 1px solid #f1f3f5;
+  vertical-align: middle;
 }
 
-.history-date-cell {
+.col-date {
   font-weight: 600;
-  color: #0d6efd;
+  color: #495057;
+  font-size: 0.85rem;
+  white-space: nowrap;
 }
 
-.history-hours {
+.col-marcacoes {
+  width: 100%;
+}
+
+.pills-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
 }
 
-.hora-badge {
-  display: inline-block;
-  background-color: #e9ecef;
-  padding: 2px 8px;
-  border-radius: 12px;
+.history-pill {
   font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  background-color: #e9ecef;
+  color: #495057;
+  border-radius: 12px;
 }
 
-.hora-badge.manual {
+.history-pill.manual {
   background-color: #fff3cd;
   color: #856404;
+  border: 1px solid #ffeeba;
 }
 
-.badge-tag {
-  font-size: 0.6rem;
-  font-weight: 700;
-  margin-left: 2px;
+.col-total {
+  text-align: right;
 }
 
-.history-total {
+.total-badge {
+  font-size: 0.8rem;
   font-weight: 700;
+  color: #adb5bd;
+}
+
+.total-badge.has-hours {
   color: #0d6efd;
 }
 

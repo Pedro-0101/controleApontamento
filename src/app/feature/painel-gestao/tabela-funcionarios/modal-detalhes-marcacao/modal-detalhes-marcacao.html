@@ -129,34 +129,41 @@
             <p class="empty-msg">Carregando histórico...</p>
           </div>
         } @else if (employeeHistory()) {
-          <div class="history-timeline">
-            @for (day of getHistoryDays(); track day.date) {
-              <div class="history-day">
-                <div class="history-date">{{ formatHistoryDate(day.date) }}</div>
-                <div class="history-content">
-                  @if(day.marcacoes.length > 0) {
-                    <div class="history-item">
-                      <lucide-icon name="clock" [size]="12"></lucide-icon>
-                      <span>{{ day.marcacoes.length }} registro(s)</span>
-                    </div>
-                  }
-                  @if(day.pontosManuais.length > 0) {
-                    <div class="history-item manual">
-                      <lucide-icon name="edit-3" [size]="12"></lucide-icon>
-                      <span>{{ day.pontosManuais.length }} ponto(s) manual(is)</span>
-                    </div>
-                  }
-                  @if(day.comentarios.length > 0) {
-                    <div class="history-item">
-                      <lucide-icon name="message-square" [size]="12"></lucide-icon>
-                      <span>{{ day.comentarios.length }} comentário(s)</span>
-                    </div>
-                  }
-                </div>
-              </div>
-            } @empty {
-              <p class="empty-msg">Nenhum registro encontrado.</p>
-            }
+          <div class="history-container">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Marcações</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (day of getHistoryTableData(); track day.date) {
+                  <tr>
+                    <td class="col-date">{{ formatHistoryDate(day.date) }}</td>
+                    <td class="col-marcacoes">
+                      <div class="pills-container">
+                        @for (m of day.horasFormatadas; track $index) {
+                          <span class="history-pill" [class.manual]="m.tipo === 'manual'">
+                            {{ m.hora }}
+                          </span>
+                        }
+                      </div>
+                    </td>
+                    <td class="col-total">
+                      <span class="total-badge" [class.has-hours]="day.totalHoras !== '--:--'">
+                        {{ day.totalHoras }}
+                      </span>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="3" class="empty-msg">Nenhum registro nos últimos 7 dias.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
         } @else {
           <p class="empty-msg">Erro ao carregar histórico.</p>

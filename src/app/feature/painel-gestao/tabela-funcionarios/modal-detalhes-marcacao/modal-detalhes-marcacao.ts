@@ -8,6 +8,12 @@ import { DateHelper } from '../../../../core/helpers/dateHelper';
 import { ComentarioMarcacao } from '../../../../models/comentarioMarcacao/comentario-marcacao';
 import { ToastService } from '../../../../core/services/toast/toast.service';
 
+interface HistoryTableDay {
+  date: string;
+  horasFormatadas: { hora: string; tipo: 'auto' | 'manual' }[];
+  totalHoras: string;
+}
+
 @Component({
   selector: 'app-modal-detalhes-marcacao',
   standalone: true,
@@ -234,7 +240,7 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
     );
   }
 
-  getHistoryTableData() {
+  getHistoryTableData(): HistoryTableDay[] {
     const history = this.employeeHistory();
     if (!history) return [];
 
@@ -288,10 +294,10 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
       const totalHoras = totalMs > 0 ? `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}` : '--:--';
 
       return {
-        data: day.date,
+        date: day.date,
         horasFormatadas: day.marcacoes.map((m: any) => ({ hora: m.hora, tipo: m.tipo })),
         totalHoras
       };
-    }).sort((a, b) => b.data.localeCompare(a.data));
+    }).sort((a, b) => b.date.localeCompare(a.date));
   }
 }
