@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { MarcacaoDia } from '../../../../models/marcacaoDia/marcacao-dia';
 import { ExportFormat, ExportService } from '../../../../core/services/export/export.service';
+import { ToastService } from '../../../../core/services/toast/toast.service';
 
 @Component({
   selector: 'app-modal-exportacao',
@@ -14,6 +15,7 @@ import { ExportFormat, ExportService } from '../../../../core/services/export/ex
 })
 export class ModalExportacaoComponent {
   private exportService = inject(ExportService);
+  private toastService = inject(ToastService);
 
   data = input.required<MarcacaoDia[]>();
   @Output() close = new EventEmitter<void>();
@@ -37,7 +39,7 @@ export class ModalExportacaoComponent {
     const selectedFields = this.fields.filter(f => f.selected).map(f => f.key);
 
     if (selectedFields.length === 0) {
-      alert('Selecione ao menos um campo para exportar.');
+      this.toastService.warning('Selecione ao menos um campo para exportar.');
       return;
     }
 
@@ -54,7 +56,7 @@ export class ModalExportacaoComponent {
     const selectedFields = this.fields.filter(f => f.selected).map(f => f.key);
 
     if (selectedFields.length === 0) {
-      alert('Selecione ao menos um campo para imprimir.');
+      this.toastService.warning('Selecione ao menos um campo para imprimir.');
       return;
     }
 

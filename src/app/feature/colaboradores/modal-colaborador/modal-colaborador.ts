@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { Employee } from '../../../models/employee/employee';
 import { EmployeeService } from '../../../core/services/employee/employee.service';
+import { ToastService } from '../../../core/services/toast/toast.service';
 
 @Component({
   selector: 'app-modal-colaborador',
@@ -14,6 +15,7 @@ import { EmployeeService } from '../../../core/services/employee/employee.servic
 })
 export class ModalColaborador implements OnInit {
   private employeeService = inject(EmployeeService);
+  private toastService = inject(ToastService);
 
   mode = input.required<'create' | 'edit'>();
   employee = input<Employee | null>(null);
@@ -39,7 +41,7 @@ export class ModalColaborador implements OnInit {
 
   async handleSave() {
     if (!this.nome().trim() || !this.matricula().trim()) {
-      alert('Nome e Matrícula são obrigatórios');
+      this.toastService.warning('Nome e Matrícula são obrigatórios');
       return;
     }
 
@@ -54,16 +56,16 @@ export class ModalColaborador implements OnInit {
 
       if (this.mode() === 'create') {
         await this.employeeService.createEmployee(employeeData);
-        alert('Colaborador criado com sucesso!');
+        this.toastService.success('Colaborador criado com sucesso!');
       } else {
         const id = this.employee()!.id;
         await this.employeeService.updateEmployee(id, employeeData);
-        alert('Colaborador atualizado com sucesso!');
+        this.toastService.success('Colaborador atualizado com sucesso!');
       }
 
       this.save.emit();
     } catch (error) {
-      alert('Erro ao salvar colaborador. Verifique se a matrícula já não está em uso.');
+      this.toastService.error('Erro ao salvar colaborador. Verifique se a matrícula já não está em uso.');
       console.error(error);
     } finally {
       this.isSaving.set(false);

@@ -6,6 +6,7 @@ import { MarcacaoDia } from '../../../../models/marcacaoDia/marcacao-dia';
 import { MarcacaoService } from '../../../../core/services/marcacao/marcacao.service';
 import { DateHelper } from '../../../../core/helpers/dateHelper';
 import { ComentarioMarcacao } from '../../../../models/comentarioMarcacao/comentario-marcacao';
+import { ToastService } from '../../../../core/services/toast/toast.service';
 
 @Component({
   selector: 'app-modal-detalhes-marcacao',
@@ -16,6 +17,7 @@ import { ComentarioMarcacao } from '../../../../models/comentarioMarcacao/coment
 })
 export class ModalDetalhesMarcacaoComponent implements OnInit {
   private marcacaoService = inject(MarcacaoService);
+  private toastService = inject(ToastService);
 
   record = input.required<MarcacaoDia>();
   @Output() close = new EventEmitter<void>();
@@ -48,7 +50,7 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
 
   async adicionarComentario() {
     if (!this.novoComentario().trim()) {
-      alert('Digite um comentário.');
+      this.toastService.warning('Digite um comentário.');
       return;
     }
 
@@ -57,13 +59,14 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
       const isoDate = DateHelper.toIsoDate(this.record().data);
       await this.marcacaoService.saveComment(this.record().matricula, isoDate, this.novoComentario());
       this.novoComentario.set('');
+      this.toastService.success('Comentário salvo com sucesso!');
 
       // Recarregar comentários imediatamente
       await this.recarregarComentarios();
 
       this.updated.emit();
     } catch (error) {
-      alert('Erro ao salvar comentário.');
+      this.toastService.error('Erro ao salvar comentário.');
       console.error('Erro detalhado:', error);
     } finally {
       this.isSaving.set(false);
@@ -93,7 +96,7 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
 
   async adicionarPontoManual() {
     if (!this.novoPontoHora()) {
-      alert('Informe a hora do ponto.');
+      this.toastService.warning('Informe a hora do ponto.');
       return;
     }
 
@@ -104,7 +107,7 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
       this.novoPontoHora.set('');
       this.updated.emit();
     } catch (error) {
-      alert('Erro ao adicionar ponto manual. Verifique se este horário já não existe.');
+      this.toastService.error('Erro ao adicionar ponto manual. Verifique se este horário já não existe.');
       console.error('Erro detalhado:', error);
     } finally {
       this.isSaving.set(false);
@@ -120,9 +123,9 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
       await this.marcacaoService.deletePontoManual(pontoId);
       await this.loadEmployeeHistory();
       this.updated.emit();
-      alert('Ponto deletado!');
+      this.toastService.success('Ponto deletado!');
     } catch (error) {
-      alert('Erro ao deletar ponto.');
+      this.toastService.error('Erro ao deletar ponto.');
     } finally {
       this.isSaving.set(false);
     }
@@ -133,7 +136,7 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
     if (!novaHora || novaHora === horaAtual) return;
 
     if (!/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(novaHora)) {
-      alert('Formato inválido. Use HH:MM');
+      this.toastService.error('Formato inválido. Use HH:MM');
       return;
     }
 
@@ -142,9 +145,9 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
       await this.marcacaoService.updatePontoManual(pontoId, novaHora);
       await this.loadEmployeeHistory();
       this.updated.emit();
-      alert('Ponto atualizado!');
+      this.toastService.success('Ponto atualizado!');
     } catch (error) {
-      alert('Erro ao editar ponto.');
+      this.toastService.error('Erro ao editar ponto.');
     } finally {
       this.isSaving.set(false);
     }

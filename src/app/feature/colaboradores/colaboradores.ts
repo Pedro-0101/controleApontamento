@@ -8,6 +8,7 @@ import { Pagination } from '../../shared/pagination/pagination';
 import { SearchFilter, FilterOption } from '../../shared/search-filter/search-filter';
 import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-select-dropdown';
 import { QRCodeService } from '../../core/services/qrcode/qrcode.service';
+import { ToastService } from '../../core/services/toast/toast.service';
 
 @Component({
   selector: 'app-colaboradores',
@@ -19,6 +20,7 @@ import { QRCodeService } from '../../core/services/qrcode/qrcode.service';
 export class Colaboradores implements OnInit {
   private employeeService = inject(EmployeeService);
   private qrcodeService = inject(QRCodeService);
+  private toastService = inject(ToastService);
 
   @ViewChild(MultiSelectDropdown) multiSelect!: MultiSelectDropdown;
 
@@ -181,10 +183,10 @@ export class Colaboradores implements OnInit {
       await this.employeeService.deactivateEmployeesBatch(ids);
       this.selectedEmployeeIds.set([]);
       await this.loadEmployees();
-      alert('Colaboradores desativados com sucesso!');
+      this.toastService.success('Colaboradores desativados com sucesso!');
     } catch (error) {
       console.error('Erro ao desativar colaboradores:', error);
-      alert('Erro ao realizar a operação de desativação.');
+      this.toastService.error('Erro ao realizar a operação de desativação.');
     } finally {
       this.isLoading.set(false);
     }
@@ -208,9 +210,9 @@ export class Colaboradores implements OnInit {
     try {
       await this.employeeService.deleteEmployee(employee.id);
       await this.loadEmployees();
-      alert('Colaborador excluído com sucesso!');
+      this.toastService.success('Colaborador excluído com sucesso!');
     } catch (error) {
-      alert('Erro ao excluir colaborador.');
+      this.toastService.error('Erro ao excluir colaborador.');
       console.error(error);
     }
   }
@@ -220,7 +222,7 @@ export class Colaboradores implements OnInit {
       await this.qrcodeService.generateCardPDF(employee);
     } catch (error) {
       console.error('Erro ao gerar cartão:', error);
-      alert('Erro ao gerar cartão do colaborador.');
+      this.toastService.error('Erro ao gerar cartão do colaborador.');
     }
   }
 
@@ -232,10 +234,10 @@ export class Colaboradores implements OnInit {
     try {
       const selectedEmployees = this.allEmployees().filter(emp => ids.includes(emp.id));
       await this.qrcodeService.generateBatchCardsPDF(selectedEmployees);
-      alert(`${selectedEmployees.length} cartões gerados com sucesso!`);
+      this.toastService.success(`${selectedEmployees.length} cartões gerados com sucesso!`);
     } catch (error) {
       console.error('Erro ao gerar cartões em lote:', error);
-      alert('Erro ao gerar cartões selecionados.');
+      this.toastService.error('Erro ao gerar cartões selecionados.');
     } finally {
       this.isLoading.set(false);
     }

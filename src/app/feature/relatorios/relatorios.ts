@@ -13,6 +13,7 @@ import { MarcacaoDia } from '../../models/marcacaoDia/marcacao-dia';
 import { DateHelper } from '../../core/helpers/dateHelper';
 import { MarcacaoService } from '../../core/services/marcacao/marcacao.service';
 import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-select-dropdown';
+import { ToastService } from '../../core/services/toast/toast.service';
 
 @Component({
   selector: 'app-relatorios',
@@ -26,6 +27,7 @@ export class Relatorios {
   private employeeService = inject(EmployeeService);
   private relogioService = inject(RelogioService);
   private marcacaoService = inject(MarcacaoService);
+  private toastService = inject(ToastService);
 
   // Form data
   dataInicio = signal('');
@@ -116,7 +118,7 @@ export class Relatorios {
 
   async gerarRelatorio() {
     if (!this.dataInicio() || !this.dataFim()) {
-      alert('Por favor, informe data de início e fim.');
+      this.toastService.warning('Por favor, informe data de início e fim.');
       return;
     }
 
@@ -126,12 +128,12 @@ export class Relatorios {
     const diffDays = Math.ceil((fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24));
 
     if (diffDays > 31) {
-      alert('O período máximo permitido é de 31 dias.');
+      this.toastService.warning('O período máximo permitido é de 31 dias.');
       return;
     }
 
     if (diffDays < 0) {
-      alert('A data de início deve ser anterior à data de fim.');
+      this.toastService.warning('A data de início deve ser anterior à data de fim.');
       return;
     }
 
