@@ -1,0 +1,24 @@
+# Instruções para Uso na Rede Local
+
+Para que outras pessoas na empresa possam usar o sistema, siga estes passos:
+
+1. **Build do Sistema (Apenas uma vez ou após mudanças):**
+   - Abra o terminal na pasta do projeto.
+   - Digite: `npm run build`
+   - Isso criará os arquivos de produção na pasta `dist`.
+
+2. **Iniciar o Servidor:**
+   - Dê um clique duplo no arquivo `INICIAR_SISTEMA.bat`.
+   - Mantenha a janela preta aberta enquanto as pessoas estiverem usando.
+
+3. **Descobrir o IP do Servidor:**
+   - No computador que está rodando o servidor, abra o terminal e digite `ipconfig`.
+   - Procure por "Endereço IPv4" (Ex: 192.168.1.10).
+
+4. **Acesso dos outros computadores:**
+   - Em qualquer computador na mesma rede, abra o navegador.
+   - Digite o IP seguido da porta 3000.
+   - Exemplo: `http://192.168.1.10:3000`
+
+---
+**Dica:** Você pode criar um atalho para o `INICIAR_SISTEMA.bat` na sua Área de Trabalho para facilitar.

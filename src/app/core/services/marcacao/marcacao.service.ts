@@ -462,17 +462,37 @@ export class MarcacaoService {
 
   async getEmployeeHistory(matricula: string): Promise<any> {
     try {
+      // 1. Definir período (últimos 7 dias)
+      const range = DateHelper.getLastNDaysRange(7);
+
+      // 2. Buscar marcações automáticas deste colaborador
+      // Buscamos todas e filtramos para garantir consistência com a lista principal
+      const allMarcacoes = await this.fetchMarcacoes(range.start, range.end);
+      const automaticHistory = allMarcacoes
+        .filter(m => String(m.matriculaFuncionario).trim() === String(matricula).trim())
+        .map(m => ({
+          ...m,
+          DataMarcacao: m.dataMarcacao // Manter compatibilidade com o formato esperado pelo modal
+        }));
+
+      // 3. Buscar dados locais (pontos manuais e comentários) do backend
       const response = await firstValueFrom(
         this.http.get<{ success: boolean, history: any }>(`${environment.apiUrlBackend}/employee/${matricula}/history`)
       );
 
-      if (response.success) {
-        return response.history;
+      if (response.success && response.history) {
+        return {
+          ...response.history,
+          marcacoes: automaticHistory // Mescla com as automáticas reais
+        };
       }
-      return null;
+
+      // Se falhar o backend, retorna ao menos as automáticas
+      return { marcacoes: automaticHistory, pontosManuais: [], comentarios: [] };
+
     } catch (error) {
-      this.loggerService.error('MarcacaoService', 'Erro ao buscar histórico:', error);
-      return null;
+      this.loggerService.error('MarcacaoService', 'Erro ao buscar histórico mesclado:', error);
+      return { marcacoes: [], pontosManuais: [], comentarios: [] };
     }
   }
 }

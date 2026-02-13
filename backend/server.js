@@ -1,6 +1,8 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
+const path = require('path');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 const PORT = 3000;
@@ -16,6 +18,45 @@ const dbConfig = {
 
 // Middleware
 app.use(cors());
+
+// 1. Configuração do Proxy para a API externa (Ponto Certificado)
+// Usamos uma função de filtro para decidir o que vai para o proxy e o que é local
+const apiProxy = createProxyMiddleware({
+  target: 'https://integrar.pontocertificado.com.br',
+  changeOrigin: true,
+  secure: true,
+  pathRewrite: {
+    '^/api': '/Api.svc' // Agora sim o regex vai encontrar o /api no início do path
+  },
+  onProxyReq: (proxyReq, req, res) => {
+    console.log(`[Proxy] ${req.method} ${req.url} -> ${proxyReq.path}`);
+  },
+  onError: (err, req, res) => {
+    console.error('[Proxy Error]', err);
+    res.status(504).json({ success: false, error: 'Erro de comunicação com o servidor externo' });
+  }
+});
+
+// 2. Middleware de roteamento: Proxy vs Local
+app.use((req, res, next) => {
+  // Se não começar com /api, não é do nosso interesse aqui (vai para estáticos)
+  if (!req.url.startsWith('/api')) {
+    return next();
+  }
+
+  // Lista de prefixos das nossas rotas locais (excluem o /api inicial no teste de string)
+  const localPrefixes = ['/api/auth', '/api/comments', '/api/marcacoes', '/api/employee', '/api/employees', '/api/health'];
+  const isLocal = localPrefixes.some(prefix => req.url.startsWith(prefix));
+  
+  if (isLocal) {
+    next(); // Vai para o express.json() e depois para as rotas definidas abaixo
+  } else {
+    // É uma rota da API externa (ex: /api/StartSession)
+    apiProxy(req, res, next);
+  }
+});
+
+// 3. Parser de JSON (Apenas para rotas locais)
 app.use(express.json());
 
 // Pool de conexões
@@ -167,14 +208,8 @@ app.get('/api/employee/:matricula/history', async (req, res) => {
     const dataFim = today.toISOString().split('T')[0];
     const dataInicio = sevenDaysAgo.toISOString().split('T')[0];
     
-    // Buscar marcações dos últimos 7 dias
-    const [marcacoes] = await pool.query(
-      `SELECT * FROM marcacoes 
-       WHERE MatriculaFuncionario = ? 
-       AND DATE(DataMarcacao) BETWEEN ? AND ?
-       ORDER BY DataMarcacao ASC`,
-      [matricula, dataInicio, dataFim]
-    );
+    // Nota: Marcações automáticas são buscadas pelo frontend diretamente da API externa
+    const marcacoes = [];
     
     // Buscar pontos manuais dos últimos 7 dias
     const [pontosManuais] = await pool.query(
@@ -569,9 +604,22 @@ app.get('/api/health', (req, res) => {
 async function startServer() {
   await initializeDatabase();
   
-  app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
-    console.log(`Health check: http://localhost:${PORT}/api/health`);
+  // Servir arquivos estáticos do Angular (Production Build)
+  const distPath = path.join(__dirname, '../dist/controleApontamento/browser');
+  app.use(express.static(distPath));
+
+  // Rota catch-all para Single Page Application (Angular)
+  app.get('*', (req, res) => {
+    // Se não for uma rota de API, serve o index.html
+    if (!req.url.startsWith('/api')) {
+      res.sendFile(path.join(distPath, 'index.html'));
+    }
+  });
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Servidor rodando na rede local na porta ${PORT}`);
+    console.log(`Acesse através de: http://localhost:${PORT}`);
+    console.log(`Ou pelo IP da sua máquina: http://[SEU-IP]:${PORT}`);
   });
 }
 
