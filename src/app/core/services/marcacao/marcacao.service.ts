@@ -618,6 +618,8 @@ export class MarcacaoService {
     await this.saveManualMarcacao(matricula, data, '13:00');
     // Comentário
     await this.saveComment(matricula, data, 'Comentário automático: Intervalo padrão inserido');
+    // Status Corrigido
+    await this.saveEvent(matricula, data, data, 'Corrigido', 'FIXO');
   }
 
   async getAllEvents(): Promise<any[]> {
