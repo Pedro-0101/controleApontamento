@@ -20,7 +20,7 @@ export interface MarcacaoDia {
 }
 
 // 2. O tipo define os possíveis valores para o status
-export type statusMarcacaoDia = 'Atraso' | 'Falta' | 'Incompleto' | 'Ok' | 'Outro' | 'Pendente';
+export type statusMarcacaoDia = 'Atraso' | 'Falta' | 'Incompleto' | 'Ok' | 'Outro' | 'Pendente' | 'Em andamento';
 export type statusFixos = 'Ferias' | 'Folga' | 'Afastado' | 'Atestado' | 'BH' | 'BH do Atraso' | 'Atraso Confirmado' | 'Falta Confirmada' | 'Corrigido' | 'Suspensao';
 
 // 3. A classe implementa a interface e adiciona a LÓGICA (Comportamento)
@@ -86,6 +86,11 @@ export class MarcacaoDia implements MarcacaoDia {
         const numMarcacoes = this.marcacoes?.length || 0;
         const minutosTrabalhados = this.getWorkedMinutes();
         const horasTrabalhadas = minutosTrabalhados / 60;
+
+        // Se for hoje e tiver pelo menos 1 marcaçãos, está em andamento
+        if (dataObj.getDate() === new Date().getDate() && diaSemana !== 0 && numMarcacoes >= 1) {
+            return "Em andamento";
+        }
 
         if (numMarcacoes % 2 !== 0) {
             return "Incompleto";
