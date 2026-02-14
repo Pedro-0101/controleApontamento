@@ -41,9 +41,50 @@ export class MarcacaoService {
   readonly _marcacoesFiltradas = computed(() => this.marcacoesFiltradas());
   readonly _relogioMarcacoes = computed(() => this.relogiosMarcacoes());
   readonly _empresasFiltroPainel = computed(() => {
-    const list = this.marcacaoesFiltradasBackup();
-    const empresas = list.map(m => m.empresa).filter(e => !!e);
-    return [...new Set(empresas)].sort();
+    const backup = this.marcacaoesFiltradasBackup();
+    const selecionadosStatus = this.statusFiltro().map(s => s.toLowerCase());
+
+    // 1. Identificar todas as empresas únicas no backup
+    const empresasUnicas = [...new Set(backup.map(m => m.empresa).filter(e => !!e))].sort();
+
+    // 2. Calcular contagens para cada empresa considerando APENAS o filtro de STATUS
+    // (Ignoramos o filtro de empresas aqui para que a lista de opções não suma ao selecionar uma)
+    return empresasUnicas.map(empresa => {
+      const count = backup.filter(m => {
+        const matchesEmpresa = m.empresa === empresa;
+        const matchesStatus = selecionadosStatus.length === 0 || selecionadosStatus.includes((m.getStatus() || '').toLowerCase());
+        return matchesEmpresa && matchesStatus;
+      }).length;
+
+      return {
+        label: `${empresa} (${count})`,
+        value: empresa
+      };
+    });
+  });
+
+  readonly _statusFiltroComContagem = computed(() => {
+    const backup = this.marcacaoesFiltradasBackup();
+    const selecionadosEmpresas = this.empresasFiltro();
+
+    // 1. Identificar todos os status possíveis no backup (filtrados por empresa)
+    // Para contagem de status, respeitamos apenas o filtro de empresas
+    const counts = new Map<string, number>();
+
+    backup.forEach(m => {
+      const matchesEmpresa = selecionadosEmpresas.length === 0 || (m.empresa && selecionadosEmpresas.includes(m.empresa));
+      if (matchesEmpresa) {
+        const status = m.getStatus();
+        counts.set(status, (counts.get(status) || 0) + 1);
+      }
+    });
+
+    return Array.from(counts.entries())
+      .map(([status, count]) => ({
+        label: `${status} (${count})`,
+        value: status
+      }))
+      .sort((a, b) => a.value.localeCompare(b.value));
   });
 
   readonly _totalFaltas = computed(() => {

@@ -30,11 +30,8 @@ export class FiltrosTabelaMarcacoes {
   private dataFinalFiltroPainel = signal<string | null>(null);
 
   // Signals status
-  private statusPossiveisFiltroPainel = signal<string[]>(MarcacaoService.getPossiveisStatus());
   protected statusSelecionados = signal<string[]>([]);
-
-  // Computed status
-  readonly _statusPossiveisFiltroPainel = computed(() => this.statusPossiveisFiltroPainel());
+  readonly _statusFiltroComContagem = this.marcacaoService._statusFiltroComContagem;
 
   private possiveisPeriodos: string[] = [
     'Hoje',

@@ -1,14 +1,17 @@
 <div class="filter-container">
-
   <div class="filters">
-
     <div class="filter-item">
       <label for="periodo">Período</label>
-      <select id="periodo" name="periodo" (change)="aoSelecionarPeriodo($event)" [disabled]="_isLoadingMarcacoesFiltroPainel()">
-        @for(periodo of _periodosPossiveisFiltroPainel; track periodo) {
-        <option [value]="periodo" [selected]="periodo === 'Hoje'">
-          {{ periodo }}
-        </option>
+      <select
+        id="periodo"
+        name="periodo"
+        (change)="aoSelecionarPeriodo($event)"
+        [disabled]="_isLoadingMarcacoesFiltroPainel()"
+      >
+        @for (periodo of _periodosPossiveisFiltroPainel; track periodo) {
+          <option [value]="periodo" [selected]="periodo === 'Hoje'">
+            {{ periodo }}
+          </option>
         }
       </select>
     </div>
@@ -18,6 +21,8 @@
       <app-multi-select-dropdown
         [options]="_empresasFiltroPainel()"
         [initialValue]="empresasSelecionadas()"
+        labelProp="label"
+        valueProp="value"
         placeholder="Todas"
         (selectionChange)="aoSelecionarEmpresa($event)"
         [disabled]="_isLoadingMarcacoesFiltroPainel()"
@@ -27,23 +32,21 @@
     <div class="filter-item">
       <label>Status</label>
       <app-multi-select-dropdown
-        [options]="_statusPossiveisFiltroPainel()"
+        [options]="_statusFiltroComContagem()"
         [initialValue]="statusSelecionados()"
+        labelProp="label"
+        valueProp="value"
         placeholder="Todos"
         (selectionChange)="aoSelecionarStatus($event)"
         [disabled]="_isLoadingMarcacoesFiltroPainel()"
       ></app-multi-select-dropdown>
     </div>
-
   </div>
 
   <div class="actions">
-
     <button type="button" class="btn btn-outline" (click)="limparFiltros()">
       <lucide-icon name="trash-2" [size]="16"></lucide-icon>
       Limpar Filtros
     </button>
-
   </div>
-
 </div>
