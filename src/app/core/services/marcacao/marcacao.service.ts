@@ -458,7 +458,14 @@ export class MarcacaoService {
       this.loggerService.error('MarcacaoService', 'Erro ao buscar comentários ou pontos manuais:', error);
     }
 
-    return marcacoesDia;
+    // Final sort: Date ASC, then Name ASC
+    return marcacoesDia.sort((a, b) => {
+      const dateA = DateHelper.toIsoDate(a.data);
+      const dateB = DateHelper.toIsoDate(b.data);
+      const dateCompare = dateA.localeCompare(dateB);
+      if (dateCompare !== 0) return dateCompare;
+      return a.nome.localeCompare(b.nome);
+    });
   }
 
   // ... (processarFuncionariosSemMarcacao existing method) ...
