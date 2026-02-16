@@ -342,76 +342,89 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
 
   getHistoryTableData(): HistoryTableDay[] {
     const history = this.employeeHistory();
-    if (!history) return [];
+    // Se não tiver histórico, inicializa como objeto vazio para evitar erros, mas processa os dias
+    const safeHistory = history || { marcacoes: [], pontosManuais: [], comentarios: [], eventos: [], ignoredPoints: [] };
 
-    // Agrupar por data
+    // 1. Gerar os últimos 7 dias
+    const today = new Date();
+    const last7Days: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      last7Days.push(DateHelper.toIsoDate(DateHelper.getStringDate(date)));
+    }
+
+    // 2. Agrupar dados existentes por data
     const dayMap = new Map<string, any>();
 
+    // Inicializar dias com estrutura vazia
+    last7Days.forEach(dateKey => {
+      dayMap.set(dateKey, {
+        date: dateKey,
+        marcacoes: [],
+        pontosManuais: [],
+        comentarios: []
+      });
+    });
+
     // Processar marcações automáticas
-    history.marcacoes?.forEach((m: any) => {
+    safeHistory.marcacoes?.forEach((m: any) => {
       const date = new Date(m.dataMarcacao || m.DataMarcacao);
       const logicalDate = new Date(date);
       if (date.getHours() < 5) {
         logicalDate.setDate(logicalDate.getDate() - 1);
       }
-      const dateKey = logicalDate.toISOString().split('T')[0];
+      const dateKey = DateHelper.toIsoDate(DateHelper.getStringDate(logicalDate));
 
-      if (!dayMap.has(dateKey)) {
-        dayMap.set(dateKey, { date: dateKey, marcacoes: [] });
+      if (dayMap.has(dateKey)) {
+        const isNextDay = DateHelper.toIsoDate(DateHelper.getStringDate(date)) !== dateKey;
+        dayMap.get(dateKey).marcacoes.push({
+          hora: DateHelper.getStringTime(date),
+          tipo: 'auto',
+          nsr: m.nsr,
+          numSerieRelogio: m.numSerieRelogio,
+          fullDate: date,
+          isNextDay
+        });
       }
-
-      const isNextDay = DateHelper.toIsoDate(DateHelper.getStringDate(date)) !== dateKey;
-
-      dayMap.get(dateKey)?.marcacoes.push({
-        hora: DateHelper.getStringTime(date),
-        tipo: 'auto',
-        nsr: m.nsr,
-        numSerieRelogio: m.numSerieRelogio,
-        fullDate: date,
-        isNextDay
-      });
     });
 
     // Processar pontos manuais
-    history.pontosManuais?.forEach((p: any) => {
+    safeHistory.pontosManuais?.forEach((p: any) => {
       // Calcular data lógica para pontos manuais
       const [hours, minutes] = p.hora.split(':').map(Number);
-
-      // Construir data real do ponto
       const parts = p.data.split('-');
+      // Mes - 1 porque Date usa 0-11
       const realDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), hours, minutes);
 
       let logicalDateKey = p.data;
-
       if (hours < 5) {
-        const d = new Date(p.data + 'T12:00:00'); // Meio dia para evitar bugs de fuso ao subtrair um dia
+        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
         d.setDate(d.getDate() - 1);
-        logicalDateKey = d.toISOString().split('T')[0];
+        logicalDateKey = DateHelper.toIsoDate(DateHelper.getStringDate(d));
       }
 
-      if (!dayMap.has(logicalDateKey)) {
-        dayMap.set(logicalDateKey, { date: logicalDateKey, marcacoes: [] });
+      if (dayMap.has(logicalDateKey)) {
+        const isNextDay = p.data !== logicalDateKey;
+        dayMap.get(logicalDateKey).marcacoes.push({
+          id: p.id,
+          hora: p.hora,
+          tipo: 'manual',
+          fullDate: realDate,
+          isNextDay
+        });
       }
-
-      const isNextDay = p.data !== logicalDateKey;
-
-      dayMap.get(logicalDateKey)?.marcacoes.push({
-        id: p.id,
-        hora: p.hora,
-        tipo: 'manual',
-        fullDate: realDate,
-        isNextDay
-      });
     });
 
-    // Calcular total e formatar
+    // 3. Transformar em HistoryTableDay
     return Array.from(dayMap.values()).map(day => {
       // Ordenar marcações por data completa (fullDate)
       day.marcacoes.sort((a: any, b: any) => a.fullDate.getTime() - b.fullDate.getTime());
 
       // Coletar ignored points para este dia
-      const dayIgnored = history.ignoredPoints?.filter((ip: any) => ip.data === day.date) || [];
+      const dayIgnored = safeHistory.ignoredPoints?.filter((ip: any) => ip.data === day.date) || [];
 
+      // Converter para objetos Marcacao para usar na classe MarcacaoDia
       const marcacoesParaClasse = day.marcacoes.map((m: any) => {
         const isIgnored = dayIgnored.some((ip: any) =>
           (m.tipo === 'manual' && String(ip.marcacao_id || '') === String(m.id || '')) ||
@@ -439,13 +452,14 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
       );
 
       // Vincular evento se existir para este dia
-      if (history.eventos) {
+      if (safeHistory.eventos) {
         const isoDate = day.date;
-        const activeEvent = history.eventos.find((e: any) =>
+        const activeEvent = safeHistory.eventos.find((e: any) =>
           isoDate >= e.data_inicio && isoDate <= e.data_fim
         );
         if (activeEvent) {
           tempMarcacaoDia.evento = activeEvent.tipo_evento;
+          tempMarcacaoDia.evento_categoria = activeEvent.categoria;
         }
       }
 
@@ -458,7 +472,7 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
           isNextDay: m.isNextDay
         })),
         totalHoras: tempMarcacaoDia.getHorasTrabalhadas(),
-        status: tempMarcacaoDia.getStatus()
+        status: tempMarcacaoDia.getStatus() // Isso retornará "Falta" se não houver marcações e não for domingo
       };
     }).sort((a, b) => b.date.localeCompare(a.date));
   }

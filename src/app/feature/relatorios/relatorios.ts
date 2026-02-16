@@ -485,15 +485,34 @@ export class Relatorios {
       }
     });
 
-    // 4. Convert grouped map to MarcacaoDia array
+    // 4. Convert grouped map to MarcacaoDia array AND fill gaps
     const marcacoesDia: MarcacaoDia[] = [];
 
-    grouped.forEach((employeeMap, matricula) => {
-      const empData = nameMap.get(matricula);
+    // Generate all dates in range
+    const dates: string[] = [];
+    const currentDate = DateHelper.fromStringDate(dataInicio);
+    const endDate = DateHelper.fromStringDate(dataFim);
 
-      employeeMap.forEach((marcacoesArray, dateKey) => {
-        // Sort marcacoes by time
-        marcacoesArray.sort((a, b) => a.dataMarcacao.getTime() - b.dataMarcacao.getTime());
+    if (currentDate && endDate) {
+      while (currentDate <= endDate) {
+        dates.push(DateHelper.getStringDate(currentDate));
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    } else {
+      dates.push(dataInicio);
+    }
+
+    targetMatriculasArray.forEach(matricula => {
+      const empData = nameMap.get(matricula);
+      const employeeMap = grouped.get(matricula);
+
+      dates.forEach(dateKey => {
+        let marcacoesArray: Marcacao[] = [];
+
+        if (employeeMap && employeeMap.has(dateKey)) {
+          marcacoesArray = employeeMap.get(dateKey)!;
+          marcacoesArray.sort((a, b) => a.dataMarcacao.getTime() - b.dataMarcacao.getTime());
+        }
 
         const marcacaoDia = new MarcacaoDia(
           0,
@@ -504,7 +523,6 @@ export class Relatorios {
           marcacoesArray,
           empData?.empresa || ''
         );
-
         marcacoesDia.push(marcacaoDia);
       });
     });

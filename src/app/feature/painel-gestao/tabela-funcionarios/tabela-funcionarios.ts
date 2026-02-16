@@ -40,8 +40,8 @@ export class TabelaFuncionarios {
   });
 
   // --- Ordenação ---
-  readonly sortColumn = signal<string>('nome');
-  readonly sortDirection = signal<'asc' | 'desc'>('asc');
+  readonly sortColumn = signal<string>('data');
+  readonly sortDirection = signal<'asc' | 'desc'>('desc');
 
   readonly _sortedMarcacoes = computed(() => {
     const data = [...this._filteredMarcacoes()];
@@ -74,6 +74,13 @@ export class TabelaFuncionarios {
 
       if (valueA < valueB) return direction === 'asc' ? -1 : 1;
       if (valueA > valueB) return direction === 'asc' ? 1 : -1;
+
+      // Critério de desempate: Nome (Alfabético Crescentemente)
+      const nomeA = a.nome.toLowerCase();
+      const nomeB = b.nome.toLowerCase();
+      if (nomeA < nomeB) return -1;
+      if (nomeA > nomeB) return 1;
+
       return 0;
     });
   });

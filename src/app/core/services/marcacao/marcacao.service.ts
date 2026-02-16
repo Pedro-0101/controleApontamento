@@ -226,39 +226,52 @@ export class MarcacaoService {
 
   private async processarFuncionariosSemMarcacao(marcacoesDia: MarcacaoDia[], dataInicio: string, dataFim: string): Promise<MarcacaoDia[]> {
     let funcionariosAtivos: any[] = [];
-    // Buscar funcionários ativos e adicionar os que não têm marcações
+    // Buscar funcionários ativos
     try {
       funcionariosAtivos = await this.employeeService.getAllActiveEmployees();
 
-      // Obter data solicitada (se for um único dia, usamos ela)
-      const dataAlvo = dataInicio === dataFim ? dataInicio : DateHelper.getStringDate(new Date());
+      // Gerar lista de datas no intervalo
+      const dates: string[] = [];
+      const currentDate = DateHelper.fromStringDate(dataInicio);
+      const endDate = DateHelper.fromStringDate(dataFim);
 
-      // Criar um Set com as matrículas que já têm marcações POR DATA
-      const matriculasComMarcacao = new Set(marcacoesDia.map(m => `${String(m.matricula).trim()}:${m.data}`));
+      if (currentDate && endDate) {
+        while (currentDate <= endDate) {
+          dates.push(DateHelper.getStringDate(currentDate));
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+      } else {
+        // Fallback se datas invalidas
+        dates.push(dataInicio);
+      }
 
-      // Adicionar funcionários ativos sem marcação para a data alvo
-      // Nota: Isso é mais voltado para o Painel de Gestão (visão de um dia)
-      if (dataInicio === dataFim) {
+      // Criar um Map para acesso rápido por matrícula:data
+      const marcacoesMap = new Set(marcacoesDia.map(m => `${String(m.matricula).trim()}:${m.data}`));
+
+      // Iterar por cada data e cada funcionário ativo
+      for (const dateStr of dates) {
         for (const funcionario of funcionariosAtivos) {
           const matriculaLimpa = String(funcionario.matricula).trim();
-          const key = `${matriculaLimpa}:${dataAlvo}`;
-          if (!matriculasComMarcacao.has(key)) {
+          const key = `${matriculaLimpa}:${dateStr}`;
+
+          if (!marcacoesMap.has(key)) {
             const marcacaoDia = new MarcacaoDia(
               0,
               '',
               matriculaLimpa,
               funcionario.nome,
-              dataAlvo,
+              dateStr,
               [],
               funcionario.empresa
             );
             marcacoesDia.push(marcacaoDia);
-            matriculasComMarcacao.add(key);
+            marcacoesMap.add(key);
           }
         }
       }
+
     } catch (error) {
-      this.loggerService.error('MarcacaoService', 'Erro ao buscar funcionários ativos:', error);
+      this.loggerService.error('MarcacaoService', 'Erro ao processar funcionários sem marcação:', error);
     }
 
     // 4. Buscar comentários e pontos locais do período
