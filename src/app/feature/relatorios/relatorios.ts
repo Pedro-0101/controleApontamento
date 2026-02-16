@@ -188,8 +188,17 @@ export class Relatorios {
       this.marcacoes.set(result);
 
       // Format by day like main table
+      // Format by day using the shared service logic
+      // Determine target matriculas for optimization/filtering
+      let targetMatriculas: string[] | undefined = undefined;
+      if (this.selectedEmployees().length > 0) {
+        targetMatriculas = this.selectedEmployees();
+      } else if (this.selectedCompanies().length > 0) {
+        targetMatriculas = this.filteredEmployees().map(e => e.matricula);
+      }
+
       const marcacoesOrdenadas = result.sort((a, b) => a.cpf.localeCompare(b.cpf));
-      const marcacoesPorDia = await this.formatarMarcacoesPorDia(marcacoesOrdenadas, dataInicioDDMMYYYY, dataFimDDMMYYYY);
+      const marcacoesPorDia = await this.marcacaoService.formatarMarcacoesPorDia(marcacoesOrdenadas, dataInicioDDMMYYYY, dataFimDDMMYYYY, targetMatriculas);
 
       this.marcacoesPorDia.set(marcacoesPorDia);
       this.hasGenerated.set(true);
@@ -372,168 +381,5 @@ export class Relatorios {
     window.URL.revokeObjectURL(url);
   }
 
-  /**
-   * Format marcacoes by day - same logic as main table
-   */
-  private async formatarMarcacoesPorDia(marcacoes: Marcacao[], dataInicio: string, dataFim: string): Promise<MarcacaoDia[]> {
-    // Group by employee (Matrícula) and date
-    const grouped = new Map<string, Map<string, Marcacao[]>>();
 
-    // 0. Calculate Allowed Matriculas based on active filters
-    const targetMatriculas = this.selectedEmployees().length > 0
-      ? new Set(this.selectedEmployees())
-      : new Set(this.filteredEmployees().map(e => e.matricula));
-
-    const targetMatriculasArray = Array.from(targetMatriculas);
-
-    // 1. Process API marcacoes (with logical date shift and filter)
-    marcacoes.forEach(m => {
-      const matricula = String(m.matriculaFuncionario).trim();
-
-      // Filter by allowed matriculas (Company/Employee filters)
-      if (!targetMatriculas.has(matricula)) return;
-
-      // Logical Date Calculation (Consistency with MarcacaoService)
-      const dataHora = new Date(m.dataMarcacao);
-      const logicalDate = new Date(dataHora);
-      if (dataHora.getHours() < 5) {
-        logicalDate.setDate(logicalDate.getDate() - 1);
-      }
-      const dateKey = DateHelper.getStringDate(logicalDate);
-
-      // Filter by requested range (since API might return points from outside shifted into it or vice versa)
-      const isoLogical = DateHelper.toIsoDate(dateKey);
-      const isoInicio = DateHelper.toIsoDate(dataInicio);
-      const isoFim = DateHelper.toIsoDate(dataFim);
-
-      if (isoLogical >= isoInicio && isoLogical <= isoFim) {
-        if (!grouped.has(matricula)) {
-          grouped.set(matricula, new Map());
-        }
-
-        const employeeMap = grouped.get(matricula)!;
-        if (!employeeMap.has(dateKey)) {
-          employeeMap.set(dateKey, []);
-        }
-
-        employeeMap.get(dateKey)!.push(m);
-      }
-    });
-
-    // 2. Fetch all required data in batch for selected employees
-    const isoInicio = DateHelper.toIsoDate(dataInicio);
-    const isoFim = DateHelper.toIsoDate(dataFim);
-
-    // Extend range for manual points to catch early morning shifts
-    const dataFimObj = DateHelper.fromStringDate(dataFim);
-    if (dataFimObj) dataFimObj.setDate(dataFimObj.getDate() + 1);
-    const isoFimAjustado = dataFimObj ? DateHelper.toIsoDate(DateHelper.getStringDate(dataFimObj)) : isoFim;
-
-    const [employees, manualPoints] = await Promise.all([
-      this.employeeService.getEmployeeNamesBatch(targetMatriculasArray),
-      this.marcacaoService.fetchManualPointsBatch(targetMatriculasArray, isoInicio, isoFimAjustado)
-    ]);
-
-    const nameMap = new Map<string, { nome: string, empresa: string }>();
-    employees.forEach(e => nameMap.set(e.matricula, { nome: e.nome, empresa: e.empresa }));
-
-    // 3. Process manual points (with logical date shift)
-    manualPoints.forEach((p: any) => {
-      const parts = p.data.split('-');
-      if (parts.length === 3) {
-        const [year, month, day] = parts.map(Number);
-        const [hour, min] = p.hora.split(':').map(Number);
-
-        const dateObj = new Date(year, month - 1, day, hour, min);
-        const logicalDate = new Date(dateObj);
-
-        if (hour < 5) {
-          logicalDate.setDate(logicalDate.getDate() - 1);
-        }
-
-        const dateKey = DateHelper.getStringDate(logicalDate);
-        const isoLogical = DateHelper.toIsoDate(dateKey);
-
-        if (isoLogical >= isoInicio && isoLogical <= isoFim) {
-          const matricula = String(p.matricula_funcionario).trim();
-
-          if (!grouped.has(matricula)) {
-            grouped.set(matricula, new Map());
-          }
-
-          const employeeMap = grouped.get(matricula)!;
-          if (!employeeMap.has(dateKey)) {
-            employeeMap.set(dateKey, []);
-          }
-
-          // Avoid duplicates
-          const alreadyExists = employeeMap.get(dateKey)!.some(existing =>
-            existing.numSerieRelogio === 'MANUAL' && existing.id === p.id
-          );
-
-          if (!alreadyExists) {
-            employeeMap.get(dateKey)!.push(new Marcacao({
-              id: p.id,
-              dataMarcacao: dateObj,
-              numSerieRelogio: 'MANUAL',
-              tipoRegistro: 99,
-              matriculaFuncionario: matricula,
-              cpf: ''
-            }));
-          }
-        }
-      }
-    });
-
-    // 4. Convert grouped map to MarcacaoDia array AND fill gaps
-    const marcacoesDia: MarcacaoDia[] = [];
-
-    // Generate all dates in range
-    const dates: string[] = [];
-    const currentDate = DateHelper.fromStringDate(dataInicio);
-    const endDate = DateHelper.fromStringDate(dataFim);
-
-    if (currentDate && endDate) {
-      while (currentDate <= endDate) {
-        dates.push(DateHelper.getStringDate(currentDate));
-        currentDate.setDate(currentDate.getDate() + 1);
-      }
-    } else {
-      dates.push(dataInicio);
-    }
-
-    targetMatriculasArray.forEach(matricula => {
-      const empData = nameMap.get(matricula);
-      const employeeMap = grouped.get(matricula);
-
-      dates.forEach(dateKey => {
-        let marcacoesArray: Marcacao[] = [];
-
-        if (employeeMap && employeeMap.has(dateKey)) {
-          marcacoesArray = employeeMap.get(dateKey)!;
-          marcacoesArray.sort((a, b) => a.dataMarcacao.getTime() - b.dataMarcacao.getTime());
-        }
-
-        const marcacaoDia = new MarcacaoDia(
-          0,
-          '',
-          matricula,
-          empData?.nome || 'nome nao encontrado',
-          dateKey,
-          marcacoesArray,
-          empData?.empresa || ''
-        );
-        marcacoesDia.push(marcacaoDia);
-      });
-    });
-
-    // Final sort: Date ASC, then Name ASC
-    return marcacoesDia.sort((a, b) => {
-      const dateA = DateHelper.toIsoDate(a.data);
-      const dateB = DateHelper.toIsoDate(b.data);
-      const dateCompare = dateA.localeCompare(dateB);
-      if (dateCompare !== 0) return dateCompare;
-      return a.nome.localeCompare(b.nome);
-    });
-  }
 }

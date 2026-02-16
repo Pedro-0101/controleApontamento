@@ -162,12 +162,12 @@ export class MarcacaoService {
     }
   }
 
-  private async formatarMarcacoesPorDia(marcacoes: Marcacao[], dataInicio: string, dataFim: string): Promise<MarcacaoDia[]> {
+  async formatarMarcacoesPorDia(marcacoes: Marcacao[], dataInicio: string, dataFim: string, matriculasAlvo?: string[]): Promise<MarcacaoDia[]> {
     this.loggerService.info('MarcacaoService', `Formatando ${marcacoes.length} marcações brutas`);
 
     if (marcacoes.length === 0) {
       this.loggerService.warn('MarcacaoService', 'Nenhuma marcação recebida para formatar');
-      return this.processarFuncionariosSemMarcacao([], dataInicio, dataFim);
+      return this.processarFuncionariosSemMarcacao([], dataInicio, dataFim, matriculasAlvo);
     }
 
     // 1. Extrair matrículas únicas para busca em lote
@@ -221,14 +221,19 @@ export class MarcacaoService {
     // 4. Converter para array e processar funcionários sem marcação
     const marcacoesDia = Array.from(gruposMap.values());
 
-    return this.processarFuncionariosSemMarcacao(marcacoesDia, dataInicio, dataFim);
+    return this.processarFuncionariosSemMarcacao(marcacoesDia, dataInicio, dataFim, matriculasAlvo);
   }
 
-  private async processarFuncionariosSemMarcacao(marcacoesDia: MarcacaoDia[], dataInicio: string, dataFim: string): Promise<MarcacaoDia[]> {
+  private async processarFuncionariosSemMarcacao(marcacoesDia: MarcacaoDia[], dataInicio: string, dataFim: string, matriculasAlvo?: string[]): Promise<MarcacaoDia[]> {
     let funcionariosAtivos: any[] = [];
     // Buscar funcionários ativos
     try {
-      funcionariosAtivos = await this.employeeService.getAllActiveEmployees();
+      if (matriculasAlvo && matriculasAlvo.length > 0) {
+        // Se tiver alvos específicos, buscamos apenas os nomes/empresas deles (optimizado)
+        funcionariosAtivos = await this.employeeService.getEmployeeNamesBatch(matriculasAlvo);
+      } else {
+        funcionariosAtivos = await this.employeeService.getAllActiveEmployees();
+      }
 
       // Gerar lista de datas no intervalo
       const dates: string[] = [];
