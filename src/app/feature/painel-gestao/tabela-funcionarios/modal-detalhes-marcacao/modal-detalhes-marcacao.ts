@@ -349,14 +349,18 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
 
     // Processar marcações automáticas
     history.marcacoes?.forEach((m: any) => {
-      const date = new Date(m.DataMarcacao);
-      const dateKey = date.toISOString().split('T')[0];
+      const date = new Date(m.dataMarcacao || m.DataMarcacao);
+      const logicalDate = new Date(date);
+      if (date.getHours() < 5) {
+        logicalDate.setDate(logicalDate.getDate() - 1);
+      }
+      const dateKey = logicalDate.toISOString().split('T')[0];
 
       if (!dayMap.has(dateKey)) {
         dayMap.set(dateKey, { date: dateKey, marcacoes: [] });
       }
       dayMap.get(dateKey)?.marcacoes.push({
-        hora: DateHelper.getStringTime(new Date(m.dataMarcacao)),
+        hora: DateHelper.getStringTime(date),
         tipo: 'auto',
         nsr: m.nsr,
         numSerieRelogio: m.numSerieRelogio
@@ -365,10 +369,20 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
 
     // Processar pontos manuais
     history.pontosManuais?.forEach((p: any) => {
-      if (!dayMap.has(p.data)) {
-        dayMap.set(p.data, { date: p.data, marcacoes: [] });
+      // Calcular data lógica para pontos manuais
+      const [hours] = p.hora.split(':').map(Number);
+      let logicalDateKey = p.data;
+
+      if (hours < 5) {
+        const d = new Date(p.data + 'T12:00:00'); // Meio dia para evitar bugs de fuso ao subtrair um dia
+        d.setDate(d.getDate() - 1);
+        logicalDateKey = d.toISOString().split('T')[0];
       }
-      dayMap.get(p.data)?.marcacoes.push({
+
+      if (!dayMap.has(logicalDateKey)) {
+        dayMap.set(logicalDateKey, { date: logicalDateKey, marcacoes: [] });
+      }
+      dayMap.get(logicalDateKey)?.marcacoes.push({
         id: p.id,
         hora: p.hora,
         tipo: 'manual'

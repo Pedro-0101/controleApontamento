@@ -144,6 +144,19 @@ export class MarcacaoDia implements MarcacaoDia {
         return Math.floor(totalMs / (1000 * 60));
     }
 
+    isDiaSeguinte(m: Marcacao): boolean {
+        const jornadaDate = DateHelper.fromStringDate(this.data);
+        if (!jornadaDate) return false;
+
+        const mDate = m.dataMarcacao;
+
+        // Comparar apenas as datas (ano, mês, dia)
+        const d1 = new Date(mDate.getFullYear(), mDate.getMonth(), mDate.getDate());
+        const d2 = new Date(jornadaDate.getFullYear(), jornadaDate.getMonth(), jornadaDate.getDate());
+
+        return d1.getTime() > d2.getTime();
+    }
+
     private ordenarMarcacoes(marcacoes: Marcacao[]): Marcacao[] {
         if (!marcacoes) return [];
 

@@ -1,4 +1,15 @@
 <main class="dashboard-content">
+
+  <header class="dashboard-header">
+    <div class="header-titles">
+      <h1>Painel de Gestão</h1>
+      <p>Gerencie as marcações e frequências dos funcionários</p>
+    </div>
+    <button class="btn btn-primary btn-add-global" (click)="showModalPontoGlobal.set(true)">
+      <lucide-icon name="plus-circle" [size]="20"></lucide-icon>
+      Novo Ponto Manual
+    </button>
+  </header>
   
   <section class="section-cards">
     <app-cads-painel></app-cads-painel>
@@ -9,7 +20,14 @@
   </section>
 
   <section class="section-table">
-    <app-tabela-funcionarios></app-tabela-funcionarios>
+    <app-tabela-funcionarios #tabela></app-tabela-funcionarios>
   </section>
+
+  @if (showModalPontoGlobal()) {
+    <app-modal-adicionar-ponto-global
+      (close)="showModalPontoGlobal.set(false)"
+      (updated)="tabela.recarregarDados()"
+    ></app-modal-adicionar-ponto-global>
+  }
 
 </main>

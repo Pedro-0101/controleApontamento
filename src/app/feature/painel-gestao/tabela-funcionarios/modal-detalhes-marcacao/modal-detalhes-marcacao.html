@@ -57,7 +57,12 @@
               [class.desconsiderado]="m.desconsiderado"
             >
               <lucide-icon name="clock" [size]="14"></lucide-icon>
-              <span class="hora">{{ formatHora(m.dataMarcacao) }}</span>
+              <span class="hora">
+                {{ formatHora(m.dataMarcacao) }}
+                @if (record().isDiaSeguinte(m)) {
+                  <small>(+1)</small>
+                }
+              </span>
 
               <div class="item-actions">
                 @if (m.numSerieRelogio === 'MANUAL') {

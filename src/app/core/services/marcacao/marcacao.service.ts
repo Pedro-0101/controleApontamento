@@ -184,7 +184,14 @@ export class MarcacaoService {
     const gruposMap = new Map<string, MarcacaoDia>();
 
     for (const marcacao of marcacoes) {
-      const dateStr = DateHelper.getStringDate(marcacao.dataMarcacao);
+      // Lógica de Dia Lógico: Batidas antes das 05:00 pertencem à jornada do dia anterior
+      const dataHora = new Date(marcacao.dataMarcacao);
+      const logicalDate = new Date(dataHora);
+      if (dataHora.getHours() < 5) {
+        logicalDate.setDate(logicalDate.getDate() - 1);
+      }
+
+      const dateStr = DateHelper.getStringDate(logicalDate);
       const chave = `${marcacao.cpf}:${dateStr}`;
 
       if (gruposMap.has(chave)) {

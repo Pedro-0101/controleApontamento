@@ -11,6 +11,9 @@
           [class.manual]="m.numSerieRelogio === 'MANUAL'"
           [class.desconsiderado]="m.desconsiderado">
       {{ formatHora(m.dataMarcacao) }}
+      @if (marcacao().isDiaSeguinte(m)) {
+        <small>(+1)</small>
+      }
     </span>
   }
 </td>
