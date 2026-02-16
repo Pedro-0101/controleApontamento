@@ -14,11 +14,12 @@ import { DateHelper } from '../../core/helpers/dateHelper';
 import { MarcacaoService } from '../../core/services/marcacao/marcacao.service';
 import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-select-dropdown';
 import { ToastService } from '../../core/services/toast/toast.service';
+import { TitleCaseCustomPipe } from '../../shared/pipes/title-case-custom.pipe';
 
 @Component({
   selector: 'app-relatorios',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, Pagination, MultiSelectDropdown],
+  imports: [CommonModule, FormsModule, LucideAngularModule, Pagination, MultiSelectDropdown, TitleCaseCustomPipe],
   templateUrl: './relatorios.html',
   styleUrl: './relatorios.css'
 })

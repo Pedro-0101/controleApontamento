@@ -8,6 +8,7 @@ import { DateHelper } from '../../../../core/helpers/dateHelper';
 import { ComentarioMarcacao } from '../../../../models/comentarioMarcacao/comentario-marcacao';
 import { ToastService } from '../../../../core/services/toast/toast.service';
 import { Marcacao } from '../../../../models/marcacao/marcacao';
+import { TitleCaseCustomPipe } from '../../../../shared/pipes/title-case-custom.pipe';
 
 interface HistoryTableDay {
   date: string;
@@ -19,7 +20,7 @@ interface HistoryTableDay {
 @Component({
   selector: 'app-modal-detalhes-marcacao',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, TitleCaseCustomPipe],
   templateUrl: './modal-detalhes-marcacao.html',
   styleUrl: './modal-detalhes-marcacao.css'
 })

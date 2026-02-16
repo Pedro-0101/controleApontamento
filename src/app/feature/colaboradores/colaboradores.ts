@@ -10,11 +10,12 @@ import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-se
 import { QRCodeService } from '../../core/services/qrcode/qrcode.service';
 import { ToastService } from '../../core/services/toast/toast.service';
 import { ButtonComponent } from '../../shared/button/button';
+import { TitleCaseCustomPipe } from '../../shared/pipes/title-case-custom.pipe';
 
 @Component({
   selector: 'app-colaboradores',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, ModalColaborador, Pagination, SearchFilter, MultiSelectDropdown, ButtonComponent],
+  imports: [CommonModule, LucideAngularModule, ModalColaborador, Pagination, SearchFilter, MultiSelectDropdown, ButtonComponent, TitleCaseCustomPipe],
   templateUrl: './colaboradores.html',
   styleUrl: './colaboradores.css'
 })

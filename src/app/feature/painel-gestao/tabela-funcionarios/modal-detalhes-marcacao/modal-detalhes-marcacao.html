@@ -27,7 +27,7 @@
         <div class="detail-item">
           <label>Status</label>
           <span class="badge" [class]="'status-' + record().getStatus().toLowerCase()">
-            {{ record().getStatus() }}
+            {{ record().getStatus() | titleCaseCustom }}
           </span>
         </div>
         <div class="detail-item">
@@ -152,7 +152,7 @@
             ) {
               <div class="applied-event">
                 <span class="badge" [class]="'status-' + e.tipo_evento.toLowerCase()">{{
-                  e.tipo_evento
+                  e.tipo_evento | titleCaseCustom
                 }}</span>
                 <span class="event-info">Aplicado por {{ e.criado_por }}</span>
                 <button
@@ -263,7 +263,7 @@
                     </td>
                     <td class="col-status">
                       <span class="badge" [class]="'status-' + day.status.toLowerCase()">
-                        {{ day.status }}
+                        {{ day.status | titleCaseCustom }}
                       </span>
                     </td>
                   </tr>

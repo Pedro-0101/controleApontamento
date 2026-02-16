@@ -70,13 +70,13 @@
               </td>
               <td class="employee-name">
                 <lucide-icon name="user" [size]="16"></lucide-icon>
-                {{ employee.nome }}
+                {{ employee.nome | titleCaseCustom }}
               </td>
               <td>{{ employee.matricula }}</td>
               <td>{{ employee.empresa }}</td>
               <td>
                 <span class="badge" [class]="getStatusClass(employee.ativo)">
-                  {{ getStatusLabel(employee.ativo) }}
+                  {{ getStatusLabel(employee.ativo) | titleCaseCustom }}
                 </span>
               </td>
               <td class="actions-cell">

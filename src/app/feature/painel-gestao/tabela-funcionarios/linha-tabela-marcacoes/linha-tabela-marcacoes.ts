@@ -2,9 +2,12 @@ import { Component, computed, inject, input, Output, EventEmitter } from '@angul
 import { MarcacaoService } from '../../../../core/services/marcacao/marcacao.service';
 import { MarcacaoDia } from '../../../../models/marcacaoDia/marcacao-dia';
 import { DateHelper } from '../../../../core/helpers/dateHelper';
+import { TitleCaseCustomPipe } from '../../../../shared/pipes/title-case-custom.pipe';
 
 @Component({
   selector: 'tr[app-linha-tabela-marcacoes]',
+  standalone: true,
+  imports: [TitleCaseCustomPipe],
   templateUrl: './linha-tabela-marcacoes.html',
   styleUrl: './linha-tabela-marcacoes.css',
 })

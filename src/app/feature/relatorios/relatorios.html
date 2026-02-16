@@ -178,7 +178,7 @@
                 }
                 <tr>
                   <td>{{ dia.matricula }}</td>
-                  <td>{{ dia.nome }}</td>
+                  <td>{{ dia.nome | titleCaseCustom }}</td>
                   <td>
                     <div class="marcacoes-list">
                       @for (m of dia.marcacoes; track m.id || $index) {
@@ -194,7 +194,7 @@
                   <td>{{ dia.getHorasTrabalhadas() }}</td>
                   <td>
                     <span class="badge" [ngClass]="'status-' + dia.getStatus()">
-                      {{ dia.getStatus() }}
+                      {{ dia.getStatus() | titleCaseCustom }}
                     </span>
                   </td>
                 </tr>
