@@ -81,9 +81,29 @@
   --font-size-4xl: 28px;
   
   /* Transitions */
-  --transition-fast: 0.15s ease;
-  --transition-base: 0.2s ease;
-  --transition-slow: 0.3s ease;
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* New Animations */
+  --anim-rotate: rotate 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  --anim-scale: scale 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(90deg); }
+}
+
+@keyframes scale {
+  from { transform: scale(1); }
+  to { transform: scale(1.05); }
+}
+
+@keyframes pop {
+  0% { transform: scale(0.95); opacity: 0; }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 /* =============================================================================
@@ -102,6 +122,8 @@ html, body {
   font-size: var(--font-size-base);
   color: var(--color-gray-800);
   background: var(--color-gray-50);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* =============================================================================
@@ -606,14 +628,15 @@ label {
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--color-gray-500);
+  color: var(--color-gray-400);
   cursor: pointer;
   transition: all var(--transition-base);
 }
 
 .btn-close:hover {
   background: var(--color-gray-100);
-  color: var(--color-gray-800);
+  color: var(--color-danger);
+  transform: rotate(90deg);
 }
 
 /* =============================================================================

@@ -22,41 +22,41 @@
 
 .header-titles h1 {
   margin: 0;
-  font-size: 1.75rem;
-  color: #111827;
+  font-size: var(--font-size-3xl);
+  color: var(--color-gray-900);
   font-weight: 700;
 }
 
 .header-titles p {
   margin: 4px 0 0 0;
-  color: #6b7280;
-  font-size: 0.95rem;
+  color: var(--color-gray-500);
+  font-size: var(--font-size-base);
 }
 
 .btn-add-global {
   padding: 12px 20px !important;
-  font-size: 1rem !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  font-size: var(--font-size-base) !important;
+  box-shadow: var(--shadow-md);
 }
 
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  border-radius: 8px;
+  gap: var(--spacing-sm);
+  border-radius: var(--radius-md);
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-base);
   border: 1px solid transparent;
 }
 
 .btn-primary {
-  background-color: #0d6efd;
+  background-color: var(--color-primary);
   color: white;
 }
 
 .btn-primary:hover {
-  background-color: #0b5ed7;
+  background-color: var(--color-primary-hover);
 }
 
 .section-cards, 

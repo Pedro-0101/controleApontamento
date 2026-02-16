@@ -9,19 +9,16 @@
     </div>
     <div class="header-actions">
       @if (selectedEmployeeIds().length > 0) {
-        <button class="btn btn-outline btn-sm" (click)="batchGenerateCards()">
-          <lucide-icon name="printer" [size]="16"></lucide-icon>
+        <app-button variant="outline" size="sm" icon="printer" (onClick)="batchGenerateCards()">
           Gerar Cartões ({{ selectedEmployeeIds().length }})
-        </button>
-        <button class="btn btn-danger btn-sm" (click)="batchDeactivate()">
-          <lucide-icon name="shield-alert" [size]="16"></lucide-icon>
+        </app-button>
+        <app-button variant="danger" size="sm" icon="shield-alert" (onClick)="batchDeactivate()">
           Desativar Selecionados ({{ selectedEmployeeIds().length }})
-        </button>
+        </app-button>
       }
-      <button class="btn btn-primary btn-sm" (click)="openCreateModal()">
-        <lucide-icon name="plus" [size]="16"></lucide-icon>
+      <app-button size="sm" icon="plus" (onClick)="openCreateModal()">
         Adicionar Colaborador
-      </button>
+      </app-button>
     </div>
   </div>
 
@@ -99,9 +96,9 @@
               <td colspan="5" class="empty-state">
                 <lucide-icon name="users" [size]="48"></lucide-icon>
                 <p>Nenhum colaborador encontrado</p>
-                <button class="btn btn-primary btn-sm" (click)="openCreateModal()">
+                <app-button size="sm" (onClick)="openCreateModal()">
                   Adicionar Primeiro Colaborador
-                </button>
+                </app-button>
               </td>
             </tr>
           }

@@ -2,6 +2,8 @@ import { Component, EventEmitter, inject, OnInit, Output, signal, computed } fro
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { MultiSelectDropdown } from '../../../shared/multi-select-dropdown/multi-select-dropdown';
+import { ButtonComponent } from '../../../shared/button/button';
 import { EmployeeService } from '../../../core/services/employee/employee.service';
 import { MarcacaoService } from '../../../core/services/marcacao/marcacao.service';
 import { ToastService } from '../../../core/services/toast/toast.service';
@@ -10,7 +12,7 @@ import { Employee } from '../../../models/employee/employee';
 @Component({
   selector: 'app-modal-adicionar-ponto-global',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, MultiSelectDropdown, ButtonComponent],
   templateUrl: './modal-adicionar-ponto-global.html',
   styleUrl: './modal-adicionar-ponto-global.css'
 })
@@ -23,22 +25,11 @@ export class ModalAdicionarPontoGlobal implements OnInit {
   @Output() updated = new EventEmitter<void>();
 
   protected employees = signal<Employee[]>([]);
-  protected searchQuery = signal('');
-  protected selectedMatricula = signal('');
+  protected selectedMatriculas = signal<string[]>([]);
   protected selectedDate = signal(new Date().toISOString().split('T')[0]);
   protected selectedTime = signal('');
+  protected comentario = signal('');
   protected isSaving = signal(false);
-
-  // Filtro de funcionários baseado na pesquisa
-  protected filteredEmployees = computed(() => {
-    const query = this.searchQuery().toLowerCase().trim();
-    if (!query) return this.employees();
-    return this.employees().filter(e =>
-      e.nome.toLowerCase().includes(query) ||
-      e.matricula.toLowerCase().includes(query) ||
-      (e.empresa || '').toLowerCase().includes(query)
-    );
-  });
 
   ngOnInit() {
     this.carregarFuncionarios();
@@ -57,7 +48,7 @@ export class ModalAdicionarPontoGlobal implements OnInit {
   }
 
   isFormValid(): boolean {
-    return !!this.selectedMatricula() && !!this.selectedDate() && !!this.selectedTime();
+    return this.selectedMatriculas().length > 0 && !!this.selectedDate() && !!this.selectedTime() && !!this.comentario().trim();
   }
 
   async salvar() {
@@ -65,20 +56,25 @@ export class ModalAdicionarPontoGlobal implements OnInit {
 
     this.isSaving.set(true);
     try {
-      await this.marcacaoService.saveManualMarcacao(
-        this.selectedMatricula(),
+      await this.marcacaoService.saveManualMarcacaoBatch(
+        this.selectedMatriculas(),
         this.selectedDate(),
-        this.selectedTime()
+        this.selectedTime(),
+        this.comentario()
       );
 
-      this.toastService.success('Ponto manual adicionado com sucesso!');
+      this.toastService.success(`${this.selectedMatriculas().length} ponto(s) manual(is) adicionado(s) com sucesso!`);
       this.updated.emit();
       this.close.emit();
     } catch (error: any) {
       console.error('Erro ao salvar ponto global:', error);
-      this.toastService.error('Erro ao salvar o ponto manual.');
+      this.toastService.error('Erro ao salvar os pontos manuais.');
     } finally {
       this.isSaving.set(false);
     }
+  }
+
+  onSelectionChange(selected: string[]) {
+    this.selectedMatriculas.set(selected);
   }
 }

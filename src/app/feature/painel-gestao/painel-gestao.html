@@ -5,10 +5,9 @@
       <h1>Painel de Gestão</h1>
       <p>Gerencie as marcações e frequências dos funcionários</p>
     </div>
-    <button class="btn btn-primary btn-add-global" (click)="showModalPontoGlobal.set(true)">
-      <lucide-icon name="plus-circle" [size]="20"></lucide-icon>
+    <app-button icon="plus-circle" (onClick)="showModalPontoGlobal.set(true)">
       Novo Ponto Manual
-    </button>
+    </app-button>
   </header>
   
   <section class="section-cards">

@@ -8,11 +8,12 @@ import { CadsPainel } from "./cads-painel/cads-painel";
 import { ModalAdicionarPontoGlobal } from './modal-adicionar-ponto-global/modal-adicionar-ponto-global';
 import { LucideAngularModule } from 'lucide-angular';
 import { MarcacaoService } from '../../core/services/marcacao/marcacao.service';
+import { ButtonComponent } from '../../shared/button/button';
 
 @Component({
   selector: 'app-painel-gestao',
   standalone: true,
-  imports: [FiltrosTabelaMarcacoes, TabelaFuncionarios, CadsPainel, ModalAdicionarPontoGlobal, LucideAngularModule],
+  imports: [FiltrosTabelaMarcacoes, TabelaFuncionarios, CadsPainel, ModalAdicionarPontoGlobal, LucideAngularModule, ButtonComponent],
   templateUrl: './painel-gestao.html',
   styleUrl: './painel-gestao.css',
   providers: [DatePipe]

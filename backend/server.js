@@ -249,6 +249,69 @@ app.post('/api/marcacoes/manual', async (req, res) => {
   }
 });
 
+// Rota para inserir múltiplos pontos manuais com comentário
+app.post('/api/marcacoes/manual/batch-insert', async (req, res) => {
+  const { matriculas, data, hora, comentario, criadoPor } = req.body;
+
+  if (!Array.isArray(matriculas) || matriculas.length === 0 || !data || !hora) {
+    return res.status(400).json({ success: false, error: 'Parâmetros inválidos' });
+  }
+
+  const results = {
+    success: [],
+    errors: []
+  };
+
+  try {
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      for (const matricula of matriculas) {
+        try {
+          // 1. Inserir Ponto Manual
+          const [pontoResult] = await connection.query(`
+            INSERT INTO ponto_manual (matricula_funcionario, data, hora, criado_por)
+            VALUES (?, ?, ?, ?)
+          `, [matricula, data, hora, criadoPor]);
+
+          await createAuditLog(criadoPor, 'CREATE', 'ponto_manual', pontoResult.insertId, null, { matricula, data, hora });
+
+          // 2. Inserir Comentário se existir
+          if (comentario && comentario.trim()) {
+            const [commentResult] = await connection.query(`
+              INSERT INTO comentario_dia (matricula_funcionario, data, comentario, criado_por)
+              VALUES (?, ?, ?, ?)
+            `, [matricula, data, comentario, criadoPor]);
+
+            await createAuditLog(criadoPor, 'CREATE', 'comentario_dia', commentResult.insertId, null, { matricula, data, comentario });
+          }
+
+          results.success.push(matricula);
+        } catch (err) {
+          console.error(`Erro ao processar matrícula ${matricula}:`, err);
+          results.errors.push({ matricula, error: err.code === 'ER_DUP_ENTRY' ? 'Ponto duplicado' : 'Erro interno' });
+        }
+      }
+
+      await connection.commit();
+      res.json({ 
+        success: results.errors.length === 0, 
+        message: `${results.success.length} pontos inseridos com sucesso`,
+        results 
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Erro na transação de batch insert:', error);
+    res.status(500).json({ success: false, error: 'Erro ao processar inserção em lote' });
+  }
+});
+
 // Rota para buscar pontos manuais em lote
 app.post('/api/marcacoes/manual/batch', async (req, res) => {
   const { matriculas, dataInicio, dataFim } = req.body;

@@ -18,10 +18,10 @@
   width: 100%;
   max-width: 380px;
   background-color: white;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 2.5rem;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e5e7eb;
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--color-gray-200);
 }
 
 .login-brand {
@@ -30,15 +30,15 @@
 }
 
 .brand-icon {
-  color: #3b82f6;
+  color: var(--color-primary);
   margin-bottom: 0.75rem;
 }
 
 .login-brand h2 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: var(--font-size-2xl);
   font-weight: 700;
-  color: #111827;
+  color: var(--color-gray-900);
 }
 
 .login-form {
@@ -54,49 +54,51 @@
 }
 
 .form-field label {
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #374151;
+  color: var(--color-gray-700);
 }
 
 .input-container input {
   width: 100%;
   padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 1rem;
-  color: #1f2937;
-  background-color: #f9fafb;
-  transition: all 0.2s;
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  color: var(--color-gray-800);
+  background-color: var(--color-gray-50);
+  transition: all var(--transition-base);
   box-sizing: border-box;
 }
 
 .input-container input:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--color-primary);
   background-color: white;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
 }
 
 .login-button {
   margin-top: 0.5rem;
-  background-color: #1a1a1a;
+  background-color: var(--color-gray-900);
   color: white;
   border: none;
   padding: 0.875rem;
-  border-radius: 8px;
-  font-size: 1rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all var(--transition-base);
 }
 
 .login-button:hover {
-  background-color: #333;
+  background-color: var(--color-gray-800);
+  transform: translateY(-1px);
 }
 
 .login-button:active {
-  background-color: #000;
+  background-color: var(--color-gray-900);
+  transform: translateY(0);
 }
 
 .login-info {

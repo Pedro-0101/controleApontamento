@@ -438,7 +438,7 @@ export class MarcacaoService {
     );
   }
 
-  async saveManualMarcacao(matricula: string, data: string, hora: string): Promise<void> {
+  async saveManualMarcacao(matricula: string, data: string, hora: string, comentario?: string): Promise<void> {
     const criadoPor = this.authService._userName() || 'Sistema';
     const body = { matricula, data, hora, criadoPor };
 
@@ -446,8 +446,26 @@ export class MarcacaoService {
       await firstValueFrom(
         this.http.post<{ success: boolean, message: string }>(`${environment.apiUrlBackend}/marcacoes/manual`, body)
       );
+
+      if (comentario) {
+        await this.saveComment(matricula, data, comentario);
+      }
     } catch (error) {
       this.loggerService.error('MarcacaoService', 'Erro ao salvar ponto manual:', error);
+      throw error;
+    }
+  }
+
+  async saveManualMarcacaoBatch(matriculas: string[], data: string, hora: string, comentario: string): Promise<void> {
+    const criadoPor = this.authService._userName() || 'Sistema';
+    const body = { matriculas, data, hora, comentario, criadoPor };
+
+    try {
+      await firstValueFrom(
+        this.http.post<{ success: boolean, message: string }>(`${environment.apiUrlBackend}/marcacoes/manual/batch-insert`, body)
+      );
+    } catch (error) {
+      this.loggerService.error('MarcacaoService', 'Erro ao salvar pontos manuais em lote:', error);
       throw error;
     }
   }

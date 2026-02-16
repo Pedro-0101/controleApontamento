@@ -9,11 +9,12 @@ import { SearchFilter, FilterOption } from '../../shared/search-filter/search-fi
 import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-select-dropdown';
 import { QRCodeService } from '../../core/services/qrcode/qrcode.service';
 import { ToastService } from '../../core/services/toast/toast.service';
+import { ButtonComponent } from '../../shared/button/button';
 
 @Component({
   selector: 'app-colaboradores',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, ModalColaborador, Pagination, SearchFilter, MultiSelectDropdown],
+  imports: [CommonModule, LucideAngularModule, ModalColaborador, Pagination, SearchFilter, MultiSelectDropdown, ButtonComponent],
   templateUrl: './colaboradores.html',
   styleUrl: './colaboradores.css'
 })

@@ -10,30 +10,14 @@
     <div class="modal-body">
       <!-- Funcionário -->
       <div class="form-group">
-        <label for="employeeSelect">Funcionário</label>
-        <div class="search-box">
-          <lucide-icon name="search" [size]="16"></lucide-icon>
-          <input 
-            type="text" 
-            class="input-text" 
-            placeholder="Pesquisar funcionário..." 
-            [(ngModel)]="searchQuery"
-          />
-        </div>
-        <select 
-          id="employeeSelect" 
-          class="input-select" 
-          [(ngModel)]="selectedMatricula"
-          size="5"
-        >
-          @for (emp of filteredEmployees(); track emp.id) {
-            <option [value]="emp.matricula">
-              {{ emp.nome }} ({{ emp.matricula }}) - {{ emp.empresa }}
-            </option>
-          } @empty {
-            <option disabled>Nenhum funcionário encontrado.</option>
-          }
-        </select>
+        <label>Funcionários</label>
+        <app-multi-select-dropdown
+          [options]="employees()"
+          [initialValue]="selectedMatriculas()"
+          placeholder="Selecione os funcionários..."
+          searchPlaceholder="Pesquisar por nome ou matrícula..."
+          (selectionChange)="onSelectionChange($event)"
+        ></app-multi-select-dropdown>
       </div>
 
       <div style="display: flex; gap: 1rem;">
@@ -59,22 +43,30 @@
           />
         </div>
       </div>
+
+      <div class="form-group">
+        <label for="comentario">Comentário</label>
+        <textarea 
+          id="comentario" 
+          class="input-text" 
+          rows="3" 
+          placeholder="Descreva o motivo deste apontamento..." 
+          [(ngModel)]="comentario"
+        ></textarea>
+        <small class="form-hint" [class.error]="!comentario().trim()">* O comentário é obrigatório para auditoria.</small>
+      </div>
     </div>
 
     <div class="modal-footer">
-      <button class="btn btn-outline" (click)="close.emit()">Cancelar</button>
-      <button 
-        class="btn btn-primary" 
-        (click)="salvar()" 
-        [disabled]="isSaving() || !isFormValid()"
+      <app-button variant="outline" (onClick)="close.emit()">Cancelar</app-button>
+      <app-button 
+        icon="save"
+        [loading]="isSaving()" 
+        [disabled]="!isFormValid()"
+        (onClick)="salvar()"
       >
-        @if (isSaving()) {
-          <div class="btn-spinner"></div>
-        } @else {
-          <lucide-icon name="save" [size]="18"></lucide-icon>
-        }
         Salvar Ponto
-      </button>
+      </app-button>
     </div>
   </div>
 </div>
