@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { AuthService } from '../services/auth/auth.service';
+import { MarcacaoApiService } from '../services/marcacao-api/marcacao-api.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -13,8 +14,11 @@ import { AuthService } from '../services/auth/auth.service';
 export class Sidebar {
   private authService = inject(AuthService);
   private router = inject(Router);
+  private marcacaoApiService = inject(MarcacaoApiService);
 
   userName = this.authService._userName;
+  apiStatus = this.marcacaoApiService.apiStatus;
+  responseTime = this.marcacaoApiService.averageResponseTime;
   isMenuOpen = signal(false);
 
   toggleMenu() {

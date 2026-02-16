@@ -194,3 +194,24 @@ app-multi-select-dropdown ::ng-deep .dropdown-container {
   border-radius: 10px !important;
   border-width: 1.5px !important;
 }
+
+.logical-day-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background-color: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  margin-top: -0.5rem;
+  margin-bottom: 0rem;
+  color: #92400e;
+  font-size: 0.85rem;
+  line-height: 1.25rem;
+}
+
+.logical-day-warning lucide-icon {
+  margin-top: 0.125rem;
+  color: #d97706;
+  flex-shrink: 0;
+}

@@ -149,22 +149,68 @@
 .user-details {
   display: flex;
   flex-direction: column;
+  gap: 2px;
   overflow: hidden;
   flex: 1;
 }
 
+.user-name-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .user-name {
-  font-size: 14px;
+  font-size: 0.9rem;
   font-weight: 600;
-  color: #1f2937;
+  color: #1e293b;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: block;
+}
+
+.user-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.api-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.03);
+  transition: all 0.3s ease;
+}
+
+.api-indicator.online {
+  color: #10b981;
+}
+
+.api-indicator.slow {
+  color: #f59e0b;
+}
+
+.api-indicator.offline {
+  color: #ef4444;
+}
+
+.api-indicator lucide-icon {
+  flex-shrink: 0;
+}
+
+.api-time {
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .user-status {
-  font-size: 12px;
-  color: #6b7280;
+  font-size: 0.75rem;
+  color: #64748b;
 }
 
 .menu-chevron {

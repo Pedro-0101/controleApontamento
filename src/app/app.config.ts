@@ -57,6 +57,7 @@ import {
   XCircle,
   Ban,
   UserCheck,
+  Activity,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -121,6 +122,7 @@ export const appConfig: ApplicationConfig = {
       XCircle,
       Ban,
       UserCheck,
+      Activity,
     }))
   ]
 };

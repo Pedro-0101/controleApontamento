@@ -255,7 +255,7 @@ app.post('/api/marcacoes/manual', async (req, res) => {
 
 // Rota para inserir múltiplos pontos manuais com comentário
 app.post('/api/marcacoes/manual/batch-insert', async (req, res) => {
-  const { matriculas, data, hora, comentario, criadoPor } = req.body;
+  const { matriculas, data, hora, comentario, criadoPor, commentDate } = req.body;
 
   if (!Array.isArray(matriculas) || matriculas.length === 0 || !data || !hora) {
     return res.status(400).json({ success: false, error: 'Parâmetros inválidos' });
@@ -288,7 +288,7 @@ app.post('/api/marcacoes/manual/batch-insert', async (req, res) => {
             const [commentResult] = await connection.query(`
               INSERT INTO comentario_dia (matricula_funcionario, data, comentario, criado_por)
               VALUES (?, ?, ?, ?)
-            `, [matricula, data, comentario, criadoPor]);
+            `, [matricula, commentDate || data, comentario, criadoPor]);
 
             await createAuditLog(criadoPor, 'CREATE', 'comentario_dia', commentResult.insertId, null, { matricula, data, comentario });
           }

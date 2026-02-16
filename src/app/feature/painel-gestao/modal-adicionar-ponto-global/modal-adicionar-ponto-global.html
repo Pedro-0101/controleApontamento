@@ -44,6 +44,14 @@
         </div>
       </div>
 
+      <!-- Alerta de Dia Lógico -->
+      @if (isLogicalDayShift()) {
+        <div class="logical-day-warning">
+          <lucide-icon name="alert-triangle" [size]="16"></lucide-icon>
+          <span>Atenção: Por ser antes das 05h, este ponto será considerado como término da jornada anterior. O comentário será registrado na data anterior.</span>
+        </div>
+      }
+
       <div class="form-group">
         <label for="comentario">Comentário</label>
         <textarea 

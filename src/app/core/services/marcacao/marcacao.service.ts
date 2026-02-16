@@ -13,6 +13,7 @@ import { DateHelper } from '../../helpers/dateHelper';
 import { Relogio } from '../../../models/relogio/relogio';
 import { RelogioService } from '../relogio/relogio.service';
 import { AuthService } from '../auth/auth.service';
+import { MarcacaoApiService } from '../marcacao-api/marcacao-api.service';
 
 @Injectable({
   providedIn: 'root',
@@ -27,6 +28,7 @@ export class MarcacaoService {
   private relogioService = inject(RelogioService);
   private http = inject(HttpClient);
   private authService = inject(AuthService);
+  private marcacaoApiService = inject(MarcacaoApiService);
 
   private marcacoes = signal<Marcacao[]>([]);
   private marcacoesFiltradas = signal<MarcacaoDia[]>([]);
@@ -223,80 +225,78 @@ export class MarcacaoService {
   }
 
   private async processarFuncionariosSemMarcacao(marcacoesDia: MarcacaoDia[], dataInicio: string, dataFim: string): Promise<MarcacaoDia[]> {
+    let funcionariosAtivos: any[] = [];
     // Buscar funcionários ativos e adicionar os que não têm marcações
     try {
-      const funcionariosAtivos = await this.employeeService.getAllActiveEmployees();
+      funcionariosAtivos = await this.employeeService.getAllActiveEmployees();
 
       // Obter data solicitada (se for um único dia, usamos ela)
       const dataAlvo = dataInicio === dataFim ? dataInicio : DateHelper.getStringDate(new Date());
 
-      // Criar um Set com as matrículas que já têm marcações
-      const matriculasComMarcacao = new Set(marcacoesDia.map(m => String(m.matricula).trim()));
+      // Criar um Set com as matrículas que já têm marcações POR DATA
+      const matriculasComMarcacao = new Set(marcacoesDia.map(m => `${String(m.matricula).trim()}:${m.data}`));
 
-      // Adicionar funcionários ativos sem marcação
-      for (const funcionario of funcionariosAtivos) {
-        const matriculaLimpa = String(funcionario.matricula).trim();
-        if (!matriculasComMarcacao.has(matriculaLimpa)) {
-          // Funcionário ativo sem marcação - criar entrada com status "falta"
-          const marcacaoDia = new MarcacaoDia(
-            0, // ID 0 para indicar que não tem marcação real
-            '', // CPF vazio (não temos na tabela de funcionários)
-            matriculaLimpa,
-            funcionario.nome,
-            dataAlvo,
-            [], // Array vazio de marcações
-            funcionario.empresa
-          );
-
-          marcacoesDia.push(marcacaoDia)
+      // Adicionar funcionários ativos sem marcação para a data alvo
+      // Nota: Isso é mais voltado para o Painel de Gestão (visão de um dia)
+      if (dataInicio === dataFim) {
+        for (const funcionario of funcionariosAtivos) {
+          const matriculaLimpa = String(funcionario.matricula).trim();
+          const key = `${matriculaLimpa}:${dataAlvo}`;
+          if (!matriculasComMarcacao.has(key)) {
+            const marcacaoDia = new MarcacaoDia(
+              0,
+              '',
+              matriculaLimpa,
+              funcionario.nome,
+              dataAlvo,
+              [],
+              funcionario.empresa
+            );
+            marcacoesDia.push(marcacaoDia);
+            matriculasComMarcacao.add(key);
+          }
         }
       }
     } catch (error) {
       this.loggerService.error('MarcacaoService', 'Erro ao buscar funcionários ativos:', error);
     }
 
-    // 4. Buscar comentários do período
+    // 4. Buscar comentários e pontos locais do período
     try {
-      if (marcacoesDia.length > 0) {
-        // Coletar matrículas dos itens processados (incluindo faltas)
+      if (marcacoesDia.length >= 0) { // Permitir buscar mesmo se não houver marcações da API
+        // Coletar todas as matrículas ativas ou com marcação
         const allMatriculas = [...new Set(marcacoesDia.map(m => String(m.matricula).trim()))];
 
-        // Converter dataInicio e dataFim para ISO para o Backend (MySQL)
+        // Se a lista estiver vazia (caso raro onde não há funcionários no banco), nada a fazer
+        if (allMatriculas.length === 0) return marcacoesDia;
+
+        // Converter datas para ISO para o Backend
         const isoInicio = DateHelper.toIsoDate(dataInicio);
         const isoFim = DateHelper.toIsoDate(dataFim);
 
-        const comments = await this.fetchCommentsBatch(
-          allMatriculas,
-          isoInicio,
-          isoFim
-        );
+        // Ajuste: Buscar manual points até o dia seguinte para capturar batidas < 05:00
+        const dataFimObj = DateHelper.fromStringDate(dataFim);
+        if (dataFimObj) dataFimObj.setDate(dataFimObj.getDate() + 1);
+        const isoFimAjustado = dataFimObj ? DateHelper.toIsoDate(DateHelper.getStringDate(dataFimObj)) : isoFim;
 
-        const manualPoints = await this.fetchManualPointsBatch(
-          allMatriculas, isoInicio, isoFim
-        );
-
-        const events = await this.fetchEventsBatch(
-          allMatriculas, isoInicio, isoFim
-        );
-
-        const ignoredPoints = await this.fetchIgnoredPointsBatch(
-          allMatriculas, isoInicio, isoFim
-        );
+        const [comments, manualPoints, events, ignoredPoints] = await Promise.all([
+          this.fetchCommentsBatch(allMatriculas, isoInicio, isoFim),
+          this.fetchManualPointsBatch(allMatriculas, isoInicio, isoFimAjustado),
+          this.fetchEventsBatch(allMatriculas, isoInicio, isoFim),
+          this.fetchIgnoredPointsBatch(allMatriculas, isoInicio, isoFimAjustado)
+        ]);
 
         // Map para acesso rápido: matricula:data -> ignoredPointsSet
         const ignoredPointsMap = new Map<string, Set<string>>();
         ignoredPoints.forEach((p: any) => {
-          // Converter YYYY-MM-DD para DD/MM/YYYY para bater com o MarcacaoDia
           const parts = p.data.split('-');
           const dataFormatada = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : p.data;
-
           const key = `${String(p.matricula_funcionario).trim()}:${dataFormatada}`;
           if (!ignoredPointsMap.has(key)) ignoredPointsMap.set(key, new Set());
 
           if (p.marcacao_id) {
             ignoredPointsMap.get(key)?.add(`manual:${p.marcacao_id}`);
           } else {
-            // Se for auto, usa nsr e relogio_ns (pode ser null/undefined dependendo do registro)
             const nsr = p.nsr !== null && p.nsr !== undefined ? p.nsr : '';
             const relogio_ns = p.relogio_ns !== null && p.relogio_ns !== undefined ? p.relogio_ns : '';
             ignoredPointsMap.get(key)?.add(`auto:${nsr}:${relogio_ns}`);
@@ -310,41 +310,73 @@ export class MarcacaoService {
           if (parts.length === 3) {
             const dataFormatada = `${parts[2]}/${parts[1]}/${parts[0]}`;
             const key = `${String(c.matricula_funcionario).trim()}:${dataFormatada}`;
-
             if (!commentsMap.has(key)) commentsMap.set(key, []);
-
-            const comentario = new ComentarioMarcacao(
-              c.comentario,
-              c.criado_por || 'Sistema',
-              c.criado_em
-            );
-
-            commentsMap.get(key)?.push(comentario);
+            commentsMap.get(key)?.push(new ComentarioMarcacao(c.comentario, c.criado_por || 'Sistema', c.criado_em));
           }
         });
 
         // Map para acesso rápido: matricula:data -> manualPoints[]
+        // AQUI APLICAMOS A LÓGICA DO DIA LÓGICO PARA PONTOS MANUAIS
         const manualPointsMap = new Map<string, any[]>();
         manualPoints.forEach((p: any) => {
           const parts = p.data.split('-');
           if (parts.length === 3) {
-            const dataFormatada = `${parts[2]}/${parts[1]}/${parts[0]}`;
+            const [year, month, day] = parts.map(Number);
+            const [hour, min] = p.hora.split(':').map(Number);
+
+            const dateObj = new Date(year, month - 1, day, hour, min);
+            const logicalDate = new Date(dateObj);
+
+            // Lógica de Dia Lógico: Batidas antes das 05:00 pertencem ao dia anterior
+            if (hour < 5) {
+              logicalDate.setDate(logicalDate.getDate() - 1);
+            }
+
+            const dataFormatada = DateHelper.getStringDate(logicalDate);
             const key = `${String(p.matricula_funcionario).trim()}:${dataFormatada}`;
-            if (!manualPointsMap.has(key)) manualPointsMap.set(key, []);
-            manualPointsMap.get(key)?.push(p);
+
+            // Verificar se a data lógica está dentro do período solicitado para evitar "vazamento"
+            // Se o usuário pediu hoje, e o ponto de ontem 23:00 fosse manual, ele não seria pego pelo ISO-Start
+            // Mas o ponto de AMANHÃ 04:00 (que pertence a HOJE) seria pego pelo estendido.
+            const isoLogical = DateHelper.toIsoDate(dataFormatada);
+            if (isoLogical >= isoInicio && isoLogical <= isoFim) {
+              if (!manualPointsMap.has(key)) manualPointsMap.set(key, []);
+              manualPointsMap.get(key)?.push(p);
+            }
           }
         });
 
-        // Anexar comentários e pontos manuais aos dias
+        // Garantir que todos os funcionários ativos tenham entrada para o dia solicitado se houver pontos manuais ou comentários
+        // ou se for a data alvo (já feito acima). 
+        // Agora vamos iterar sobre as chaves de pontos manuais e comentários para garantir que esses dias EXISTAM no array
+        const allKeys = new Set([...commentsMap.keys(), ...manualPointsMap.keys()]);
+
+        for (const key of allKeys) {
+          const [matricula, dataStr] = key.split(':');
+          const matriculaStr = String(matricula).trim();
+
+          let md = marcacoesDia.find(m => String(m.matricula).trim() === matriculaStr && m.data === dataStr);
+
+          if (!md) {
+            // Buscar dados do funcionário para criar o dia
+            // Reaproveitando a lista já buscada no início da função
+            const emp = funcionariosAtivos.find(f => String(f.matricula).trim() === matriculaStr);
+
+            if (emp) {
+              md = new MarcacaoDia(0, '', matriculaStr, emp.nome, dataStr, [], emp.empresa);
+              marcacoesDia.push(md);
+            }
+          }
+        }
+
+        // Anexar dados aos dias
         marcacoesDia.forEach(md => {
           const key = `${String(md.matricula).trim()}:${md.data}`;
 
-          // Comentários (agora como array)
           if (commentsMap.has(key)) {
             md.comentarios = commentsMap.get(key);
           }
 
-          // Pontos Manuais
           if (manualPointsMap.has(key)) {
             const points = manualPointsMap.get(key);
             points?.forEach(p => {
@@ -358,14 +390,21 @@ export class MarcacaoService {
                 parseInt(pTime[1])
               );
 
-              md.marcacoes.push(new Marcacao({
-                id: p.id, // Preserve ID for delete/edit operations
-                dataMarcacao: dateObj,
-                numSerieRelogio: 'MANUAL',
-                tipoRegistro: 99 // Tipo customizado para manual
-              }));
+              // Evitar duplicatas em memória se já existir
+              const exists = md.marcacoes.some(m =>
+                m.numSerieRelogio === 'MANUAL' &&
+                m.id === p.id
+              );
+
+              if (!exists) {
+                md.marcacoes.push(new Marcacao({
+                  id: p.id,
+                  dataMarcacao: dateObj,
+                  numSerieRelogio: 'MANUAL',
+                  tipoRegistro: 99
+                }));
+              }
             });
-            // Re-ordenar marcações após inserção manual
             md.marcacoes.sort((a, b) => a.dataMarcacao.getTime() - b.dataMarcacao.getTime());
           }
 
@@ -456,9 +495,16 @@ export class MarcacaoService {
     }
   }
 
-  async saveManualMarcacaoBatch(matriculas: string[], data: string, hora: string, comentario: string): Promise<void> {
+  async saveManualMarcacaoBatch(matriculas: string[], data: string, hora: string, comentario: string, commentDate?: string): Promise<void> {
     const criadoPor = this.authService._userName() || 'Sistema';
-    const body = { matriculas, data, hora, comentario, criadoPor };
+    const body = {
+      matriculas,
+      data,
+      hora,
+      comentario,
+      criadoPor,
+      commentDate: commentDate || data
+    };
 
     try {
       await firstValueFrom(
@@ -586,31 +632,25 @@ export class MarcacaoService {
       dataFimAjustada = DateHelper.getStringDate(dateObj);
     }
 
-    // Body exatamente conforme documentação fornecida pelo usuário
-    const body: any = {
-      dataInicio, // DD/MM/YYYY
-      dataFim: dataFimAjustada, // DD/MM/YYYY (ajustada +1 dia)
-      tokenAcesso: this.apiSessionService.token()
-    };
-
-    if (matriculaFuncionario) {
-      body.matriculaFuncionario = matriculaFuncionario;
-    }
-
     try {
-      // Usando headers explícitos como no MarcacaoApiService (importante para alguns backends .NET)
-      const response = await firstValueFrom(
-        this.http.post<any>(this.apiUrl, body, {
-          headers: { 'Content-Type': 'application/json' }
-        })
-      );
+      let marcacoes: Marcacao[] = [];
 
-      const data = response?.d || response;
-      const listaBruta: IMarcacaoJson[] = Array.isArray(data) ? data : [];
+      if (matriculaFuncionario) {
+        marcacoes = await this.marcacaoApiService.getMarcacoesByEmployee(
+          matriculaFuncionario,
+          dataInicio,
+          dataFimAjustada
+        );
+      } else {
+        marcacoes = await this.marcacaoApiService.getAllMarcacoes(
+          dataInicio,
+          dataFimAjustada
+        );
+      }
 
-      this.loggerService.info('MarcacaoService', `Found ${listaBruta.length} raw records.`);
+      this.loggerService.info('MarcacaoService', `Found ${marcacoes.length} raw records.`);
+      return marcacoes;
 
-      return listaBruta.map(item => Marcacao.fromJson(item));
     } catch (error: any) {
       this.loggerService.error('MarcacaoService', 'Erro na requisição API de marcações:', error);
       throw error;

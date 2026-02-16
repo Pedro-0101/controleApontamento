@@ -23,6 +23,12 @@ export class MarcacaoApiService {
 
   private readonly API_URL = '/api/SelecionaMarcacoes'; // Using proxy to avoid CORS
 
+  // Observability signals
+  averageResponseTime = signal<number>(0);
+  apiStatus = signal<'online' | 'slow' | 'offline'>('online');
+  private responseTimes: number[] = [];
+  private readonly MAX_SAMPLES = 10;
+
   /**
    * Cenário 1: Todas as marcações da empresa no período
    */
@@ -96,12 +102,16 @@ export class MarcacaoApiService {
    * Chama o endpoint SelecionaMarcacoes da API externa
    */
   private async callSelecionaMarcacoes(params: SelecionaMarcacoesParams): Promise<Marcacao[]> {
+    const startTime = performance.now();
     try {
       const response = await firstValueFrom(
         this.http.post<any>(this.API_URL, params, {
           headers: { 'Content-Type': 'application/json' }
         })
       );
+
+      const endTime = performance.now();
+      this.updateObservability(endTime - startTime);
 
       // SOAP .NET web service returns data in 'd' property
       const data = response?.d || response;
@@ -114,8 +124,30 @@ export class MarcacaoApiService {
       // Transform API response to Marcacao objects
       return data.map((item: any) => this.transformToMarcacao(item));
     } catch (error) {
+      this.updateObservability(3000, true); // Assume 3s timeout or error
       this.logger.error('MarcacaoApiService', 'Error calling SelecionaMarcacoes:', error);
       throw error;
+    }
+  }
+
+  private updateObservability(duration: number, isError: boolean = false) {
+    if (isError) {
+      this.apiStatus.set('offline');
+      return;
+    }
+
+    this.responseTimes.push(duration);
+    if (this.responseTimes.length > this.MAX_SAMPLES) {
+      this.responseTimes.shift();
+    }
+
+    const avg = this.responseTimes.reduce((a, b) => a + b, 0) / this.responseTimes.length;
+    this.averageResponseTime.set(Math.round(avg));
+
+    if (avg < 800) {
+      this.apiStatus.set('online');
+    } else {
+      this.apiStatus.set('slow');
     }
   }
 

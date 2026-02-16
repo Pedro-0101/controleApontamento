@@ -35,7 +35,13 @@
         </div>
         <div class="user-details">
           <span class="user-name">{{ userName() }}</span>
-          <span class="user-status">Conectado</span>
+          <div class="user-meta">
+            <span class="user-status">Conectado</span>
+            <div class="api-indicator" [class]="apiStatus()" [title]="'Tempo de resposta da API Ponto Certificado'">
+              <lucide-icon name="activity" [size]="10"></lucide-icon>
+              <span class="api-time">{{ responseTime() }}ms</span>
+            </div>
+          </div>
         </div>
         <lucide-icon name="chevron-up" [size]="16" class="menu-chevron" [class.rotated]="isMenuOpen()"></lucide-icon>
       </div>

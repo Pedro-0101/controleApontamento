@@ -31,6 +31,13 @@ export class ModalAdicionarPontoGlobal implements OnInit {
   protected comentario = signal('');
   protected isSaving = signal(false);
 
+  protected isLogicalDayShift = computed(() => {
+    const time = this.selectedTime();
+    if (!time) return false;
+    const [hours] = time.split(':').map(Number);
+    return hours < 5;
+  });
+
   ngOnInit() {
     this.carregarFuncionarios();
   }
@@ -56,11 +63,21 @@ export class ModalAdicionarPontoGlobal implements OnInit {
 
     this.isSaving.set(true);
     try {
+      let commentDate = this.selectedDate();
+
+      // Se for antes das 05:00, o comentário pertence ao dia anterior (Dia Lógico)
+      if (this.isLogicalDayShift()) {
+        const d = new Date(this.selectedDate() + 'T12:00:00');
+        d.setDate(d.getDate() - 1);
+        commentDate = d.toISOString().split('T')[0];
+      }
+
       await this.marcacaoService.saveManualMarcacaoBatch(
         this.selectedMatriculas(),
         this.selectedDate(),
         this.selectedTime(),
-        this.comentario()
+        this.comentario(),
+        commentDate
       );
 
       this.toastService.success(`${this.selectedMatriculas().length} ponto(s) manual(is) adicionado(s) com sucesso!`);
