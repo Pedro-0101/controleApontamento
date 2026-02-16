@@ -142,7 +142,14 @@ export class Relatorios {
 
     try {
       const dataInicioDDMMYYYY = this.formatDateToDDMMYYYY(this.dataInicio());
-      const dataFimDDMMYYYY = this.formatDateToDDMMYYYY(this.dataFim());
+
+      // Ajuste: adicionar sempre um dia ao dataFim para garantir que o último dia seja incluído
+      // Usar split para evitar problemas de timezone com new Date()
+      const parts = this.dataFim().split('-');
+      const dataFimObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      dataFimObj.setDate(dataFimObj.getDate() + 1);
+
+      const dataFimDDMMYYYY = this.formatDateToDDMMYYYY(this.formatDateToInput(dataFimObj));
 
       let result: Marcacao[] = [];
 
@@ -198,7 +205,11 @@ export class Relatorios {
       }
 
       const marcacoesOrdenadas = result.sort((a, b) => a.cpf.localeCompare(b.cpf));
-      const marcacoesPorDia = await this.marcacaoService.formatarMarcacoesPorDia(marcacoesOrdenadas, dataInicioDDMMYYYY, dataFimDDMMYYYY, targetMatriculas);
+
+      // Use original end date for display/formatting so it doesn't show the extra day
+      const originalDataFimDDMMYYYY = this.formatDateToDDMMYYYY(this.dataFim());
+
+      const marcacoesPorDia = await this.marcacaoService.formatarMarcacoesPorDia(marcacoesOrdenadas, dataInicioDDMMYYYY, originalDataFimDDMMYYYY, targetMatriculas);
 
       this.marcacoesPorDia.set(marcacoesPorDia);
       this.hasGenerated.set(true);
@@ -264,6 +275,13 @@ export class Relatorios {
     );
   }
 
+  getTotalManualPoints(): number {
+    return this.marcacoesPorDia().reduce((total, dia) => {
+      const manualPointsInDay = dia.marcacoes.filter(m => m.numSerieRelogio === 'MANUAL').length;
+      return total + manualPointsInDay;
+    }, 0);
+  }
+
   exportarCSV() {
     const data = this.prepareExportData();
     const csv = this.convertToCSV(data);
@@ -307,6 +325,7 @@ export class Relatorios {
         dia.matricula,
         dia.nome,
         dia.getDataFormatada(),
+        dia.getDiaSemana(),
         dia.marcacoes.map((m, i) => {
           const hora = this.formatDateTime(m.dataMarcacao).split(' ')[1];
           return m.numSerieRelogio === 'MANUAL' ? `${hora}*` : hora;
@@ -317,7 +336,7 @@ export class Relatorios {
 
       autoTable(doc, {
         startY: 28,
-        head: [['Matrícula', 'Nome', 'Data', 'Marcações', 'Horas', 'Status']],
+        head: [['Matrícula', 'Nome', 'Data', 'Dia', 'Marcações', 'Horas', 'Status']],
         body: tableData,
         theme: 'grid',
         styles: { fontSize: 8 },
@@ -329,6 +348,9 @@ export class Relatorios {
         const finalY = (doc as any).lastAutoTable.finalY || 28;
         doc.setFontSize(8);
         doc.text('* Marcações com asterisco são pontos inseridos manualmente', 14, finalY + 10);
+
+        const totalManual = this.getTotalManualPoints();
+        doc.text(`Total de marcações manuais no período: ${totalManual}`, 14, finalY + 15);
       }
 
       doc.save('relatorio-marcacoes.pdf');
@@ -343,6 +365,7 @@ export class Relatorios {
       'Matrícula': dia.matricula,
       'Nome': dia.nome,
       'Data': dia.getDataFormatada(),
+      'Dia da Semana': dia.getDiaSemana(),
       'Marcações': dia.marcacoes.map((m, i) => {
         const hora = this.formatDateTime(m.dataMarcacao).split(' ')[1];
         return m.numSerieRelogio === 'MANUAL' ? `${hora}*` : hora;
