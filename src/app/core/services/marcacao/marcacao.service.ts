@@ -94,7 +94,7 @@ export class MarcacaoService {
   });
 
   readonly _totalPendentes = computed(() => {
-    return this.marcacaoesFiltradasBackup().filter(m => m.getStatus() === 'Pendente').length;
+    return this.marcacaoesFiltradasBackup().filter(m => m.getStatus() === 'Corrigido').length;
   });
 
   readonly _totalIncompletos = computed(() => {
