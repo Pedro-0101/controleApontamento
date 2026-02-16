@@ -233,9 +233,13 @@ app.post('/api/marcacoes/manual', async (req, res) => {
 
   try {
     const [result] = await pool.query(`
-      INSERT INTO ponto_manual (matricula_funcionario, data, hora, criado_por)
+      INSERT IGNORE INTO ponto_manual (matricula_funcionario, data, hora, criado_por)
       VALUES (?, ?, ?, ?)
     `, [matricula, data, hora, criadoPor]);
+
+    if (result.affectedRows === 0) {
+      return res.status(200).json({ success: true, message: 'Este ponto já existe e foi ignorado', ignored: true });
+    }
 
     await createAuditLog(criadoPor, 'CREATE', 'ponto_manual', result.insertId, null, { matricula, data, hora });
 
@@ -269,13 +273,15 @@ app.post('/api/marcacoes/manual/batch-insert', async (req, res) => {
 
       for (const matricula of matriculas) {
         try {
-          // 1. Inserir Ponto Manual
+          // 1. Inserir Ponto Manual (Ignora se duplicado)
           const [pontoResult] = await connection.query(`
-            INSERT INTO ponto_manual (matricula_funcionario, data, hora, criado_por)
+            INSERT IGNORE INTO ponto_manual (matricula_funcionario, data, hora, criado_por)
             VALUES (?, ?, ?, ?)
           `, [matricula, data, hora, criadoPor]);
 
-          await createAuditLog(criadoPor, 'CREATE', 'ponto_manual', pontoResult.insertId, null, { matricula, data, hora });
+          if (pontoResult.affectedRows > 0) {
+            await createAuditLog(criadoPor, 'CREATE', 'ponto_manual', pontoResult.insertId, null, { matricula, data, hora });
+          }
 
           // 2. Inserir Comentário se existir
           if (comentario && comentario.trim()) {
@@ -290,7 +296,7 @@ app.post('/api/marcacoes/manual/batch-insert', async (req, res) => {
           results.success.push(matricula);
         } catch (err) {
           console.error(`Erro ao processar matrícula ${matricula}:`, err);
-          results.errors.push({ matricula, error: err.code === 'ER_DUP_ENTRY' ? 'Ponto duplicado' : 'Erro interno' });
+          results.errors.push({ matricula, error: 'Erro interno' });
         }
       }
 
