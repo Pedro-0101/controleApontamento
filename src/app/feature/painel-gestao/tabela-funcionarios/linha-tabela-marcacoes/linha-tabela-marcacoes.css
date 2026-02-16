@@ -52,3 +52,10 @@
     color: #adb5bd;
     font-style: italic;
 }
+
+.hora-pill.desconsiderado {
+    opacity: 0.5;
+    text-decoration: line-through;
+    background-color: #f1f3f5 !important;
+    color: #adb5bd !important;
+}

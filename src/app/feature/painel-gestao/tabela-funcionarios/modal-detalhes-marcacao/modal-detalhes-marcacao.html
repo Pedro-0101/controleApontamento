@@ -1,8 +1,7 @@
 <div class="modal-overlay" (click)="close.emit()">
   <div class="modal-content" (click)="$event.stopPropagation()">
-    
     <!-- Loading Overlay -->
-    @if(isLoadingInitial()) {
+    @if (isLoadingInitial()) {
       <div class="loading-overlay">
         <div class="spinner"></div>
         <p>Carregando informações...</p>
@@ -40,25 +39,54 @@
       <div class="section">
         <div class="section-header-row">
           <label class="section-title">Horários Registrados</label>
-          <button class="btn btn-sm btn-outline" (click)="adicionarIntervaloPadrao()" [disabled]="isSaving()" title="Insere pontos 12:00 e 13:00 + comentário automático">
+          <button
+            class="btn btn-sm btn-outline"
+            (click)="adicionarIntervaloPadrao()"
+            [disabled]="isSaving()"
+            title="Insere pontos 12:00 e 13:00 + comentário automático"
+          >
             <lucide-icon name="plus-circle" [size]="14"></lucide-icon>
             Intervalo Padrão
           </button>
         </div>
         <div class="marcacoes-list">
           @for (m of getMarcacoes(); track $index) {
-            <div class="marcacao-item" [class.manual]="m.numSerieRelogio === 'MANUAL'">
+            <div
+              class="marcacao-item"
+              [class.manual]="m.numSerieRelogio === 'MANUAL'"
+              [class.desconsiderado]="m.desconsiderado"
+            >
               <lucide-icon name="clock" [size]="14"></lucide-icon>
               <span class="hora">{{ formatHora(m.dataMarcacao) }}</span>
-              @if(m.numSerieRelogio === 'MANUAL') {
-                <span class="badge-manual">(Manual)</span>
-                <button class="btn-icon" (click)="editarPontoManual(m.id, formatHora(m.dataMarcacao))" title="Editar">
-                  <lucide-icon name="edit-2" [size]="12"></lucide-icon>
+
+              <div class="item-actions">
+                @if (m.numSerieRelogio === 'MANUAL') {
+                  <span class="badge-manual">(Manual)</span>
+                  <button
+                    class="btn-icon"
+                    (click)="editarPontoManual(m.id, formatHora(m.dataMarcacao))"
+                    title="Editar"
+                  >
+                    <lucide-icon name="edit-2" [size]="12"></lucide-icon>
+                  </button>
+                  <button
+                    class="btn-icon btn-danger"
+                    (click)="deletarPontoManual(m.id)"
+                    title="Deletar"
+                  >
+                    <lucide-icon name="trash-2" [size]="12"></lucide-icon>
+                  </button>
+                }
+
+                <button
+                  class="btn-icon"
+                  [class.active-ignore]="m.desconsiderado"
+                  (click)="toggleDesconsiderar(m)"
+                  [title]="m.desconsiderado ? 'Reconsiderar ponto' : 'Desconsiderar ponto'"
+                >
+                  <lucide-icon name="ban" [size]="12"></lucide-icon>
                 </button>
-                <button class="btn-icon btn-danger" (click)="deletarPontoManual(m.id)" title="Deletar">
-                  <lucide-icon name="trash-2" [size]="12"></lucide-icon>
-                </button>
-              }
+              </div>
             </div>
           } @empty {
             <p class="empty-msg">Nenhum horário registrado.</p>
@@ -69,9 +97,16 @@
       <div class="section manual-entry">
         <label for="pontoHora" class="sr-only">Hora do ponto</label>
         <div class="input-group">
-          <input type="time" id="pontoHora" name="pontoHora" [(ngModel)]="novoPontoHora" class="input-text" placeholder="HH:MM">
+          <input
+            type="time"
+            id="pontoHora"
+            name="pontoHora"
+            [(ngModel)]="novoPontoHora"
+            class="input-text"
+            placeholder="HH:MM"
+          />
           <button class="btn btn-primary" (click)="adicionarPontoManual()" [disabled]="isSaving()">
-            @if(isSaving()) {
+            @if (isSaving()) {
               <div class="btn-spinner"></div>
             } @else {
               <lucide-icon name="plus" [size]="16"></lucide-icon>
@@ -90,8 +125,12 @@
               <option [value]="status">{{ status }}</option>
             }
           </select>
-          <button class="btn btn-primary" (click)="salvarStatusFixo()" [disabled]="isSaving() || !novoStatusFixo()">
-            @if(isSaving()) {
+          <button
+            class="btn btn-primary"
+            (click)="salvarStatusFixo()"
+            [disabled]="isSaving() || !novoStatusFixo()"
+          >
+            @if (isSaving()) {
               <div class="btn-spinner"></div>
             } @else {
               <lucide-icon name="plus" [size]="16"></lucide-icon>
@@ -102,11 +141,20 @@
 
         @if (employeeHistory()?.eventos) {
           @for (e of employeeHistory().eventos; track e.id) {
-            @if (e.data_inicio === record().data || e.data_inicio === DateHelper.toIsoDate(record().data)) {
+            @if (
+              e.data_inicio === record().data ||
+              e.data_inicio === DateHelper.toIsoDate(record().data)
+            ) {
               <div class="applied-event">
-                <span class="badge" [class]="'status-' + e.tipo_evento.toLowerCase()">{{ e.tipo_evento }}</span>
+                <span class="badge" [class]="'status-' + e.tipo_evento.toLowerCase()">{{
+                  e.tipo_evento
+                }}</span>
                 <span class="event-info">Aplicado por {{ e.criado_por }}</span>
-                <button class="btn-icon btn-danger" (click)="removerStatusFixo(e.id)" title="Remover Status">
+                <button
+                  class="btn-icon btn-danger"
+                  (click)="removerStatusFixo(e.id)"
+                  title="Remover Status"
+                >
                   <lucide-icon name="trash-2" [size]="14"></lucide-icon>
                 </button>
               </div>
@@ -131,22 +179,26 @@
             <p class="empty-msg">Nenhum comentário ainda.</p>
           }
         </div>
-        
+
         <div class="comment-input-area">
           <label for="novoComentario" class="sr-only">Adicionar novo comentário</label>
-          <textarea 
+          <textarea
             id="novoComentario"
             name="novoComentario"
-            [(ngModel)]="novoComentario" 
-            class="textarea-comentario" 
+            [(ngModel)]="novoComentario"
+            class="textarea-comentario"
             placeholder="Adicionar novo comentário..."
             maxlength="255"
             rows="2"
           ></textarea>
           <div class="comment-actions">
             <span class="char-count">{{ novoComentario().length }}/255</span>
-            <button class="btn btn-primary btn-sm" (click)="adicionarComentario()" [disabled]="isSaving() || !novoComentario().trim()">
-              @if(isSaving()) {
+            <button
+              class="btn btn-primary btn-sm"
+              (click)="adicionarComentario()"
+              [disabled]="isSaving() || !novoComentario().trim()"
+            >
+              @if (isSaving()) {
                 <div class="btn-spinner"></div>
               } @else {
                 <lucide-icon name="send" [size]="14"></lucide-icon>
@@ -162,8 +214,8 @@
           <lucide-icon name="history" [size]="16"></lucide-icon>
           Histórico (Últimos 7 dias)
         </label>
-        
-        @if(isLoadingHistory()) {
+
+        @if (isLoadingHistory()) {
           <div class="loading-small">
             <div class="spinner-small"></div>
             <p class="empty-msg">Carregando histórico...</p>
@@ -186,7 +238,9 @@
                     <td class="col-marcacoes">
                       <div class="pills-container">
                         @for (m of day.horasFormatadas; track $index) {
-                          <span class="history-pill" [class.manual]="m.tipo === 'manual'">
+                          <span class="history-pill" 
+                                [class.manual]="m.tipo === 'manual'"
+                                [class.desconsiderado]="m.desconsiderado">
                             {{ m.hora }}
                           </span>
                         }

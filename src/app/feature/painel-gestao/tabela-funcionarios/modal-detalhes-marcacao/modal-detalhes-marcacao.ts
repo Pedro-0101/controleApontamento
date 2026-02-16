@@ -11,7 +11,7 @@ import { Marcacao } from '../../../../models/marcacao/marcacao';
 
 interface HistoryTableDay {
   date: string;
-  horasFormatadas: { hora: string; tipo: 'auto' | 'manual' }[];
+  horasFormatadas: { hora: string; tipo: 'auto' | 'manual'; desconsiderado?: boolean }[];
   totalHoras: string;
   status: statusMarcacaoDia | string;
 }
@@ -196,6 +196,25 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
     }
   }
 
+  async toggleDesconsiderar(m: Marcacao) {
+    this.isSaving.set(true);
+    try {
+      const novaSituacao = !m.desconsiderado;
+      await this.marcacaoService.toggleDesconsiderarStatus(
+        m,
+        this.record().matricula,
+        this.record().data,
+        novaSituacao
+      );
+      this.updated.emit();
+      this.toastService.success(novaSituacao ? 'Ponto desconsiderado!' : 'Ponto reconsiderado!');
+    } catch (error) {
+      this.toastService.error('Erro ao alterar status do ponto.');
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
   async salvarStatusFixo() {
     if (!this.novoStatusFixo()) {
       this.toastService.warning('Selecione um status.');
@@ -337,8 +356,10 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
         dayMap.set(dateKey, { date: dateKey, marcacoes: [] });
       }
       dayMap.get(dateKey)?.marcacoes.push({
-        hora: DateHelper.getStringTime(new Date(m.DataMarcacao)),
-        tipo: 'auto'
+        hora: DateHelper.getStringTime(new Date(m.dataMarcacao)),
+        tipo: 'auto',
+        nsr: m.nsr,
+        numSerieRelogio: m.numSerieRelogio
       });
     });
 
@@ -348,6 +369,7 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
         dayMap.set(p.data, { date: p.data, marcacoes: [] });
       }
       dayMap.get(p.data)?.marcacoes.push({
+        id: p.id,
         hora: p.hora,
         tipo: 'manual'
       });
@@ -358,6 +380,24 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
       // Ordenar marcações por hora
       day.marcacoes.sort((a: any, b: any) => a.hora.localeCompare(b.hora));
 
+      // Coletar ignored points para este dia
+      const dayIgnored = history.ignoredPoints?.filter((ip: any) => ip.data === day.date) || [];
+
+      const marcacoesParaClasse = day.marcacoes.map((m: any) => {
+        const isIgnored = dayIgnored.some((ip: any) =>
+          (m.tipo === 'manual' && String(ip.marcacao_id || '') === String(m.id || '')) ||
+          (m.tipo === 'auto' && String(ip.nsr || '') === String(m.nsr || '') && String(ip.relogio_ns || '') === String(m.numSerieRelogio || ''))
+        );
+
+        return new Marcacao({
+          id: m.id,
+          dataMarcacao: new Date(`${day.date}T${m.hora}:00`),
+          numSerieRelogio: m.tipo === 'manual' ? 'MANUAL' : (m.numSerieRelogio || 'AUTO'),
+          nsr: m.nsr,
+          desconsiderado: isIgnored
+        });
+      });
+
       // Criar instância temporária de MarcacaoDia para calcular status e horas
       const tempMarcacaoDia = new MarcacaoDia(
         0,
@@ -365,16 +405,12 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
         this.record().matricula,
         this.record().nome,
         day.date,
-        day.marcacoes.map((m: any) => new Marcacao({
-          dataMarcacao: new Date(`${day.date}T${m.hora}:00`),
-          numSerieRelogio: m.tipo === 'manual' ? 'MANUAL' : 'AUTO'
-        })),
+        marcacoesParaClasse,
         this.record().empresa
       );
 
       // Vincular evento se existir para este dia
-      const history = this.employeeHistory();
-      if (history && history.eventos) {
+      if (history.eventos) {
         const isoDate = day.date;
         const activeEvent = history.eventos.find((e: any) =>
           isoDate >= e.data_inicio && isoDate <= e.data_fim
@@ -386,7 +422,11 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
 
       return {
         date: day.date,
-        horasFormatadas: day.marcacoes.map((m: any) => ({ hora: m.hora, tipo: m.tipo })),
+        horasFormatadas: marcacoesParaClasse.map((m: Marcacao) => ({
+          hora: DateHelper.getStringTime(m.dataMarcacao),
+          tipo: m.numSerieRelogio === 'MANUAL' ? 'manual' : 'auto',
+          desconsiderado: m.desconsiderado
+        })),
         totalHoras: tempMarcacaoDia.getHorasTrabalhadas(),
         status: tempMarcacaoDia.getStatus()
       };

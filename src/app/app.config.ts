@@ -51,7 +51,12 @@ import {
   RefreshCw,
   ArrowRight,
   SearchX,
-  KeyRound
+  KeyRound,
+  PlusCircle,
+  MinusCircle,
+  XCircle,
+  Ban,
+  UserCheck,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -110,7 +115,12 @@ export const appConfig: ApplicationConfig = {
       RefreshCw,
       ArrowRight,
       SearchX,
-      KeyRound
+      KeyRound,
+      PlusCircle,
+      MinusCircle,
+      XCircle,
+      Ban,
+      UserCheck,
     }))
   ]
 };

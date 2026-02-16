@@ -82,8 +82,11 @@ export class MarcacaoDia implements MarcacaoDia {
         const dataObj = DateHelper.fromStringDate(this.data);
         if (!dataObj) return "Pendente";
 
+        if (this.evento_categoria === 'FIXO') return this.evento || 'Ok';
+
         const diaSemana = dataObj.getDay();
-        const numMarcacoes = this.marcacoes?.length || 0;
+        const marcacoesValidas = (this.marcacoes || []).filter(m => !m.desconsiderado);
+        const numMarcacoes = marcacoesValidas.length;
         const minutosTrabalhados = this.getWorkedMinutes();
         const horasTrabalhadas = minutosTrabalhados / 60;
 
@@ -125,12 +128,13 @@ export class MarcacaoDia implements MarcacaoDia {
     }
 
     getWorkedMinutes(): number {
-        if (!this.marcacoes || this.marcacoes.length < 2) return 0;
+        const marcacoesValidas = (this.marcacoes || []).filter(m => !m.desconsiderado);
+        if (marcacoesValidas.length < 2) return 0;
 
         let totalMs = 0;
-        for (let i = 0; i < this.marcacoes.length - 1; i += 2) {
-            const entrada = this.marcacoes[i].dataMarcacao.getTime();
-            const saida = this.marcacoes[i + 1].dataMarcacao.getTime();
+        for (let i = 0; i < marcacoesValidas.length - 1; i += 2) {
+            const entrada = marcacoesValidas[i].dataMarcacao.getTime();
+            const saida = marcacoesValidas[i + 1].dataMarcacao.getTime();
 
             if (saida > entrada) {
                 totalMs += (saida - entrada);
@@ -170,7 +174,8 @@ export class MarcacaoDia implements MarcacaoDia {
     }
 
     getHorasTrabalhadas(): string {
-        if (!this.marcacoes || this.marcacoes.length % 2 !== 0) return '--:--';
+        const marcacoesValidas = (this.marcacoes || []).filter(m => !m.desconsiderado);
+        if (!marcacoesValidas || marcacoesValidas.length % 2 !== 0) return '--:--';
 
         const totalMinutes = this.getWorkedMinutes();
         if (totalMinutes === 0) return '--:--';

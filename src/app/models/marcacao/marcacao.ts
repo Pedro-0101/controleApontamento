@@ -19,6 +19,7 @@ export interface IMarcacaoJson {
   PIS: string;
   TipoRegistro: number;
   TrabalhadorId: number;
+  desconsiderado?: boolean;
 }
 
 export class Marcacao {
@@ -42,6 +43,7 @@ export class Marcacao {
   pis!: string;
   tipoRegistro!: number;
   trabalhadorId!: number;
+  desconsiderado: boolean = false;
 
   constructor(data: Partial<Marcacao>) {
     Object.assign(this, data);

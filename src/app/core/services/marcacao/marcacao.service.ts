@@ -272,6 +272,30 @@ export class MarcacaoService {
           allMatriculas, isoInicio, isoFim
         );
 
+        const ignoredPoints = await this.fetchIgnoredPointsBatch(
+          allMatriculas, isoInicio, isoFim
+        );
+
+        // Map para acesso rápido: matricula:data -> ignoredPointsSet
+        const ignoredPointsMap = new Map<string, Set<string>>();
+        ignoredPoints.forEach((p: any) => {
+          // Converter YYYY-MM-DD para DD/MM/YYYY para bater com o MarcacaoDia
+          const parts = p.data.split('-');
+          const dataFormatada = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : p.data;
+
+          const key = `${String(p.matricula_funcionario).trim()}:${dataFormatada}`;
+          if (!ignoredPointsMap.has(key)) ignoredPointsMap.set(key, new Set());
+
+          if (p.marcacao_id) {
+            ignoredPointsMap.get(key)?.add(`manual:${p.marcacao_id}`);
+          } else {
+            // Se for auto, usa nsr e relogio_ns (pode ser null/undefined dependendo do registro)
+            const nsr = p.nsr !== null && p.nsr !== undefined ? p.nsr : '';
+            const relogio_ns = p.relogio_ns !== null && p.relogio_ns !== undefined ? p.relogio_ns : '';
+            ignoredPointsMap.get(key)?.add(`auto:${nsr}:${relogio_ns}`);
+          }
+        });
+
         // Map para acesso rápido: matricula:data -> comentarios[]
         const commentsMap = new Map<string, ComentarioMarcacao[]>();
         comments.forEach((c: any) => {
@@ -333,10 +357,23 @@ export class MarcacaoService {
                 numSerieRelogio: 'MANUAL',
                 tipoRegistro: 99 // Tipo customizado para manual
               }));
-              console.log('Manual point added with ID:', p.id, 'for date:', dateObj);
             });
             // Re-ordenar marcações após inserção manual
             md.marcacoes.sort((a, b) => a.dataMarcacao.getTime() - b.dataMarcacao.getTime());
+          }
+
+          // Marcar pontos como desconsiderados
+          const dayIgnoredSet = ignoredPointsMap.get(key);
+          if (dayIgnoredSet) {
+            md.marcacoes.forEach(m => {
+              const mKey = m.numSerieRelogio === 'MANUAL'
+                ? `manual:${m.id}`
+                : `auto:${m.nsr || ''}:${m.numSerieRelogio || ''}`;
+
+              if (dayIgnoredSet.has(mKey)) {
+                m.desconsiderado = true;
+              }
+            });
           }
 
           // Eventos (Status Fixos)
@@ -478,7 +515,44 @@ export class MarcacaoService {
     }
   }
 
-  private async fetchMarcacoes(dataInicio: string, dataFim: string): Promise<Marcacao[]> {
+  async fetchIgnoredPointsBatch(matriculas: string[], dataInicio: string, dataFim: string): Promise<any[]> {
+    const body = { matriculas, dataInicio, dataFim };
+
+    try {
+      const response = await firstValueFrom(
+        this.http.post<{ success: boolean, ignoredPoints: any[] }>(`${environment.apiUrlBackend}/marcacoes/desconsiderar/batch`, body)
+      );
+      return response.success ? response.ignoredPoints : [];
+    } catch (error) {
+      this.loggerService.error('MarcacaoService', 'Erro ao buscar pontos desconsiderados:', error);
+      return [];
+    }
+  }
+
+  async toggleDesconsiderarStatus(m: Marcacao, matricula: string, data: string, desconsiderar: boolean): Promise<void> {
+    const criadoPor = this.authService._userName() || 'Sistema';
+    const body = {
+      matricula,
+      data: DateHelper.toIsoDate(data),
+      marcacaoId: m.numSerieRelogio === 'MANUAL' ? m.id : undefined,
+      nsr: m.numSerieRelogio !== 'MANUAL' ? m.nsr : undefined,
+      relogioNs: m.numSerieRelogio !== 'MANUAL' ? m.numSerieRelogio : undefined,
+      desconsiderar,
+      criadoPor
+    };
+
+    try {
+      await firstValueFrom(
+        this.http.post<{ success: boolean }>(`${environment.apiUrlBackend}/marcacoes/desconsiderar`, body)
+      );
+      m.desconsiderado = desconsiderar;
+    } catch (error) {
+      this.loggerService.error('MarcacaoService', 'Erro ao alterar status de desconsideração:', error);
+      throw error;
+    }
+  }
+
+  private async fetchMarcacoes(dataInicio: string, dataFim: string, matriculaFuncionario?: string): Promise<Marcacao[]> {
     // Ajuste requested pelo usuário: adicionar sempre um dia ao dataFim
     let dataFimAjustada = dataFim;
     const dateObj = DateHelper.fromStringDate(dataFim);
@@ -488,11 +562,15 @@ export class MarcacaoService {
     }
 
     // Body exatamente conforme documentação fornecida pelo usuário
-    const body = {
+    const body: any = {
       dataInicio, // DD/MM/YYYY
       dataFim: dataFimAjustada, // DD/MM/YYYY (ajustada +1 dia)
       tokenAcesso: this.apiSessionService.token()
     };
+
+    if (matriculaFuncionario) {
+      body.matriculaFuncionario = matriculaFuncionario;
+    }
 
     try {
       // Usando headers explícitos como no MarcacaoApiService (importante para alguns backends .NET)
@@ -579,8 +657,8 @@ export class MarcacaoService {
       const range = DateHelper.getLastNDaysRange(7);
 
       // 2. Buscar marcações automáticas deste colaborador
-      // Buscamos todas e filtramos para garantir consistência com a lista principal
-      const allMarcacoes = await this.fetchMarcacoes(range.start, range.end);
+      // Agora passando a matrícula para a API para filtrar no servidor
+      const allMarcacoes = await this.fetchMarcacoes(range.start, range.end, matricula);
       const automaticHistory = allMarcacoes
         .filter(m => String(m.matriculaFuncionario).trim() === String(matricula).trim())
         .map(m => ({

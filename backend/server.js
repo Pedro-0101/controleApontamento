@@ -66,6 +66,28 @@ async function initializeDatabase() {
   try {
     pool = mysql.createPool(dbConfig);
     
+    // Criar tabela de auditoria se não existir
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        usuario VARCHAR(100),
+        acao VARCHAR(50),
+        tabela VARCHAR(50),
+        registro_id INT,
+        dados_antigos JSON,
+        dados_novos JSON,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_usuario (usuario),
+        INDEX idx_acao (acao),
+        INDEX idx_tabela (tabela),
+        INDEX idx_timestamp (timestamp)
+      )
+    `);
+    
+    // Garantir que a coluna acao tenha tamanho suficiente (correção de erro de truncamento)
+    await pool.query('ALTER TABLE audit_log MODIFY COLUMN acao VARCHAR(50)');
+    console.log('Tabela audit_log verificada/criada com sucesso');
+
     // Criar tabela de comentários se não existir
     await pool.query(`
       CREATE TABLE IF NOT EXISTS comentario_dia (
@@ -110,6 +132,22 @@ async function initializeDatabase() {
       )
     `);
     console.log('Tabela evento_funcionario verificada/criada com sucesso');
+
+    // Criar tabela de marcações desconsideradas se não existir
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS marcacao_desconsiderada (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        matricula_funcionario VARCHAR(50) NOT NULL,
+        data DATE NOT NULL,
+        marcacao_id INT, -- Para pontos manuais
+        nsr INT, -- Para pontos automáticos
+        relogio_ns VARCHAR(50), -- Para pontos automáticos
+        criado_por VARCHAR(100),
+        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_marcacao (matricula_funcionario, data, marcacao_id, nsr, relogio_ns)
+      )
+    `);
+    console.log('Tabela marcacao_desconsiderada verificada/criada com sucesso');
 
     console.log('Pool de conexões MySQL criado com sucesso');
   } catch (error) {
@@ -284,6 +322,15 @@ app.get('/api/employee/:matricula/history', async (req, res) => {
        )`,
       [matricula, dataInicio, dataFim, dataInicio, dataFim, dataInicio]
     );
+
+    // Buscar pontos desconsiderados nos últimos 7 dias
+    const [ignoredPoints] = await pool.query(
+      `SELECT DATE_FORMAT(data, '%Y-%m-%d') as data, marcacao_id, nsr, relogio_ns
+       FROM marcacao_desconsiderada
+       WHERE matricula_funcionario = ?
+       AND data BETWEEN ? AND ?`,
+      [matricula, dataInicio, dataFim]
+    );
     
     res.json({
       success: true,
@@ -291,7 +338,8 @@ app.get('/api/employee/:matricula/history', async (req, res) => {
         marcacoes,
         pontosManuais,
         comentarios,
-        eventos
+        eventos,
+        ignoredPoints
       }
     });
   } catch (error) {
@@ -855,6 +903,72 @@ app.post('/api/employees/events/batch', async (req, res) => {
   } catch (error) {
     console.error('Erro ao buscar eventos:', error);
     res.status(500).json({ success: false, error: 'Erro ao buscar eventos' });
+  }
+});
+
+// --- Rotas de Marcações Desconsideradas ---
+
+// Rota para alternar status de "desconsiderar" de um ponto
+app.post('/api/marcacoes/desconsiderar', async (req, res) => {
+  const { matricula, data, marcacaoId, nsr, relogioNs, criadoPor, desconsiderar } = req.body;
+
+  if (!matricula || !data || (marcacaoId === undefined && nsr === undefined)) {
+    return res.status(400).json({ success: false, error: 'Parâmetros insuficientes' });
+  }
+
+  try {
+    if (desconsiderar) {
+      // Inserir na tabela de desconsiderados
+      await pool.query(`
+        INSERT IGNORE INTO marcacao_desconsiderada 
+        (matricula_funcionario, data, marcacao_id, nsr, relogio_ns, criado_por)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [matricula, data, marcacaoId || null, nsr || null, relogioNs || null, criadoPor]);
+
+      await createAuditLog(criadoPor, 'IGNORE_POINT', 'marcacao_desconsiderada', null, null, { matricula, data, marcacaoId, nsr, relogioNs });
+    } else {
+      // Remover da tabela de desconsiderados
+      await pool.query(`
+        DELETE FROM marcacao_desconsiderada 
+        WHERE matricula_funcionario = ? AND data = ? 
+        AND (marcacao_id = ? OR (nsr = ? AND relogio_ns = ?))
+      `, [matricula, data, marcacaoId || null, nsr || null, relogioNs || null]);
+
+      await createAuditLog(criadoPor, 'UNIGNORE_POINT', 'marcacao_desconsiderada', null, { matricula, data, marcacaoId, nsr, relogioNs }, null);
+    }
+
+    res.json({ success: true, message: 'Status de desconsideração atualizado' });
+  } catch (error) {
+    console.error('Erro ao atualizar status de desconsideração:', error);
+    res.status(500).json({ success: false, error: 'Erro ao processar solicitação' });
+  }
+});
+
+// Rota para buscar marcações desconsideradas em lote
+app.post('/api/marcacoes/desconsiderar/batch', async (req, res) => {
+  const { matriculas, dataInicio, dataFim } = req.body;
+
+  if (!Array.isArray(matriculas) || matriculas.length === 0 || !dataInicio || !dataFim) {
+    return res.status(400).json({ success: false, error: 'Parâmetros inválidos' });
+  }
+
+  try {
+    const placeholders = matriculas.map(() => '?').join(',');
+    const [rows] = await pool.query(`
+      SELECT 
+        matricula_funcionario, 
+        DATE_FORMAT(data, '%Y-%m-%d') as data, 
+        marcacao_id, 
+        nsr, 
+        relogio_ns
+      FROM marcacao_desconsiderada
+      WHERE matricula_funcionario IN (${placeholders})
+      AND data BETWEEN ? AND ?
+    `, [...matriculas, dataInicio, dataFim]);
+    res.json({ success: true, ignoredPoints: rows });
+  } catch (error) {
+    console.error('Erro ao buscar marcações desconsideradas:', error);
+    res.status(500).json({ success: false, error: 'Erro ao buscar marcações desconsideradas' });
   }
 });
 
