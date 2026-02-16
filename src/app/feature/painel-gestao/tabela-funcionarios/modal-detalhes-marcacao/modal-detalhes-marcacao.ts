@@ -11,7 +11,7 @@ import { Marcacao } from '../../../../models/marcacao/marcacao';
 
 interface HistoryTableDay {
   date: string;
-  horasFormatadas: { hora: string; tipo: 'auto' | 'manual'; desconsiderado?: boolean }[];
+  horasFormatadas: { hora: string; tipo: 'auto' | 'manual'; desconsiderado?: boolean; isNextDay?: boolean }[];
   totalHoras: string;
   status: statusMarcacaoDia | string;
 }
@@ -359,18 +359,28 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
       if (!dayMap.has(dateKey)) {
         dayMap.set(dateKey, { date: dateKey, marcacoes: [] });
       }
+
+      const isNextDay = DateHelper.toIsoDate(DateHelper.getStringDate(date)) !== dateKey;
+
       dayMap.get(dateKey)?.marcacoes.push({
         hora: DateHelper.getStringTime(date),
         tipo: 'auto',
         nsr: m.nsr,
-        numSerieRelogio: m.numSerieRelogio
+        numSerieRelogio: m.numSerieRelogio,
+        fullDate: date,
+        isNextDay
       });
     });
 
     // Processar pontos manuais
     history.pontosManuais?.forEach((p: any) => {
       // Calcular data lógica para pontos manuais
-      const [hours] = p.hora.split(':').map(Number);
+      const [hours, minutes] = p.hora.split(':').map(Number);
+
+      // Construir data real do ponto
+      const parts = p.data.split('-');
+      const realDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), hours, minutes);
+
       let logicalDateKey = p.data;
 
       if (hours < 5) {
@@ -382,17 +392,22 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
       if (!dayMap.has(logicalDateKey)) {
         dayMap.set(logicalDateKey, { date: logicalDateKey, marcacoes: [] });
       }
+
+      const isNextDay = p.data !== logicalDateKey;
+
       dayMap.get(logicalDateKey)?.marcacoes.push({
         id: p.id,
         hora: p.hora,
-        tipo: 'manual'
+        tipo: 'manual',
+        fullDate: realDate,
+        isNextDay
       });
     });
 
     // Calcular total e formatar
     return Array.from(dayMap.values()).map(day => {
-      // Ordenar marcações por hora
-      day.marcacoes.sort((a: any, b: any) => a.hora.localeCompare(b.hora));
+      // Ordenar marcações por data completa (fullDate)
+      day.marcacoes.sort((a: any, b: any) => a.fullDate.getTime() - b.fullDate.getTime());
 
       // Coletar ignored points para este dia
       const dayIgnored = history.ignoredPoints?.filter((ip: any) => ip.data === day.date) || [];
@@ -405,7 +420,7 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
 
         return new Marcacao({
           id: m.id,
-          dataMarcacao: new Date(`${day.date}T${m.hora}:00`),
+          dataMarcacao: m.fullDate,
           numSerieRelogio: m.tipo === 'manual' ? 'MANUAL' : (m.numSerieRelogio || 'AUTO'),
           nsr: m.nsr,
           desconsiderado: isIgnored
@@ -436,10 +451,11 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
 
       return {
         date: day.date,
-        horasFormatadas: marcacoesParaClasse.map((m: Marcacao) => ({
-          hora: DateHelper.getStringTime(m.dataMarcacao),
-          tipo: m.numSerieRelogio === 'MANUAL' ? 'manual' : 'auto',
-          desconsiderado: m.desconsiderado
+        horasFormatadas: day.marcacoes.map((m: any) => ({
+          hora: m.hora,
+          tipo: m.tipo,
+          desconsiderado: m.desconsiderado || marcacoesParaClasse.find((mc: Marcacao) => mc.dataMarcacao.getTime() === m.fullDate.getTime())?.desconsiderado,
+          isNextDay: m.isNextDay
         })),
         totalHoras: tempMarcacaoDia.getHorasTrabalhadas(),
         status: tempMarcacaoDia.getStatus()

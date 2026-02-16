@@ -245,8 +245,13 @@
                         @for (m of day.horasFormatadas; track $index) {
                           <span class="history-pill" 
                                 [class.manual]="m.tipo === 'manual'"
-                                [class.desconsiderado]="m.desconsiderado">
+                                [class.desconsiderado]="m.desconsiderado"
+                                [class.extended-journey]="m.isNextDay"
+                                [title]="m.isNextDay ? 'Jornada Estendida (+1 dia)' : ''">
                             {{ m.hora }}
+                            @if (m.isNextDay) {
+                              <sup style="font-size: 0.6em; margin-left: 1px;">+1</sup>
+                            }
                           </span>
                         }
                       </div>

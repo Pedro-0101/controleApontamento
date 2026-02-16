@@ -581,6 +581,12 @@
   border: 1px solid #ffeeba;
 }
 
+.history-pill.extended-journey {
+  background-color: #fff0f6;
+  color: #a61e4d;
+  border: 1px solid #fcc2d7;
+}
+
 .col-total {
   text-align: right;
 }
