@@ -388,7 +388,8 @@ app.get('/api/employee/:matricula/history', async (req, res) => {
          (data_inicio BETWEEN ? AND ?) OR
          (data_fim BETWEEN ? AND ?) OR
          (? BETWEEN data_inicio AND data_fim)
-       )`,
+       )
+       ORDER BY criado_em DESC`,
       [matricula, dataInicio, dataFim, dataInicio, dataFim, dataInicio]
     );
 
@@ -968,6 +969,7 @@ app.post('/api/employees/events/batch', async (req, res) => {
         (data_fim BETWEEN ? AND ?) OR
         (? BETWEEN data_inicio AND data_fim)
       )
+      ORDER BY criado_em DESC
     `, [...matriculas, dataInicio, dataFim, dataInicio, dataFim, dataInicio]);
     res.json({ success: true, events: rows });
   } catch (error) {
