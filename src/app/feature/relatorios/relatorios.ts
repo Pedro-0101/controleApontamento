@@ -16,6 +16,13 @@ import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-se
 import { ToastService } from '../../core/services/toast/toast.service';
 import { TitleCaseCustomPipe } from '../../shared/pipes/title-case-custom.pipe';
 
+type marcacaoOrganizada = {
+  nome: string;
+  matricula: string;
+  empresa: string;
+  marcacoes: Marcacao[];
+}
+
 @Component({
   selector: 'app-relatorios',
   standalone: true,
@@ -23,6 +30,7 @@ import { TitleCaseCustomPipe } from '../../shared/pipes/title-case-custom.pipe';
   templateUrl: './relatorios.html',
   styleUrl: './relatorios.css'
 })
+
 export class Relatorios {
   private marcacaoApiService = inject(MarcacaoApiService);
   private employeeService = inject(EmployeeService);
@@ -286,17 +294,25 @@ export class Relatorios {
   exportarCSV() {
     const data = this.prepareExportData();
     const csv = this.convertToCSV(data);
-    this.downloadFile(csv, 'relatorio-marcacoes.csv', 'text/csv');
+
+    const date = new Date().getDate();
+    const time = new Date().getTime();
+
+    this.downloadFile(csv, `relatorio-marcacoes-${date}-${time}.csv`, 'text/csv');
   }
 
   async exportarExcel() {
     try {
       const XLSX = await import('xlsx');
       const data = this.prepareExportData();
+
+      const date = new Date().getDate();
+      const time = new Date().getTime();
+
       const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Marcações');
-      XLSX.writeFile(wb, 'relatorio-marcacoes.xlsx');
+      XLSX.writeFile(wb, `relatorio-marcacoes-${date}-${time}.xlsx`);
     } catch (error) {
       console.error('Erro ao exportar Excel:', error);
       alert('Erro ao exportar Excel. Instale as dependências: npm install xlsx');
@@ -310,51 +326,84 @@ export class Relatorios {
 
       const doc = new jsPDF();
 
-      // Title
-      doc.setFontSize(16);
-      doc.text('Relatório de Marcações', 14, 15);
+      const date = new Date().getDate();
+      const time = new Date().getTime();
 
-      // Subtitle with period
-      doc.setFontSize(10);
-      doc.text(
-        `Período: ${this.formatDateToDDMMYYYY(this.dataInicio())} a ${this.formatDateToDDMMYYYY(this.dataFim())}`,
-        14, 22
-      );
+      // Agrupar por funcionário
+      const dadosPorFuncionario = this.marcacoesPorDia().reduce((acc, curr) => {
+        const key = curr.matricula;
+        if (!acc[key]) {
+          acc[key] = {
+            matricula: curr.matricula,
+            nome: curr.nome,
+            dias: []
+          };
+        }
+        acc[key].dias.push(curr);
+        return acc;
+      }, {} as Record<string, { matricula: string, nome: string, dias: MarcacaoDia[] }>);
 
-      // Table
-      const tableData = this.marcacoesPorDia().map(dia => [
-        dia.matricula,
-        dia.nome,
-        dia.getDataFormatada(),
-        dia.getDiaSemana(),
-        dia.marcacoes.map((m, i) => {
-          const hora = this.formatDateTime(m.dataMarcacao).split(' ')[1];
-          return m.numSerieRelogio === 'MANUAL' ? `${hora}*` : hora;
-        }).join(', '),
-        dia.getHorasTrabalhadas(),
-        dia.getStatus()
-      ]);
+      const funcionariosOrdenados = Object.values(dadosPorFuncionario).sort((a, b) => a.nome.localeCompare(b.nome));
 
-      autoTable(doc, {
-        startY: 28,
-        head: [['Matrícula', 'Nome', 'Data', 'Dia', 'Marcações', 'Horas', 'Status']],
-        body: tableData,
-        theme: 'grid',
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [41, 128, 185] }
+      let firstPage = true;
+
+      funcionariosOrdenados.forEach((func) => {
+        if (!firstPage) {
+          doc.addPage();
+        }
+        firstPage = false;
+
+        // Title
+        doc.setFontSize(16);
+        doc.text('Relatório de Marcações', 14, 15);
+
+        // Subtitle with period and employee info
+        doc.setFontSize(10);
+        doc.text(
+          `Período: ${this.formatDateToDDMMYYYY(this.dataInicio())} a ${this.formatDateToDDMMYYYY(this.dataFim())}`,
+          14, 22
+        );
+        doc.text(`Funcionário: ${func.nome} (${func.matricula})`, 14, 28);
+
+        // Ordenar dias por data
+        const diasOrdenados = func.dias.sort((a, b) => {
+          const dateA = new Date(a.data);
+          const dateB = new Date(b.data);
+          return dateA.getTime() - dateB.getTime();
+        });
+
+        // Table
+        const tableData = diasOrdenados.map(dia => [
+          dia.getDataFormatada(),
+          dia.getDiaSemana(),
+          dia.marcacoes.map((m) => {
+            const hora = this.formatDateTime(m.dataMarcacao).split(' ')[1];
+            return m.numSerieRelogio === 'MANUAL' ? `${hora}*` : hora;
+          }).join(', '),
+          dia.getHorasTrabalhadas(),
+          dia.getStatus()
+        ]);
+
+        autoTable(doc, {
+          startY: 35,
+          head: [['Data', 'Dia', 'Marcações', 'Horas', 'Status']],
+          body: tableData,
+          theme: 'grid',
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [41, 128, 185] }
+        });
+
+        // Legend for manual points (only if present for this employee)
+        const hasManual = diasOrdenados.some(d => d.marcacoes.some(m => m.numSerieRelogio === 'MANUAL'));
+
+        if (hasManual) {
+          const finalY = (doc as any).lastAutoTable.finalY || 35;
+          doc.setFontSize(8);
+          doc.text('* Marcações com asterisco são pontos inseridos manualmente', 14, finalY + 10);
+        }
       });
 
-      // Legend for manual points
-      if (this.hasManualPoints()) {
-        const finalY = (doc as any).lastAutoTable.finalY || 28;
-        doc.setFontSize(8);
-        doc.text('* Marcações com asterisco são pontos inseridos manualmente', 14, finalY + 10);
-
-        const totalManual = this.getTotalManualPoints();
-        doc.text(`Total de marcações manuais no período: ${totalManual}`, 14, finalY + 15);
-      }
-
-      doc.save('relatorio-marcacoes.pdf');
+      doc.save(`relatorio-marcacoes-${date}-${time}.pdf`);
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);
       alert('Erro ao exportar PDF. Instale as dependências: npm install jspdf jspdf-autotable');
@@ -362,18 +411,36 @@ export class Relatorios {
   }
 
   private prepareExportData() {
-    return this.marcacoesPorDia().map(dia => ({
-      'Matrícula': dia.matricula,
-      'Nome': dia.nome,
-      'Data': dia.getDataFormatada(),
-      'Dia da Semana': dia.getDiaSemana(),
-      'Marcações': dia.marcacoes.map((m, i) => {
-        const hora = this.formatDateTime(m.dataMarcacao).split(' ')[1];
-        return m.numSerieRelogio === 'MANUAL' ? `${hora}*` : hora;
-      }).join(', '),
-      'Horas Trabalhadas': dia.getHorasTrabalhadas(),
-      'Status': dia.getStatus()
-    }));
+    // Flatten data for CSV/Excel: One row per day per employee
+    const flatData: any[] = [];
+
+    // Sort by Employee Name, then Date
+    const sortedData = [...this.marcacoesPorDia()].sort((a, b) => {
+      const nameCompare = a.nome.localeCompare(b.nome);
+      if (nameCompare !== 0) return nameCompare;
+
+      const dateA = new Date(a.data);
+      const dateB = new Date(b.data);
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    sortedData.forEach(dia => {
+      flatData.push({
+        Matricula: dia.matricula,
+        Nome: dia.nome,
+        Empresa: dia.empresa || 'Não encontrado',
+        Data: dia.getDataFormatada(),
+        DiaSemana: dia.getDiaSemana(),
+        Marcacoes: dia.marcacoes.map(m => {
+          const hora = this.formatDateTime(m.dataMarcacao).split(' ')[1];
+          return m.numSerieRelogio === 'MANUAL' ? `${hora}*` : hora;
+        }).join(', '),
+        HorasTrabalhadas: dia.getHorasTrabalhadas(),
+        Status: dia.getStatus()
+      });
+    });
+
+    return flatData;
   }
 
   private convertToCSV(data: any[]): string {
