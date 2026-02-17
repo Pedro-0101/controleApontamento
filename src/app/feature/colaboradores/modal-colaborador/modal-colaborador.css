@@ -1,2 +1,29 @@
 /* Using global styles from styles.css */
 /* Modal-specific styles only */
+
+.checkbox-row {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkbox-text {
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.9em;
+  color: var(--text-secondary);
+}
+
+.checkbox-input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}

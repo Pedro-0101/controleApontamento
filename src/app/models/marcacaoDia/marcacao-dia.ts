@@ -17,6 +17,7 @@ export interface MarcacaoDia {
     empresa?: string;
     evento?: string; // Nome do evento/status
     evento_categoria?: 'PERIODO' | 'FIXO'; // Categoria do evento
+    trabalhaSabado?: boolean;
 }
 
 // 2. O tipo define os possíveis valores para o status
@@ -36,6 +37,7 @@ export class MarcacaoDia implements MarcacaoDia {
     empresa?: string;
     evento?: string;
     evento_categoria?: 'PERIODO' | 'FIXO';
+    trabalhaSabado?: boolean;
 
     constructor(
         id: number,
@@ -45,6 +47,7 @@ export class MarcacaoDia implements MarcacaoDia {
         data: string,
         marcacoes: Marcacao[],
         empresa?: string,
+        trabalhaSabado: boolean = true,
         comentarios?: ComentarioMarcacao[]
     ) {
         this.id = id;
@@ -52,6 +55,7 @@ export class MarcacaoDia implements MarcacaoDia {
         this.matricula = matricula;
         this.nome = nome;
         this.empresa = empresa || '';
+        this.trabalhaSabado = trabalhaSabado;
         this.comentarios = comentarios || [];
         this.data = data;
 
@@ -105,11 +109,16 @@ export class MarcacaoDia implements MarcacaoDia {
         }
 
         if (numMarcacoes === 0) {
+            // Se for sábado e NÃO trabalha no sábado, não é falta.
+            if (diaSemana === 6 && !this.trabalhaSabado) {
+                return "Ok";
+            }
             return "Falta";
         }
 
-        // Sábado: 2+ pontos e 4+ horas
+        // Sábado
         if (diaSemana === 6) {
+            // Se trabalha sábado ou se tem marcação (mesmo não devendo trabalhar), aplica regra normal
             if (numMarcacoes === 2 && horasTrabalhadas >= 4 && horasTrabalhadas <= 6) {
                 return "Ok";
             }

@@ -51,7 +51,7 @@
 
 
 
-      <div class="form-group">
+      <div class="form-group checkbox-row">
         <div class="checkbox-group">
           <input
             type="checkbox"
@@ -61,6 +61,17 @@
             class="checkbox-input"
           >
           <label for="ativo" class="checkbox-text">Colaborador Ativo</label>
+        </div>
+
+        <div class="checkbox-group">
+          <input
+            type="checkbox"
+            id="trabalhaSabado"
+            name="trabalhaSabado"
+            [(ngModel)]="trabalhaSabado"
+            class="checkbox-input"
+          >
+          <label for="trabalhaSabado" class="checkbox-text">Trabalha no Sábado</label>
         </div>
       </div>
     </div>

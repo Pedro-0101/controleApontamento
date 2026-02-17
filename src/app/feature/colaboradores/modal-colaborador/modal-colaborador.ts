@@ -27,6 +27,7 @@ export class ModalColaborador implements OnInit {
   matricula = signal('');
   empresa = signal('');
   ativo = signal(true);
+  trabalhaSabado = signal(true);
   isSaving = signal(false);
 
   ngOnInit() {
@@ -36,6 +37,7 @@ export class ModalColaborador implements OnInit {
       this.matricula.set(emp.matricula);
       this.empresa.set(emp.empresa);
       this.ativo.set(emp.ativo === 1);
+      this.trabalhaSabado.set(emp.trabalha_sabado === 1);
     }
   }
 
@@ -51,7 +53,8 @@ export class ModalColaborador implements OnInit {
         nome: this.nome(),
         matricula: this.matricula(),
         empresa: this.empresa(),
-        ativo: this.ativo() ? 1 : 0
+        ativo: this.ativo() ? 1 : 0,
+        trabalha_sabado: this.trabalhaSabado() ? 1 : 0
       };
 
       if (this.mode() === 'create') {

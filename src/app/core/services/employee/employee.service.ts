@@ -13,7 +13,7 @@ interface EmployeeResponse {
 
 interface BatchEmployeeResponse {
   success: boolean;
-  employees: Array<{ matricula: string; nome: string; empresa: string }>;
+  employees: Array<{ matricula: string; nome: string; empresa: string; trabalha_sabado: number }>;
   error?: string;
 }
 
@@ -92,7 +92,7 @@ export class EmployeeService {
    * @param matriculas - Array de matrículas
    * @returns Array de objetos com matricula e nome
    */
-  async getEmployeeNamesBatch(matriculas: string[]): Promise<Array<{ matricula: string; nome: string; empresa: string }>> {
+  async getEmployeeNamesBatch(matriculas: string[]): Promise<Array<{ matricula: string; nome: string; empresa: string; trabalha_sabado: number }>> {
     try {
       this.logger.info('EmployeeService', `Buscando nomes para ${matriculas.length} matrículas`);
 
@@ -106,10 +106,10 @@ export class EmployeeService {
       }
 
       this.logger.warn('EmployeeService', 'Erro ao buscar nomes em lote');
-      return matriculas.map(matricula => ({ matricula, nome: 'nome nao encontrado', empresa: '' }));
+      return matriculas.map(matricula => ({ matricula, nome: 'nome nao encontrado', empresa: '', trabalha_sabado: 1 }));
     } catch (error: any) {
       this.logger.error('EmployeeService', 'Erro ao buscar nomes em lote:', error);
-      return matriculas.map(matricula => ({ matricula, nome: 'nome nao encontrado', empresa: '' }));
+      return matriculas.map(matricula => ({ matricula, nome: 'nome nao encontrado', empresa: '', trabalha_sabado: 1 }));
     }
   }
 

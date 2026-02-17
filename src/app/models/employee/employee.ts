@@ -5,6 +5,7 @@ export class Employee {
   nome!: string;
   qrcod!: string;
   ativo!: number; // 0 ou 1
+  trabalha_sabado!: number; // 0 ou 1
 
   static fromJson(json: any): Employee {
     const employee = new Employee();
@@ -14,6 +15,7 @@ export class Employee {
     employee.nome = json.nome;
     employee.qrcod = json.qrcod;
     employee.ativo = json.ativo ?? 1; // Default 1 se não informado
+    employee.trabalha_sabado = Number(json.trabalha_sabado ?? 1); // Default 1 se não informado
     return employee;
   }
 }

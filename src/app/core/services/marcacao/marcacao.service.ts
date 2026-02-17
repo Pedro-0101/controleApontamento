@@ -167,10 +167,14 @@ export class MarcacaoService {
     const matriculasUnicas = [...new Set(marcacoes.map(m => m.matriculaFuncionario))];
 
     // 2. Buscar nomes em lote (1 chamada HTTP ao invés de N)
-    const employeeDataMap = new Map<string, { nome: string, empresa: string }>();
+    const employeeDataMap = new Map<string, { nome: string, empresa: string, trabalha_sabado: number }>();
     try {
       const employeesBatch = await this.employeeService.getEmployeeNamesBatch(matriculasUnicas);
-      employeesBatch.forEach(item => employeeDataMap.set(item.matricula, { nome: item.nome, empresa: item.empresa }));
+      employeesBatch.forEach(item => employeeDataMap.set(item.matricula, {
+        nome: item.nome,
+        empresa: item.empresa,
+        trabalha_sabado: item.trabalha_sabado
+      }));
     } catch (error) {
       this.loggerService.error('MarcacaoService', 'Erro ao buscar dados dos funcionários em lote', error);
     }
@@ -205,7 +209,8 @@ export class MarcacaoService {
           nome,
           dateStr,
           [marcacao],
-          empresa
+          empresa,
+          empData ? (empData.trabalha_sabado === 1) : true
         );
         gruposMap.set(chave, marcacaoDia);
       }
@@ -260,7 +265,8 @@ export class MarcacaoService {
               funcionario.nome,
               dateStr,
               [],
-              funcionario.empresa
+              funcionario.empresa,
+              funcionario.trabalha_sabado === 1
             );
             marcacoesDia.push(marcacaoDia);
             marcacoesMap.add(key);
@@ -374,7 +380,7 @@ export class MarcacaoService {
             const emp = funcionariosAtivos.find(f => String(f.matricula).trim() === matriculaStr);
 
             if (emp) {
-              md = new MarcacaoDia(0, '', matriculaStr, emp.nome, dataStr, [], emp.empresa);
+              md = new MarcacaoDia(0, '', matriculaStr, emp.nome, dataStr, [], emp.empresa, emp.trabalha_sabado === 1);
               marcacoesDia.push(md);
             }
           }
