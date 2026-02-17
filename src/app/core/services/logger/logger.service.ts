@@ -10,7 +10,7 @@ export class LoggerService {
   private colorError = 'oklch(0.7 0.2 30)';
   private colorMuted = '#888888';
   private colorText = '#000'
-  private padEndSize = 25;
+  private padEndSize = 32;
 
 
   private getTimestamp(): string {

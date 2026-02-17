@@ -90,7 +90,7 @@ export class AuthService {
     this.cookiesService.setCookie('accessCode', cryptedCode, 1);
     this.cookiesService.setCookie('logedAt', cryptedDate, 1);
 
-    this.logger.info("AuthService", `Sessão iniciada com sucesso para o usuário ${username}`);
+    this.logger.info("AuthService", `Sessão iniciada para o usuário ${username}`);
 
     return true;
   }

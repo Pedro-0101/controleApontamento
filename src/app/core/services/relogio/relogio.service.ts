@@ -20,10 +20,6 @@ export class RelogioService {
   private relogios = signal<Relogio[]>([]);
   readonly _relogios = computed(() => this.relogios());
 
-  // Todos os relogios das marcacoes filtradas
-  private relogiosMarcacoes = signal<Relogio[]>([]);
-  readonly _relogiosMarcacoes = computed(() => this.relogiosMarcacoes());
-
   private loadingRelogios = signal<Boolean>(true);
   readonly _loadingRelogios = computed(() => this.loadingRelogios());
 
@@ -87,12 +83,6 @@ export class RelogioService {
     const listaBruta: any[] = data.d || [];
 
     return listaBruta.map(r => Relogio.fromJson(r));
-  }
-
-  updateRelogiosFromMarcacoes(marcacoesDia: MarcacaoDia[]): void {
-    const relogios = this.getRelogiosFromMarcacoesDia(marcacoesDia);
-
-    this.relogiosMarcacoes.set(relogios);
   }
 
   getRelogiosFromMarcacoesDia(marcacoesDia: MarcacaoDia[]): Relogio[] {

@@ -33,7 +33,7 @@ export class MarcacaoApiService {
    * Cenário 1: Todas as marcações da empresa no período
    */
   async getAllMarcacoes(dataInicio: string, dataFim: string): Promise<Marcacao[]> {
-    this.logger.info('MarcacaoApiService', `Getting all marcacoes from ${dataInicio} to ${dataFim}`);
+    this.logger.info('MarcacaoApiService', `Buscando marcações de ${dataInicio} até ${dataFim}`);
 
     const params: SelecionaMarcacoesParams = {
       dataInicio,

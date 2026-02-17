@@ -25,7 +25,6 @@ export class MarcacaoService {
   private apiSessionService = inject(ApiSessionService);
   private funcionarioService = inject(FuncionarioService);
   private employeeService = inject(EmployeeService);
-  private relogioService = inject(RelogioService);
   private http = inject(HttpClient);
   private authService = inject(AuthService);
   private marcacaoApiService = inject(MarcacaoApiService);
@@ -33,15 +32,12 @@ export class MarcacaoService {
   private marcacoes = signal<Marcacao[]>([]);
   private marcacoesFiltradas = signal<MarcacaoDia[]>([]);
   private marcacaoesFiltradasBackup = signal<MarcacaoDia[]>([]);
-  private relogiosMarcacoes = signal<Relogio[]>([]);
-  private apiUrl = environment.apiUrlListarMarcacoes;
   private isLoadingMarcacoes = signal(false);
 
 
   readonly _isLoadingMarcacoes = computed(() => this.isLoadingMarcacoes());
   readonly _marcacoes = computed(() => this.marcacoes());
   readonly _marcacoesFiltradas = computed(() => this.marcacoesFiltradas());
-  readonly _relogioMarcacoes = computed(() => this.relogiosMarcacoes());
   readonly _empresasFiltroPainel = computed(() => {
     const backup = this.marcacaoesFiltradasBackup();
     const selecionadosStatus = this.statusFiltro().map(s => s.toLowerCase());
@@ -136,9 +132,6 @@ export class MarcacaoService {
 
       // Aplicar filtros existentes ao invés de resetar para a lista completa
       this.applyFilters();
-
-      this.relogiosMarcacoes.set(this.getRelogiosFromMarcacoes())
-      this.relogioService.updateRelogiosFromMarcacoes(marcacoesPorDia);
 
       this.isLoadingMarcacoes.set(false);
       return marcacoes;
@@ -673,7 +666,7 @@ export class MarcacaoService {
         );
       }
 
-      this.loggerService.info('MarcacaoService', `Found ${marcacoes.length} raw records.`);
+      this.loggerService.info('MarcacaoService', `Encontradas ${marcacoes.length} marcações.`);
       return marcacoes;
 
     } catch (error: any) {
@@ -734,12 +727,6 @@ export class MarcacaoService {
     });
   }
 
-
-  getRelogiosFromMarcacoes(): Relogio[] {
-
-    return this.relogioService.getRelogiosFromMarcacoesDia(this._marcacoesFiltradas());
-
-  }
 
   async getEmployeeHistory(matricula: string): Promise<any> {
     try {
