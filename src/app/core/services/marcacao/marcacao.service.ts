@@ -183,10 +183,10 @@ export class MarcacaoService {
     const gruposMap = new Map<string, MarcacaoDia>();
 
     for (const marcacao of marcacoes) {
-      // Lógica de Dia Lógico: Batidas antes das 05:00 pertencem à jornada do dia anterior
+      // Lógica de Dia Lógico: Batidas antes das 04:00 pertencem à jornada do dia anterior
       const dataHora = new Date(marcacao.dataMarcacao);
       const logicalDate = new Date(dataHora);
-      if (dataHora.getHours() < 5) {
+      if (dataHora.getHours() < 4) {
         logicalDate.setDate(logicalDate.getDate() - 1);
       }
 
@@ -291,7 +291,7 @@ export class MarcacaoService {
         const isoInicio = DateHelper.toIsoDate(dataInicio);
         const isoFim = DateHelper.toIsoDate(dataFim);
 
-        // Ajuste: Buscar manual points até o dia seguinte para capturar batidas < 05:00
+        // Ajuste: Buscar manual points até o dia seguinte para capturar batidas < 04:00
         const dataFimObj = DateHelper.fromStringDate(dataFim);
         if (dataFimObj) dataFimObj.setDate(dataFimObj.getDate() + 1);
         const isoFimAjustado = dataFimObj ? DateHelper.toIsoDate(DateHelper.getStringDate(dataFimObj)) : isoFim;

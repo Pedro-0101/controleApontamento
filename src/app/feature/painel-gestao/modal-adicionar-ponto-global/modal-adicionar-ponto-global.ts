@@ -32,10 +32,11 @@ export class ModalAdicionarPontoGlobal implements OnInit {
   protected isSaving = signal(false);
 
   protected isLogicalDayShift = computed(() => {
+    // Pertence ao dia anterior se for antes das 04:00
     const time = this.selectedTime();
     if (!time) return false;
     const [hours] = time.split(':').map(Number);
-    return hours < 5;
+    return hours < 4;
   });
 
   ngOnInit() {
@@ -65,7 +66,7 @@ export class ModalAdicionarPontoGlobal implements OnInit {
     try {
       let commentDate = this.selectedDate();
 
-      // Se for antes das 05:00, o comentário pertence ao dia anterior (Dia Lógico)
+      // Se for antes das 04:00, o comentário pertence ao dia anterior (Dia Lógico)
       if (this.isLogicalDayShift()) {
         const d = new Date(this.selectedDate() + 'T12:00:00');
         d.setDate(d.getDate() - 1);
