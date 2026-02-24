@@ -5,13 +5,44 @@
       <h1>Painel de Gestão</h1>
       <p>Gerencie as marcações e frequências dos funcionários</p>
     </div>
+
     <app-button icon="plus-circle" (onClick)="showModalPontoGlobal.set(true)">
       Novo Ponto Manual
     </app-button>
   </header>
-  
+
   <section class="section-cards">
     <app-cads-painel></app-cads-painel>
+  </section>
+
+  <section class="section-date-nav">
+    <div class="date-navigator">
+      <button class="nav-btn" (click)="irParaDiaAnterior()" title="Dia anterior">
+        <lucide-icon name="chevron-left" [size]="20"></lucide-icon>
+      </button>
+
+      <button class="nav-date" (click)="irParaHoje()" [title]="isHoje() ? 'Hoje' : 'Voltar para hoje'">
+        <lucide-icon name="calendar" [size]="16"></lucide-icon>
+        <span>{{ dataFormatada() }}</span>
+        @if (isHoje()) {
+          <span class="badge-hoje">Hoje</span>
+        }
+      </button>
+
+      <button class="nav-btn" (click)="irParaProximoDia()" [disabled]="isHoje()" title="Próximo dia">
+        <lucide-icon name="chevron-right" [size]="20"></lucide-icon>
+      </button>
+
+      <button class="nav-btn nav-btn-calendar" (click)="dateInput.showPicker()" title="Selecionar data">
+        <lucide-icon name="calendar-search" [size]="18"></lucide-icon>
+      </button>
+      <input #dateInput type="date" class="hidden-date-input" (change)="onDatePicked($event)" />
+    </div>
+
+    <button class="btn-refresh" (click)="atualizarTabela()" [disabled]="isRefreshing()" title="Atualizar dados">
+      <lucide-icon name="refresh-cw" [size]="16" [class.spinning]="isRefreshing()"></lucide-icon>
+      <span>Atualizar</span>
+    </button>
   </section>
 
   <section class="section-filters">

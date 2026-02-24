@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { LoggerService } from '../../../core/services/logger/logger.service';
 import { MarcacaoService } from '../../../core/services/marcacao/marcacao.service';
-import { DateHelper } from '../../../core/helpers/dateHelper';
+
 import { MarcacaoDia } from '../../../models/marcacaoDia/marcacao-dia';
 import { LinhaTabelaMarcacoes } from './linha-tabela-marcacoes/linha-tabela-marcacoes';
 import { ModalExportacaoComponent } from './modal-exportacao/modal-exportacao';
@@ -149,16 +149,7 @@ export class TabelaFuncionarios {
   }
 
   ngOnInit() {
-    this.loadMarcacoes();
-  }
-
-  loadMarcacoes() {
-    try {
-      const todayRange = DateHelper.getTodayRange();
-      this.marcacaoService.updateMarcacoes(todayRange.start, todayRange.end);
-    } catch (error) {
-      this.loggerService.error('TabelaFuncionarios', 'Erro', error);
-    }
+    // Dados são carregados pelo componente pai (PainelGestao) via navegação de dia
   }
 
   // --- Actions ---

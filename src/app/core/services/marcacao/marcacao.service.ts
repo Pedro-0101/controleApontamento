@@ -106,6 +106,9 @@ export class MarcacaoService {
   private statusFiltro = signal<string[]>([]);
   private empresasFiltro = signal<string[]>([]);
 
+  // Cache de prefetch: chave = "dataInicio|dataFim", valor = MarcacaoDia[] já formatado
+  private prefetchCache = new Map<string, { marcacoes: Marcacao[], marcacoesDia: MarcacaoDia[] }>();
+
   constructor() {
   }
 
@@ -113,10 +116,25 @@ export class MarcacaoService {
     this.currentDataInicio.set(dataInicio);
     this.currentDataFim.set(dataFim);
 
+    const cacheKey = `${dataInicio}|${dataFim}`;
 
     try {
 
       this.isLoadingMarcacoes.set(true);
+
+      // Verificar se já existe no cache de prefetch
+      const cached = this.prefetchCache.get(cacheKey);
+      if (cached) {
+        this.loggerService.info('MarcacaoService', `Usando dados do cache para ${dataInicio} - ${dataFim}`);
+        this.prefetchCache.delete(cacheKey);
+
+        this.marcacoes.set(cached.marcacoes);
+        this.ordenarTodasMarcacoes(cached.marcacoesDia);
+        this.marcacaoesFiltradasBackup.set(cached.marcacoesDia);
+        this.applyFilters();
+        this.isLoadingMarcacoes.set(false);
+        return cached.marcacoes;
+      }
 
       // Buscar marcações da API
       const marcacoes = await this.fetchMarcacoes(dataInicio, dataFim);
@@ -143,6 +161,37 @@ export class MarcacaoService {
       this.isLoadingMarcacoes.set(false);
       return this.marcacoes();
 
+    }
+  }
+
+  /**
+   * Pré-carrega dados de um dia em background, sem afetar os signals da UI.
+   */
+  async prefetchMarcacoes(dataInicio: string, dataFim: string): Promise<void> {
+    const cacheKey = `${dataInicio}|${dataFim}`;
+
+    // Não prefetchar se já está em cache
+    if (this.prefetchCache.has(cacheKey)) return;
+
+    try {
+      this.loggerService.info('MarcacaoService', `Prefetching dados para ${dataInicio} - ${dataFim}`);
+
+      const marcacoes = await this.fetchMarcacoes(dataInicio, dataFim);
+      const marcacoesOrdenadas = marcacoes.sort((a, b) => a.cpf.localeCompare(b.cpf));
+      const marcacoesDia = await this.formatarMarcacoesPorDia(marcacoesOrdenadas, dataInicio, dataFim);
+
+      this.prefetchCache.set(cacheKey, { marcacoes, marcacoesDia });
+      this.loggerService.info('MarcacaoService', `Prefetch concluído para ${dataInicio}`);
+    } catch (error) {
+      this.loggerService.error('MarcacaoService', `Erro no prefetch para ${dataInicio}:`, error);
+    }
+  }
+
+  clearPrefetchCache(cacheKey?: string): void {
+    if (cacheKey) {
+      this.prefetchCache.delete(cacheKey);
+    } else {
+      this.prefetchCache.clear();
     }
   }
 
@@ -457,8 +506,30 @@ export class MarcacaoService {
       this.loggerService.error('MarcacaoService', 'Erro ao buscar comentários ou pontos manuais:', error);
     }
 
+    // Filtrar estritamente pelo período solicitado para remover pontos offline
+    // que sincronizaram nos dias consultados (dataInsercao),
+    // mas cuja data de marcação real (dataMarcacao) não pertence a esses dias
+    const inicioDate = DateHelper.fromStringDate(dataInicio);
+    const fimDate = DateHelper.fromStringDate(dataFim);
+
+    // Ensure fimDate contains the entire last day
+    if (fimDate) {
+      fimDate.setHours(23, 59, 59, 999);
+    }
+
+    let filtradas = marcacoesDia;
+
+    if (inicioDate && fimDate) {
+      filtradas = marcacoesDia.filter(md => {
+        const dataObj = DateHelper.fromStringDate(md.data);
+        if (!dataObj) return false;
+        const time = dataObj.getTime();
+        return time >= inicioDate.getTime() && time <= fimDate.getTime();
+      });
+    }
+
     // Final sort: Date ASC, then Name ASC
-    return marcacoesDia.sort((a, b) => {
+    return filtradas.sort((a, b) => {
       const dateA = DateHelper.toIsoDate(a.data);
       const dateB = DateHelper.toIsoDate(b.data);
       const dateCompare = dateA.localeCompare(dateB);
@@ -648,11 +719,15 @@ export class MarcacaoService {
   }
 
   private async fetchMarcacoes(dataInicio: string, dataFim: string, matriculaFuncionario?: string): Promise<Marcacao[]> {
-    // Ajuste requested pelo usuário: adicionar sempre um dia ao dataFim
+    // Ajuste: Alargar a data final de busca na API para captar pontos de tablets offline
+    // que foram batidos nos dias corretos, mas que só subiram para a nuvem dias depois.
+    // A API externa tem filtro exclusivo no dia final, por isso precisamos garantir pelo menos +1 dia.
+    // Usamos +5 dias como margem de segurança para captar os uploads tardios ("offline").
     let dataFimAjustada = dataFim;
     const dateObj = DateHelper.fromStringDate(dataFim);
+
     if (dateObj) {
-      dateObj.setDate(dateObj.getDate() + 1);
+      dateObj.setDate(dateObj.getDate() + 5);
       dataFimAjustada = DateHelper.getStringDate(dateObj);
     }
 

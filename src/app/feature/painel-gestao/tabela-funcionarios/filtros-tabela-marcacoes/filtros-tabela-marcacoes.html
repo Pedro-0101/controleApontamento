@@ -1,22 +1,6 @@
 <div class="filter-container">
   <div class="filters">
     <div class="filter-item">
-      <label for="periodo">Período</label>
-      <select
-        id="periodo"
-        name="periodo"
-        (change)="aoSelecionarPeriodo($event)"
-        [disabled]="_isLoadingMarcacoesFiltroPainel()"
-      >
-        @for (periodo of _periodosPossiveisFiltroPainel; track periodo) {
-          <option [value]="periodo" [selected]="periodo === 'Hoje'">
-            {{ periodo }}
-          </option>
-        }
-      </select>
-    </div>
-
-    <div class="filter-item">
       <label>Empresa</label>
       <app-multi-select-dropdown
         [options]="_empresasFiltroPainel()"

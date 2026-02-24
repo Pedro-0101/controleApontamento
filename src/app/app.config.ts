@@ -58,6 +58,7 @@ import {
   Ban,
   UserCheck,
   Activity,
+  CalendarSearch,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -123,6 +124,7 @@ export const appConfig: ApplicationConfig = {
       Ban,
       UserCheck,
       Activity,
+      CalendarSearch,
     }))
   ]
 };
