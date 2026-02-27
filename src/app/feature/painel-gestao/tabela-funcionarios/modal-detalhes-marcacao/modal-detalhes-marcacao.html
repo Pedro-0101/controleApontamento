@@ -147,8 +147,8 @@
         @if (employeeHistory()?.eventos) {
           @for (e of employeeHistory().eventos; track e.id) {
             @if (
-              e.data_inicio === record().data ||
-              e.data_inicio === DateHelper.toIsoDate(record().data)
+              (e.data_inicio ? e.data_inicio.substring(0, 10) : '') === record().data ||
+              (e.data_inicio ? e.data_inicio.substring(0, 10) : '') === DateHelper.toIsoDate(record().data).substring(0, 10)
             ) {
               <div class="applied-event">
                 <span class="badge" [class]="'status-' + e.tipo_evento.toLowerCase()">{{

@@ -621,6 +621,10 @@
   background-color: #f8d7da;
   color: #842029;
 }
+.status-ferias, .status-férias { background-color: #cfe2ff; color: #084298; }
+.status-folga { background-color: #e2e3e5; color: #41464b; }
+.status-atestado, .status-afastado { background-color: #e0cffc; color: #6610f2; }
+.status-bh { background-color: #d2f4ea; color: #055160; }
 
 .history-pill.desconsiderado {
     opacity: 0.5;

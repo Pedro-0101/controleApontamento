@@ -70,17 +70,17 @@ export class MarcacaoDia implements MarcacaoDia {
     getStatus(): statusMarcacaoDia | string {
         // 1. Prioridade para Eventos de Período (Férias, Atestado, etc)
         if (this.evento_categoria === 'PERIODO') {
-            return this.evento || "Evento";
+            return this.evento ? this.evento.trim() : "Evento";
         }
 
         // 2. Prioridade para Status Fixos (BH, Folga, etc)
         if (this.evento_categoria === 'FIXO') {
-            return this.evento || "Status";
+            return this.evento ? this.evento.trim() : "Status";
         }
 
         // Caso antigo onde categoria não estava definida (retrocompatibilidade temporária)
         if (this.evento && !this.evento_categoria) {
-            return this.evento;
+            return this.evento.trim();
         }
 
         const dataObj = DateHelper.fromStringDate(this.data);

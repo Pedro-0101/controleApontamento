@@ -92,6 +92,11 @@ export class EventosComponent implements OnInit {
       return;
     }
 
+    if (this.formData.dataInicio > this.formData.dataFim) {
+      this.toastService.warning('A data de término deve ser igual ou maior que a data de início.');
+      return;
+    }
+
     this.isSaving.set(true);
     try {
       if (this.editingId()) {

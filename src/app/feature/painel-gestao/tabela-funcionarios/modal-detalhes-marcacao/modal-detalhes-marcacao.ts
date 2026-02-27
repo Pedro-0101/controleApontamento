@@ -454,10 +454,14 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
 
       // Vincular evento se existir para este dia
       if (safeHistory.eventos) {
-        const isoDate = day.date;
-        const activeEvent = safeHistory.eventos.find((e: any) =>
-          isoDate >= e.data_inicio && isoDate <= e.data_fim
-        );
+        const isoDate = day.date.substring(0, 10);
+        const activeEvent = safeHistory.eventos.find((e: any) => {
+          const dataInicioStr = e.data_inicio ? e.data_inicio.substring(0, 10) : '';
+          const dataFimStr = e.data_fim ? e.data_fim.substring(0, 10) : '';
+          const minDate = dataInicioStr <= dataFimStr ? dataInicioStr : dataFimStr;
+          const maxDate = dataInicioStr > dataFimStr ? dataInicioStr : dataFimStr;
+          return isoDate >= minDate && isoDate <= maxDate;
+        });
         if (activeEvent) {
           tempMarcacaoDia.evento = activeEvent.tipo_evento;
           tempMarcacaoDia.evento_categoria = activeEvent.categoria;
