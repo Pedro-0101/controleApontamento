@@ -1,6 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, catchError, of } from 'rxjs';
 import { ApiSessionService } from '../apiSession/api-session.service';
 import { Marcacao } from '../../../models/marcacao/marcacao';
 import { LoggerService } from '../logger/logger.service';
@@ -8,8 +8,8 @@ import { LoggerService } from '../logger/logger.service';
 export interface SelecionaMarcacoesParams {
   numSerieRelogio?: string;
   matriculaFuncionario?: string;
-  dataInicio: string; // DD/MM/YYYY
-  dataFim: string; // DD/MM/YYYY
+  dataInicio: string; // DD/MM/YYYY HH:MM:SS
+  dataFim: string; // DD/MM/YYYY HH:MM:SS
   tokenAcesso: string | null;
 }
 
@@ -36,8 +36,8 @@ export class MarcacaoApiService {
     this.logger.info('MarcacaoApiService', `Buscando marcações de ${dataInicio} até ${dataFim}`);
 
     const params: SelecionaMarcacoesParams = {
-      dataInicio,
-      dataFim,
+      dataInicio: `${dataInicio} 00:00:00`,
+      dataFim: `${dataFim} 23:59:59`,
       tokenAcesso: this.apiSessionService.tokenSession()
     };
 
@@ -52,8 +52,8 @@ export class MarcacaoApiService {
 
     const params: SelecionaMarcacoesParams = {
       numSerieRelogio,
-      dataInicio,
-      dataFim,
+      dataInicio: `${dataInicio} 00:00:00`,
+      dataFim: `${dataFim} 23:59:59`,
       tokenAcesso: this.apiSessionService.tokenSession()
     };
 
@@ -68,8 +68,8 @@ export class MarcacaoApiService {
 
     const params: SelecionaMarcacoesParams = {
       matriculaFuncionario: matricula,
-      dataInicio,
-      dataFim,
+      dataInicio: `${dataInicio} 00:00:00`,
+      dataFim: `${dataFim} 23:59:59`,
       tokenAcesso: this.apiSessionService.tokenSession()
     };
 
@@ -90,8 +90,8 @@ export class MarcacaoApiService {
     const params: SelecionaMarcacoesParams = {
       matriculaFuncionario: matricula,
       numSerieRelogio,
-      dataInicio,
-      dataFim,
+      dataInicio: `${dataInicio} 00:00:00`,
+      dataFim: `${dataFim} 23:59:59`,
       tokenAcesso: this.apiSessionService.tokenSession()
     };
 
@@ -104,20 +104,30 @@ export class MarcacaoApiService {
   private async callSelecionaMarcacoes(params: SelecionaMarcacoesParams): Promise<Marcacao[]> {
     const startTime = performance.now();
     try {
+      this.logger.warn('MarcacaoApiService', 'Calling API with params:', params);
       const response = await firstValueFrom(
         this.http.post<any>(this.API_URL, params, {
           headers: { 'Content-Type': 'application/json' }
         })
+          .pipe(
+            catchError((error) => {
+              this.logger.error('MarcacaoApiService', 'Error calling SelecionaMarcacoes:', error);
+              return of([]);
+            })
+          )
       );
+
+      this.logger.warn('MarcacaoApiService', 'API Raw Response:', response);
 
       const endTime = performance.now();
       this.updateObservability(endTime - startTime);
 
-      // SOAP .NET web service returns data in 'd' property
-      const data = response?.d || response;
+      // Try different common .NET SOAP/WCF response paths
+      const data = response?.d?.results || response?.d || response;
+      this.logger.warn('MarcacaoApiService', 'Extracted Data:', data);
 
       if (!data || !Array.isArray(data)) {
-        this.logger.warn('MarcacaoApiService', 'Invalid response from SelecionaMarcacoes');
+        this.logger.error('MarcacaoApiService', 'Invalid response format - expected array:', data);
         return [];
       }
 
