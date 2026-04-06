@@ -20,10 +20,21 @@
       </div>
       
       <div class="form-grid">
+        @if (!editingId()) {
+          <div class="form-item">
+            <label>Local / Empresa</label>
+            <app-multi-select-dropdown
+              [options]="companyOptions()"
+              placeholder="Selecione as empresas para filtrar..."
+              (selectionChange)="onCompanySelectionChange($event)"
+            ></app-multi-select-dropdown>
+          </div>
+        }
+
         <div class="form-item">
           <label>Colaborador(es)</label>
           <app-multi-select-dropdown
-            [options]="employees()"
+            [options]="filteredEmployees()"
             [initialValue]="formData.matriculas"
             placeholder="Selecione um ou mais colaboradores..."
             (selectionChange)="formData.matriculas = $event"
@@ -63,6 +74,8 @@
       </div>
     </div>
   }
+
+
 
   <div class="table-card">
     <div class="table-responsive">

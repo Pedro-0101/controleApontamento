@@ -7,6 +7,7 @@ import { EmployeeService } from '../../core/services/employee/employee.service';
 import { ToastService } from '../../core/services/toast/toast.service';
 import { AuthService } from '../../core/services/auth/auth.service';
 import { DateHelper } from '../../core/helpers/dateHelper';
+import { Employee } from '../../models/employee/employee';
 
 import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-select-dropdown';
 
@@ -24,9 +25,31 @@ export class EventosComponent implements OnInit {
   private authService = inject(AuthService);
 
   events = signal<any[]>([]);
-  employees = signal<any[]>([]);
+  allEmployeesList = signal<Employee[]>([]);
   isLoading = signal(false);
   isSaving = signal(false);
+
+  // Company filter
+  selectedCompanies = signal<string[]>([]);
+  companies = signal<string[]>([]);
+
+  companyOptions = computed(() =>
+    this.companies().map(c => ({
+      id: 0,
+      nome: c,
+      matricula: c,
+      empresa: c,
+      qrcod: '',
+      ativo: 1
+    } as Employee))
+  );
+
+  // Filter employees for the form based on selected companies
+  filteredEmployees = computed(() => {
+    const selected = this.selectedCompanies();
+    if (selected.length === 0) return this.allEmployeesList();
+    return this.allEmployeesList().filter(e => selected.includes(e.empresa));
+  });
 
   // Form state
   showForm = signal(false);
@@ -58,14 +81,26 @@ export class EventosComponent implements OnInit {
   async loadEmployees() {
     try {
       const emps = await this.employeeService.getAllActiveEmployees();
-      this.employees.set(emps);
+      this.allEmployeesList.set(emps);
+
+      const distinctCompanies = [...new Set(emps.map((e: Employee) => e.empresa).filter((c: string) => !!c))].sort() as string[];
+      this.companies.set(distinctCompanies);
     } catch (error) {
       console.error('Erro ao buscar funcionários:', error);
     }
   }
 
+  onCompanySelectionChange(selected: string[]) {
+    this.selectedCompanies.set(selected);
+    
+    // Remove employees from form selection if they don't match the new company filter
+    const validMatriculas = this.filteredEmployees().map(e => e.matricula);
+    this.formData.matriculas = this.formData.matriculas.filter(m => validMatriculas.includes(m));
+  }
+
   openAddForm() {
     this.editingId.set(null);
+    this.selectedCompanies.set([]);
     this.formData = {
       matriculas: [],
       dataInicio: '',
@@ -77,6 +112,7 @@ export class EventosComponent implements OnInit {
 
   editEvent(event: any) {
     this.editingId.set(event.id);
+    this.selectedCompanies.set([]);
     this.formData = {
       matriculas: [event.matricula_funcionario],
       dataInicio: event.data_inicio,
