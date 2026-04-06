@@ -16,6 +16,9 @@ export class ApiSessionService {
   private usuarioEmpresa = environment.usuarioEmpresa;
   private senhaEmpresa = environment.senhaEmpresa;
 
+  private refreshTimer: any;
+  private retryCount = 0;
+
   constructor(private http: HttpClient) {
     this.logger.info("ApiSessionService", "Componente inicializado")
   }
@@ -24,7 +27,7 @@ export class ApiSessionService {
     return this.tokenSession.asReadonly();
   }
 
-  async startSession() {
+  async startSession(): Promise<boolean> {
     try {
       this.logger.info("ApiSessionService", "Iniciando sessão");
 
@@ -40,16 +43,17 @@ export class ApiSessionService {
 
       this.logger.info("ApiSessionService", "Resposta recebida");
 
-      let token: string | null = response.d;
+      let token: string | null = response?.d;
 
       if (token && token.trim() !== '') {
         this.tokenSession.set(token);
         this.logger.info("ApiSessionService", "Sessão iniciada com sucesso");
-        return;
+        this.startOrResetBackgroundRefresh();
+        return true;
       }
 
       this.logger.error("ApiSessionService", "Token vazio ou inválido. Verifique chaveEmpresa, usuário ou senha.");
-      return;
+      return false;
 
     } catch (error: any) {
       this.logger.error("ApiSessionService", "Erro ao iniciar sessão:", error);
@@ -57,12 +61,57 @@ export class ApiSessionService {
       if (error.error) {
         this.logger.error("ApiSessionService", "Detalhes do erro:", error.error);
       }
-      return;
+      return false;
     }
   }
 
   endSession() {
     this.logger.info("ApiSessionService", "Encerrando sessão");
     this.tokenSession.set(null);
+    this.stopBackgroundRefresh();
+  }
+
+  private startOrResetBackgroundRefresh() {
+    this.stopBackgroundRefresh();
+    this.retryCount = 0;
+    // Agendar próximo refresh para 20 minutos
+    this.refreshTimer = setTimeout(() => {
+      this.attemptRefresh();
+    }, 20 * 60 * 1000); 
+  }
+
+  private stopBackgroundRefresh() {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+  }
+
+  private async attemptRefresh() {
+    this.logger.info("ApiSessionService", "Tentativa de refresh automático do token");
+    const success = await this.startSession();
+    
+    if (!success) {
+      // Falhou o refresh normal, iniciar ciclo de retry 
+      // (10 vezes em 5 minutos = 1 tentativa a cada 30 segundos)
+      this.handleRetry();
+    }
+  }
+
+  private handleRetry() {
+    if (this.retryCount >= 10) {
+      this.logger.error("ApiSessionService", "Falha crítica: Não foi possível renovar o token de sessão após 10 tentativas.");
+      return; 
+    }
+    
+    this.retryCount++;
+    this.logger.info("ApiSessionService", `Retry de refresh de token: tentativa ${this.retryCount}/10 em 30 segundos...`);
+    
+    this.refreshTimer = setTimeout(async () => {
+      const success = await this.startSession();
+      if (!success) {
+        this.handleRetry();
+      }
+    }, 30 * 1000); // 30 segundos
   }
 }

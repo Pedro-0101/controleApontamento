@@ -182,7 +182,9 @@
                   <td>
                     <div class="marcacoes-list">
                       @for (m of dia.marcacoes; track m.id || $index) {
-                        <span class="badge badge-hora" [class.badge-manual]="m.numSerieRelogio === 'MANUAL'">
+                        <span class="badge badge-hora" 
+                          [class.badge-manual]="m.numSerieRelogio === 'MANUAL'"
+                          [class.badge-desconsiderado]="m.desconsiderado">
                           {{ formatDateTime(m.dataMarcacao).split(' ')[1] }}
                           @if (m.numSerieRelogio === 'MANUAL') {
                             <span class="manual-indicator">*</span>
@@ -213,12 +215,20 @@
         />
 
         <!-- Legend -->
-        @if (hasManualPoints()) {
+        @if (hasManualPoints() || hasCancelledPoints()) {
           <div class="report-legend">
-            <div class="legend-item">
-              <span class="badge badge-hora badge-manual">00:00 <span class="manual-indicator">*</span></span>
-              <span class="legend-text">Marcações com asterisco (*) são pontos inseridos manualmente</span>
-            </div>
+            @if (hasManualPoints()) {
+              <div class="legend-item">
+                <span class="badge badge-hora badge-manual">00:00 <span class="manual-indicator">*</span></span>
+                <span class="legend-text">Marcações com asterisco (*) são pontos inseridos manualmente</span>
+              </div>
+            }
+            @if (hasCancelledPoints()) {
+              <div class="legend-item">
+                <span class="badge badge-hora badge-desconsiderado">00:00</span>
+                <span class="legend-text">Marcações riscadas são pontos desconsiderados/cancelados</span>
+              </div>
+            }
           </div>
         }
       }

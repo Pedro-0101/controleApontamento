@@ -291,6 +291,12 @@ export class Relatorios {
     }, 0);
   }
 
+  hasCancelledPoints(): boolean {
+    return this.marcacoesPorDia().some(dia =>
+      dia.marcacoes.some(m => m.desconsiderado)
+    );
+  }
+
   exportarCSV() {
     const data = this.prepareExportData();
     const csv = this.convertToCSV(data);
@@ -372,13 +378,23 @@ export class Relatorios {
           return dateA.getTime() - dateB.getTime();
         });
 
-        // Table
-        const tableData = diasOrdenados.map(dia => [
+        // Build metadata for each row to track cancelled/manual points
+        const rowsMeta = diasOrdenados.map(dia => ({
+          marcacoes: dia.marcacoes.map(m => ({
+            hora: this.formatDateTime(m.dataMarcacao).split(' ')[1],
+            manual: m.numSerieRelogio === 'MANUAL',
+            desconsiderado: m.desconsiderado || false
+          }))
+        }));
+
+        // Table - plain text for Marcações column (will be overdrawn for cancelled)
+        const tableData = diasOrdenados.map((dia, i) => [
           dia.getDataFormatada(),
           dia.getDiaSemana(),
-          dia.marcacoes.map((m) => {
-            const hora = this.formatDateTime(m.dataMarcacao).split(' ')[1];
-            return m.numSerieRelogio === 'MANUAL' ? `${hora}*` : hora;
+          rowsMeta[i].marcacoes.map(m => {
+            let h = m.hora;
+            if (m.manual) h = `${h}*`;
+            return h;
           }).join(', '),
           dia.getHorasTrabalhadas(),
           dia.getStatus()
@@ -390,16 +406,70 @@ export class Relatorios {
           body: tableData,
           theme: 'grid',
           styles: { fontSize: 8 },
-          headStyles: { fillColor: [41, 128, 185] }
+          headStyles: { fillColor: [41, 128, 185] },
+          didDrawCell: (data: any) => {
+            // Only process body rows, column index 2 (Marcações)
+            if (data.section !== 'body' || data.column.index !== 2) return;
+            const meta = rowsMeta[data.row.index];
+            if (!meta || !meta.marcacoes.some((m: any) => m.desconsiderado)) return;
+
+            // Clear cell content area and redraw with strikethrough
+            const cell = data.cell;
+            const x = cell.x + cell.padding('left');
+            const y = cell.y + cell.height / 2 + 1;
+
+            // Clear the text area
+            doc.setFillColor(255, 255, 255);
+            doc.rect(cell.x + 0.5, cell.y + 0.5, cell.width - 1, cell.height - 1, 'F');
+
+            // Redraw each hour individually
+            doc.setFontSize(8);
+            let currentX = x;
+            meta.marcacoes.forEach((m: any, idx: number) => {
+              let label = m.hora;
+              if (m.manual) label = `${label}*`;
+              const suffix = idx < meta.marcacoes.length - 1 ? ', ' : '';
+
+              if (m.desconsiderado) {
+                doc.setTextColor(170, 170, 170); // Gray
+              } else {
+                doc.setTextColor(0, 0, 0); // Black
+              }
+
+              doc.text(label, currentX, y);
+
+              if (m.desconsiderado) {
+                // Draw strikethrough line
+                const textWidth = doc.getTextWidth(label);
+                doc.setDrawColor(170, 170, 170);
+                doc.setLineWidth(0.3);
+                doc.line(currentX, y - 1, currentX + textWidth, y - 1);
+              }
+
+              currentX += doc.getTextWidth(label + suffix);
+            });
+
+            // Reset colors
+            doc.setTextColor(0, 0, 0);
+            doc.setDrawColor(0, 0, 0);
+          }
         });
 
-        // Legend for manual points (only if present for this employee)
+        // Legend for manual/cancelled points
         const hasManual = diasOrdenados.some(d => d.marcacoes.some(m => m.numSerieRelogio === 'MANUAL'));
+        const hasCancelled = diasOrdenados.some(d => d.marcacoes.some(m => m.desconsiderado));
 
-        if (hasManual) {
+        if (hasManual || hasCancelled) {
           const finalY = (doc as any).lastAutoTable.finalY || 35;
           doc.setFontSize(8);
-          doc.text('* Marcações com asterisco são pontos inseridos manualmente', 14, finalY + 10);
+          let legendY = finalY + 10;
+          if (hasManual) {
+            doc.text('* Marcações com asterisco são pontos inseridos manualmente', 14, legendY);
+            legendY += 5;
+          }
+          if (hasCancelled) {
+            doc.text('Marcações riscadas são pontos desconsiderados/cancelados', 14, legendY);
+          }
         }
       });
 
@@ -432,8 +502,10 @@ export class Relatorios {
         Data: dia.getDataFormatada(),
         DiaSemana: dia.getDiaSemana(),
         Marcacoes: dia.marcacoes.map(m => {
-          const hora = this.formatDateTime(m.dataMarcacao).split(' ')[1];
-          return m.numSerieRelogio === 'MANUAL' ? `${hora}*` : hora;
+          let hora = this.formatDateTime(m.dataMarcacao).split(' ')[1];
+          if (m.numSerieRelogio === 'MANUAL') hora = `${hora}*`;
+          if (m.desconsiderado) hora = `[${hora}]`;
+          return hora;
         }).join(', '),
         HorasTrabalhadas: dia.getHorasTrabalhadas(),
         Status: dia.getStatus()
