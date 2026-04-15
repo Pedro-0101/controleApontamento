@@ -491,11 +491,18 @@ export class MarcacaoService {
           // Eventos (Status Fixos)
           const isoDateMd = DateHelper.toIsoDate(md.data).substring(0, 10);
           const activeEvent = events.find((e: any) => {
-            const dataInicioStr = e.data_inicio ? e.data_inicio.substring(0, 10) : '';
-            const dataFimStr = e.data_fim ? e.data_fim.substring(0, 10) : '';
-            const minDate = dataInicioStr <= dataFimStr ? dataInicioStr : dataFimStr;
-            const maxDate = dataInicioStr > dataFimStr ? dataInicioStr : dataFimStr;
-            return e.matricula_funcionario === String(md.matricula).trim() &&
+            const dataInicioStr = e.data_inicio ? String(e.data_inicio).substring(0, 10) : '';
+            const dataFimStr = e.data_fim ? String(e.data_fim).substring(0, 10) : '';
+            
+            if (!dataInicioStr && !dataFimStr) return false;
+            
+            const startStr = dataInicioStr || dataFimStr;
+            const endStr = dataFimStr || dataInicioStr;
+            
+            const minDate = startStr <= endStr ? startStr : endStr;
+            const maxDate = startStr > endStr ? startStr : endStr;
+            
+            return String(e.matricula_funcionario).trim() === String(md.matricula).trim() &&
               isoDateMd >= minDate &&
               isoDateMd <= maxDate;
           });

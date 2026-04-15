@@ -169,6 +169,22 @@
   border-bottom: 2px solid #eee;
 }
 
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+.sortable:hover {
+  background-color: #e9ecef;
+}
+
+.sort-icon {
+  font-size: 0.75rem;
+  margin-left: 0.25rem;
+  color: #0d6efd;
+}
+
 .eventos-table td {
   padding: 1rem;
   border-bottom: 1px solid #f5f5f5;
@@ -253,4 +269,111 @@
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* --- TOOLBAR & FILTERS --- */
+.table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background-color: #f8f9fa; /* slight off-white for separation */
+  border-bottom: 1px solid #eee;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  position: relative;
+  flex: 1;
+  min-width: 250px;
+  display: flex;
+  align-items: center;
+}
+
+.search-box lucide-icon {
+  position: absolute;
+  left: 10px;
+  color: #adb5bd;
+}
+
+.search-input {
+  width: 100%;
+  padding-left: 2.2rem;
+}
+
+.filter-box {
+  min-width: 200px;
+}
+
+.filter-select {
+  width: 100%;
+  cursor: pointer;
+  background-color: #fff;
+}
+
+/* --- PAGINATION --- */
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #eee;
+  background-color: #fff;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.pagination-info {
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pagination-controls .btn-icon:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: none;
+}
+
+.btn-page {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #495057;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-page:hover:not(.active) {
+  background-color: #f8f9fa;
+  border-color: #e9ecef;
+}
+
+.btn-page.active {
+  background-color: #0d6efd;
+  color: white;
+  border-color: #0d6efd;
+  font-weight: 600;
+}
+
+.pagination-ellipsis {
+  color: #adb5bd;
+  padding: 0 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

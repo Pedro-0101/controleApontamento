@@ -77,21 +77,108 @@
 
 
 
+  <div class="filters-card" style="margin-bottom: 2rem;">
+    <div class="filter-grid">
+      <div class="form-group">
+        <label>Pesquisar Funcionário</label>
+        <div class="search-input-wrapper">
+          <lucide-icon name="search" [size]="16" style="position: absolute; left: 10px; color: var(--color-gray-400); z-index: 1; top: 50%; transform: translateY(-50%);"></lucide-icon>
+          <input 
+            type="text" 
+            placeholder="Nome ou matrícula..." 
+            [ngModel]="searchTerm()" 
+            (ngModelChange)="searchTerm.set($event); onFilterChange()"
+            class="input-text"
+            style="padding-left: 36px;"
+          >
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>Empresa</label>
+        <div class="search-input-wrapper">
+          <lucide-icon name="building" [size]="16" style="position: absolute; left: 10px; color: var(--color-gray-400); z-index: 1; top: 50%; transform: translateY(-50%);"></lucide-icon>
+          <input 
+            type="text" 
+            placeholder="Filtrar por empresa..." 
+            [ngModel]="filterEmpresa()" 
+            (ngModelChange)="filterEmpresa.set($event); onFilterChange()"
+            class="input-text"
+            style="padding-left: 36px;"
+          >
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Data Início</label>
+        <input 
+          type="date" 
+          [ngModel]="filterDataInicio()" 
+          (ngModelChange)="filterDataInicio.set($event); onFilterChange()"
+          class="input-text"
+        >
+      </div>
+
+      <div class="form-group">
+        <label>Data Fim</label>
+        <input 
+          type="date" 
+          [ngModel]="filterDataFim()" 
+          (ngModelChange)="filterDataFim.set($event); onFilterChange()"
+          class="input-text"
+        >
+      </div>
+
+      <div class="form-group">
+        <label>Tipo de Evento</label>
+        <select 
+          [ngModel]="filterEventType()" 
+          (ngModelChange)="filterEventType.set($event); onFilterChange()"
+          class="input-select"
+        >
+          <option value="">Todos os Tipos</option>
+          @for (status of statusPeriodo; track status) {
+            <option [value]="status">{{ status }}</option>
+          }
+        </select>
+      </div>
+    </div>
+  </div>
+
   <div class="table-card">
     <div class="table-responsive">
       <table class="eventos-table">
         <thead>
           <tr>
-            <th>Funcionário</th>
-            <th>Evento</th>
-            <th>Início</th>
-            <th>Fim</th>
-            <th>Lançado por</th>
+            <th (click)="onSort('nome_funcionario')" class="sortable">
+              Funcionário
+              @if(sortColumn() === 'nome_funcionario') { <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+            </th>
+            <th (click)="onSort('empresa')" class="sortable">
+              Empresa
+              @if(sortColumn() === 'empresa') { <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+            </th>
+            <th (click)="onSort('tipo_evento')" class="sortable">
+              Evento
+              @if(sortColumn() === 'tipo_evento') { <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+            </th>
+            <th (click)="onSort('data_inicio')" class="sortable">
+              Início
+              @if(sortColumn() === 'data_inicio') { <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+            </th>
+            <th (click)="onSort('data_fim')" class="sortable">
+              Fim
+              @if(sortColumn() === 'data_fim') { <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+            </th>
+            <th (click)="onSort('criado_por')" class="sortable">
+              Lançado por
+              @if(sortColumn() === 'criado_por') { <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+            </th>
             <th>Ações</th>
           </tr>
         </thead>
         <tbody>
-          @for (event of events(); track event.id) {
+          @for (event of paginatedEvents(); track event.id) {
             <tr>
               <td>
                 <div class="emp-info">
@@ -99,6 +186,7 @@
                   <span class="emp-mat">#{{ event.matricula_funcionario }}</span>
                 </div>
               </td>
+              <td>{{ event.empresa || 'N/A' }}</td>
               <td>
                 <span class="badge badge-event">{{ event.tipo_evento }}</span>
               </td>
@@ -116,7 +204,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="6" class="empty-state">
+              <td colspan="7" class="empty-state">
                 <div class="empty-content">
                   <lucide-icon name="calendar" [size]="48"></lucide-icon>
                   <p>Nenhum evento de período cadastrado.</p>
@@ -127,5 +215,33 @@
         </tbody>
       </table>
     </div>
+
+    @if (totalPages() > 1) {
+      <div class="pagination-container">
+        <span class="pagination-info">Mostrando página {{ currentPage() }} de {{ totalPages() }} (Total: {{ filteredEventsList().length }})</span>
+        <div class="pagination-controls">
+          <button class="btn-icon" [disabled]="currentPage() === 1" (click)="previousPage()">
+            <lucide-icon name="chevron-left" [size]="18"></lucide-icon>
+          </button>
+
+          @for (page of pagesArray(); track $index) {
+            @if (page === '...') {
+              <span class="pagination-ellipsis">...</span>
+            } @else {
+              <button 
+                class="btn-page" 
+                [class.active]="page === currentPage()"
+                (click)="goToPage(page)">
+                {{ page }}
+              </button>
+            }
+          }
+
+          <button class="btn-icon" [disabled]="currentPage() === totalPages()" (click)="nextPage()">
+            <lucide-icon name="chevron-right" [size]="18"></lucide-icon>
+          </button>
+        </div>
+      </div>
+    }
   </div>
 </div>
