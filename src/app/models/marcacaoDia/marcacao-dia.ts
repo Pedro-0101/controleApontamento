@@ -68,25 +68,8 @@ export class MarcacaoDia implements MarcacaoDia {
     }
 
     getStatus(): statusMarcacaoDia | string {
-        // 1. Prioridade para Eventos de Período (Férias, Atestado, etc)
-        if (this.evento_categoria === 'PERIODO') {
-            return this.evento ? this.evento.trim() : "Evento";
-        }
-
-        // 2. Prioridade para Status Fixos (BH, Folga, etc)
-        if (this.evento_categoria === 'FIXO') {
-            return this.evento ? this.evento.trim() : "Status";
-        }
-
-        // Caso antigo onde categoria não estava definida (retrocompatibilidade temporária)
-        if (this.evento && !this.evento_categoria) {
-            return this.evento.trim();
-        }
-
         const dataObj = DateHelper.fromStringDate(this.data);
         if (!dataObj) return "Pendente";
-
-        if (this.evento_categoria === 'FIXO') return this.evento || 'Ok';
 
         const diaSemana = dataObj.getDay();
         const marcacoesValidas = (this.marcacoes || []).filter(m => !m.desconsiderado);
@@ -94,13 +77,56 @@ export class MarcacaoDia implements MarcacaoDia {
         const minutosTrabalhados = this.getWorkedMinutes();
         const horasTrabalhadas = minutosTrabalhados / 60;
 
-        // Se for hoje e tiver pelo menos 1 marcaçãos, está em andamento
-        if (dataObj.getDate() === new Date().getDate() && diaSemana !== 0 && numMarcacoes >= 1) {
+        // 1. Somente "Incompleto" deve se sobrepor aos eventos (Feriado, Férias, etc)
+        let isIncompleto = false;
+        const isHoje = dataObj.getDate() === new Date().getDate();
+        const isEmAndamento = isHoje && diaSemana !== 0 && numMarcacoes >= 1;
+
+        if (numMarcacoes > 0 && !isEmAndamento) {
+            if (numMarcacoes % 2 !== 0) {
+                isIncompleto = true;
+            } else if (diaSemana === 6) {
+                if (!((numMarcacoes === 2 && horasTrabalhadas >= 4 && horasTrabalhadas <= 6) ||
+                      (numMarcacoes === 4 && horasTrabalhadas >= 4))) {
+                    isIncompleto = true;
+                }
+            } else {
+                if (numMarcacoes < 4) {
+                    isIncompleto = true;
+                }
+            }
+        }
+
+        if (isIncompleto) {
+            return "Incompleto";
+        }
+
+        // 2. Prioridade para Eventos de Período (Férias, Atestado, Feriado em massa, etc)
+        if (this.evento_categoria === 'PERIODO') {
+            return this.evento ? this.evento.trim() : "Evento";
+        }
+
+        // 3. Prioridade para Status Fixos (BH, Folga, etc)
+        if (this.evento_categoria === 'FIXO') {
+            return this.evento ? this.evento.trim() : "Status";
+        }
+
+        // 4. Caso antigo onde categoria não estava definida
+        if (this.evento && !this.evento_categoria) {
+            return this.evento.trim();
+        }
+
+        // 5. Demais status calculados caso não haja eventos registrados
+        if (isEmAndamento) {
             return "Em andamento";
         }
 
-        if (numMarcacoes % 2 !== 0) {
-            return "Incompleto";
+        if (numMarcacoes > 0) {
+            if (diaSemana === 6) {
+                return "Ok";
+            } else {
+                return horasTrabalhadas >= 8 ? "Ok" : "Atraso";
+            }
         }
 
         // Domingo: Não precisa bater ponto
@@ -116,24 +142,7 @@ export class MarcacaoDia implements MarcacaoDia {
             return "Falta";
         }
 
-        // Sábado
-        if (diaSemana === 6) {
-            // Se trabalha sábado ou se tem marcação (mesmo não devendo trabalhar), aplica regra normal
-            if (numMarcacoes === 2 && horasTrabalhadas >= 4 && horasTrabalhadas <= 6) {
-                return "Ok";
-            }
-            if (numMarcacoes === 4 && horasTrabalhadas >= 4) {
-                return "Ok";
-            }
-            return "Incompleto";
-        }
-
-        // Dias de semana: 4+ pontos e 8+ horas
-        if (numMarcacoes >= 4) {
-            return horasTrabalhadas >= 8 ? "Ok" : "Atraso";
-        }
-
-        return "Incompleto";
+        return "Falta";
     }
 
     getWorkedMinutes(): number {

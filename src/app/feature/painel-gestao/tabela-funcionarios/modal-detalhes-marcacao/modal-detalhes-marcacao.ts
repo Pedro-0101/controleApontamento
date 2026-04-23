@@ -129,6 +129,17 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
     try {
       const isoDate = DateHelper.toIsoDate(this.record().data);
       await this.marcacaoService.saveStandardInterval(this.record().matricula, isoDate);
+      
+      if (this.record().evento !== 'Corrigido') {
+        await this.marcacaoService.saveEvent(
+          this.record().matricula,
+          isoDate,
+          isoDate,
+          'Corrigido',
+          'FIXO'
+        );
+      }
+
       this.toastService.success('Intervalo padrão inserido!');
       this.updated.emit();
     } catch (error) {
@@ -149,6 +160,17 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
       const isoDate = DateHelper.toIsoDate(this.record().data);
       await this.marcacaoService.saveManualMarcacao(this.record().matricula, isoDate, this.novoPontoHora());
       this.novoPontoHora.set('');
+      
+      if (this.record().evento !== 'Corrigido') {
+        await this.marcacaoService.saveEvent(
+          this.record().matricula,
+          isoDate,
+          isoDate,
+          'Corrigido',
+          'FIXO'
+        );
+      }
+
       this.updated.emit();
     } catch (error) {
       this.toastService.error('Erro ao adicionar ponto manual. Verifique se este horário já não existe.');
