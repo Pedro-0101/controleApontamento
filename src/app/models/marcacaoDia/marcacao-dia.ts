@@ -77,7 +77,6 @@ export class MarcacaoDia implements MarcacaoDia {
         const minutosTrabalhados = this.getWorkedMinutes();
         const horasTrabalhadas = minutosTrabalhados / 60;
 
-        // 1. Somente "Incompleto" deve se sobrepor aos eventos (Feriado, Férias, etc)
         let isIncompleto = false;
         const isHoje = dataObj.getDate() === new Date().getDate();
         const isEmAndamento = isHoje && diaSemana !== 0 && numMarcacoes >= 1;
@@ -90,36 +89,28 @@ export class MarcacaoDia implements MarcacaoDia {
                     (numMarcacoes === 4 && horasTrabalhadas >= 4))) {
                     isIncompleto = true;
                 }
-            } else {
+            } else if (diaSemana !== 0) { // Dias de semana
                 if (numMarcacoes < 4) {
                     isIncompleto = true;
                 }
             }
         }
 
-        if (isIncompleto) {
+        const evtStr = this.evento ? this.evento.trim() : null;
+
+        // 1. Exceção explícita: Incompleto sobrepõe Feriado
+        if (evtStr === 'Feriado' && isIncompleto) {
             return "Incompleto";
         }
 
-        // 2. Prioridade para Eventos de Período (Férias, Atestado, Feriado em massa, etc)
-        if (this.evento_categoria === 'PERIODO') {
-            return this.evento ? this.evento.trim() : "Evento";
+        // 2. Eventos lançados (Fixo, Período, etc) sempre sobrepõem os status calculados
+        if (evtStr) {
+            return evtStr;
         }
 
-        // 3. Prioridade para Status Fixos (BH, Folga, etc)
-        if (this.evento_categoria === 'FIXO') {
-            return this.evento ? this.evento.trim() : "Status";
-        }
-
-        // 4. Caso antigo onde categoria não estava definida
-        if (this.evento && !this.evento_categoria) {
-            return this.evento.trim();
-        }
-
-        // 5. Demais status calculados caso não haja eventos registrados
-        if (isEmAndamento) {
-            return "Em andamento";
-        }
+        // 3. Se não houver eventos, retorna os status calculados
+        if (isEmAndamento) return "Em andamento";
+        if (isIncompleto) return "Incompleto";
 
         if (numMarcacoes > 0) {
             if (diaSemana === 6) {
@@ -129,16 +120,10 @@ export class MarcacaoDia implements MarcacaoDia {
             }
         }
 
-        // Domingo: Não precisa bater ponto
-        if (diaSemana === 0) {
-            return "Ok";
-        }
+        if (diaSemana === 0) return "Ok";
 
         if (numMarcacoes === 0) {
-            // Se for sábado e NÃO trabalha no sábado, não é falta.
-            if (diaSemana === 6 && !this.trabalhaSabado) {
-                return "Ok";
-            }
+            if (diaSemana === 6 && !this.trabalhaSabado) return "Ok";
             return "Falta";
         }
 
