@@ -476,6 +476,9 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
 
       // Vincular evento se existir para este dia
       if (safeHistory.eventos) {
+        // Ordenar os eventos do mais recente para o mais antigo (maior ID = mais recente)
+        safeHistory.eventos.sort((a: any, b: any) => (b.id || 0) - (a.id || 0));
+
         const isoDate = day.date.substring(0, 10);
         const activeEvent = safeHistory.eventos.find((e: any) => {
           const dataInicioStr = e.data_inicio ? e.data_inicio.substring(0, 10) : '';

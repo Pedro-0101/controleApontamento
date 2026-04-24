@@ -352,6 +352,12 @@ export class MarcacaoService {
           this.fetchIgnoredPointsBatch(allMatriculas, isoInicio, isoFimAjustado)
         ]);
 
+        // Ordenar os eventos do mais recente para o mais antigo (maior ID = mais recente)
+        // Assim, quando houver múltiplos eventos para o mesmo dia, o 'find' pegará o mais recente.
+        if (events && events.length > 0) {
+          events.sort((a: any, b: any) => (b.id || 0) - (a.id || 0));
+        }
+
         // Map para acesso rápido: matricula:data -> ignoredPointsSet
         const ignoredPointsMap = new Map<string, Set<string>>();
         ignoredPoints.forEach((p: any) => {
