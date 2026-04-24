@@ -280,6 +280,10 @@ export class MarcacaoService {
         funcionariosAtivos = await this.employeeService.getEmployeeNamesBatch(matriculasAlvo);
       } else {
         funcionariosAtivos = await this.employeeService.getAllActiveEmployees();
+        
+        // FILTRAR INATIVOS: Remover marcações de funcionários que bateram ponto mas estão inativos
+        const ativosSet = new Set(funcionariosAtivos.map(f => String(f.matricula).trim()));
+        marcacoesDia = marcacoesDia.filter(m => ativosSet.has(String(m.matricula).trim()));
       }
 
       // Gerar lista de datas no intervalo
