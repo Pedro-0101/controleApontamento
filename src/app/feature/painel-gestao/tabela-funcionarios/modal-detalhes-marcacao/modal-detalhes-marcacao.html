@@ -215,9 +215,9 @@
       </div>
 
       <div class="section history-section">
-        <label class="section-title">
+        <label class="section-label">
           <lucide-icon name="history" [size]="16"></lucide-icon>
-          Histórico (Últimos 7 dias)
+          Histórico (Dia anterior e seguinte)
         </label>
 
         @if (isLoadingHistory()) {
@@ -269,7 +269,7 @@
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="4" class="empty-msg">Nenhum registro nos últimos 7 dias.</td>
+                    <td colspan="4" class="empty-msg">Nenhum registro de dias adjacentes na memória.</td>
                   </tr>
                 }
               </tbody>

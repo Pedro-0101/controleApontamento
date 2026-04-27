@@ -38,6 +38,7 @@ export class MarcacaoService {
   readonly _isLoadingMarcacoes = computed(() => this.isLoadingMarcacoes());
   readonly _marcacoes = computed(() => this.marcacoes());
   readonly _marcacoesFiltradas = computed(() => this.marcacoesFiltradas());
+  readonly _marcacoesFiltradasBackup = computed(() => this.marcacaoesFiltradasBackup());
   readonly _empresasFiltroPainel = computed(() => {
     const backup = this.marcacaoesFiltradasBackup();
     const selecionadosStatus = this.statusFiltro().map(s => s.toLowerCase());
