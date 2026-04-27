@@ -158,14 +158,27 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
     this.isSaving.set(true);
     try {
       const isoDate = DateHelper.toIsoDate(this.record().data);
+      
+      let eventDate = isoDate;
+      const [hours] = this.novoPontoHora().split(':').map(Number);
+      if (hours < 5) {
+        const parts = isoDate.split('-');
+        const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        dateObj.setDate(dateObj.getDate() - 1);
+        const day = dateObj.getDate().toString().padStart(2, '0');
+        const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+        const year = dateObj.getFullYear();
+        eventDate = `${year}-${month}-${day}`;
+      }
+
       await this.marcacaoService.saveManualMarcacao(this.record().matricula, isoDate, this.novoPontoHora());
       this.novoPontoHora.set('');
       
       if (this.record().evento !== 'Corrigido') {
         await this.marcacaoService.saveEvent(
           this.record().matricula,
-          isoDate,
-          isoDate,
+          eventDate,
+          eventDate,
           'Corrigido',
           'FIXO'
         );
