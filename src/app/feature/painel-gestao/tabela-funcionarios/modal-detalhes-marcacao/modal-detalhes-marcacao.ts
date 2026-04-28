@@ -72,7 +72,14 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
     try {
       const employee = await this.employeeService.getEmployeeByMatricula(this.record().matricula);
       if (employee && employee.id) {
-        await this.employeeService.updateEmployee(employee.id, { ativo: 0 });
+        await this.employeeService.updateEmployee(employee.id, { 
+          matricula: employee.matricula,
+          nome: employee.nome,
+          empresa: employee.empresa,
+          qrcod: employee.qrcod,
+          trabalha_sabado: employee.trabalha_sabado,
+          ativo: 0 
+        });
         this.toastService.success('Funcionário desabilitado com sucesso!');
         this.updated.emit();
         this.close.emit();

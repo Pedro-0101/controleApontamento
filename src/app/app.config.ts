@@ -60,6 +60,7 @@ import {
   UserCheck,
   Activity,
   CalendarSearch,
+  UserX,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -127,6 +128,7 @@ export const appConfig: ApplicationConfig = {
       UserCheck,
       Activity,
       CalendarSearch,
+      UserX,
     }))
   ]
 };
