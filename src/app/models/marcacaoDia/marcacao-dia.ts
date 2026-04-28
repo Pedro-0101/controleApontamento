@@ -78,7 +78,10 @@ export class MarcacaoDia implements MarcacaoDia {
         const horasTrabalhadas = minutosTrabalhados / 60;
 
         let isIncompleto = false;
-        const isHoje = dataObj.getDate() === new Date().getDate();
+        const hoje = new Date();
+        const isHoje = dataObj.getDate() === hoje.getDate() &&
+                       dataObj.getMonth() === hoje.getMonth() &&
+                       dataObj.getFullYear() === hoje.getFullYear();
         const isEmAndamento = isHoje && diaSemana !== 0 && numMarcacoes >= 1;
 
         if (numMarcacoes > 0 && !isEmAndamento) {
