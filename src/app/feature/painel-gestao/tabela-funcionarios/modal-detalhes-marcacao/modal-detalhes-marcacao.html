@@ -11,7 +11,12 @@
     <div class="modal-header">
       <div class="header-info">
         <h3>Detalhes da Marcação</h3>
-        <p>{{ record().nome }} - {{ record().matricula }}</p>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <p style="margin: 0;">{{ record().nome }} - {{ record().matricula }}</p>
+          <button class="btn-icon btn-danger" style="width: 24px; height: 24px; padding: 4px;" (click)="desabilitarFuncionario()" title="Desabilitar Funcionário" [disabled]="isSaving()">
+            <lucide-icon name="user-x" [size]="14"></lucide-icon>
+          </button>
+        </div>
       </div>
       <button class="btn-close" (click)="close.emit()">
         <lucide-icon name="x" [size]="20"></lucide-icon>

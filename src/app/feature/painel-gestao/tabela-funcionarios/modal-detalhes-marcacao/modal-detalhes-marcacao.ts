@@ -9,6 +9,7 @@ import { ComentarioMarcacao } from '../../../../models/comentarioMarcacao/coment
 import { ToastService } from '../../../../core/services/toast/toast.service';
 import { Marcacao } from '../../../../models/marcacao/marcacao';
 import { TitleCaseCustomPipe } from '../../../../shared/pipes/title-case-custom.pipe';
+import { EmployeeService } from '../../../../core/services/employee/employee.service';
 
 interface HistoryTableDay {
   date: string;
@@ -27,6 +28,7 @@ interface HistoryTableDay {
 export class ModalDetalhesMarcacaoComponent implements OnInit {
   private marcacaoService = inject(MarcacaoService);
   private toastService = inject(ToastService);
+  private employeeService = inject(EmployeeService);
 
   record = input.required<MarcacaoDia>();
   @Output() close = new EventEmitter<void>();
@@ -60,6 +62,28 @@ export class ModalDetalhesMarcacaoComponent implements OnInit {
       console.error('Erro ao carregar histórico:', error);
     } finally {
       this.isLoadingHistory.set(false);
+    }
+  }
+
+  async desabilitarFuncionario() {
+    if (!confirm(`Deseja realmente desabilitar o funcionário ${this.record().nome}?`)) return;
+
+    this.isSaving.set(true);
+    try {
+      const employee = await this.employeeService.getEmployeeByMatricula(this.record().matricula);
+      if (employee && employee.id) {
+        await this.employeeService.updateEmployee(employee.id, { ativo: 0 });
+        this.toastService.success('Funcionário desabilitado com sucesso!');
+        this.updated.emit();
+        this.close.emit();
+      } else {
+        this.toastService.error('Funcionário não encontrado no banco de dados.');
+      }
+    } catch (error) {
+      this.toastService.error('Erro ao desabilitar funcionário.');
+      console.error(error);
+    } finally {
+      this.isSaving.set(false);
     }
   }
 
