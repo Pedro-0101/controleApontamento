@@ -113,7 +113,7 @@ export class MarcacaoDia implements MarcacaoDia {
         if (isIncompleto) return "Incompleto";
 
         if (numMarcacoes > 0) {
-            if (diaSemana === 6) {
+            if (diaSemana === 6 || diaSemana === 0) {
                 return "Ok";
             } else {
                 return horasTrabalhadas >= 8 ? "Ok" : "Atraso";
