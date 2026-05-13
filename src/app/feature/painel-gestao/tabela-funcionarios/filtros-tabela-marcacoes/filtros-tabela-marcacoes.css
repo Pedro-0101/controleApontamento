@@ -37,23 +37,10 @@ label {
   color: #4b5563; /* Cinza escuro */
 }
 
-/* Estilo dos Selects */
-select {
-  padding: 8px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 0.95rem;
-  color: #1f2937;
-  background-color: #fff;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.2s;
-  height: 40px; /* Altura fixa para alinhar com botões */
-}
 
-select:focus {
-  border-color: #2563eb; /* Azul ao focar */
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+/* Select de filtro especial em estado vazio (sem seleção) — imita o placeholder dos multi-selects */
+select.select-vazio {
+  color: var(--color-gray-400);
 }
 
 /* Grupo dos Botões (lado direito) */

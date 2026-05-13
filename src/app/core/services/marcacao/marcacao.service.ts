@@ -106,6 +106,7 @@ export class MarcacaoService {
   private currentDataFim = signal<string>('');
   private statusFiltro = signal<string[]>([]);
   private empresasFiltro = signal<string[]>([]);
+  private filtroEspecial = signal<string>('');
 
   // Cache de prefetch: chave = "dataInicio|dataFim", valor = MarcacaoDia[] já formatado
   private prefetchCache = new Map<string, { marcacoes: Marcacao[], marcacoesDia: MarcacaoDia[] }>();
@@ -800,6 +801,22 @@ export class MarcacaoService {
     this.applyFilters();
   }
 
+  filtrarMarcacoesPorFiltroEspecial(filtro: string): void {
+    this.filtroEspecial.set(filtro);
+    this.applyFilters();
+  }
+
+  private temAlmocoIrregular(dia: MarcacaoDia): boolean {
+    const marcacoesAtivas = dia.marcacoes.filter(m => !m.desconsiderado);
+    if (marcacoesAtivas.length !== 4) return false;
+
+    const almocoInicio = marcacoesAtivas[1].dataMarcacao;
+    const almocoFim = marcacoesAtivas[2].dataMarcacao;
+    const diffMinutos = (almocoFim.getTime() - almocoInicio.getTime()) / (1000 * 60);
+
+    return diffMinutos < 60 || diffMinutos > 60;
+  }
+
   private applyFilters(): void {
     this.isLoadingMarcacoes.set(true);
     let filtradas = this.marcacaoesFiltradasBackup();
@@ -817,6 +834,10 @@ export class MarcacaoService {
         const statusDia = dia.getStatus().toLowerCase();
         return statuses.includes(statusDia);
       });
+    }
+
+    if (this.filtroEspecial() === 'almoco_irregular') {
+      filtradas = filtradas.filter(dia => this.temAlmocoIrregular(dia));
     }
 
     this.marcacoesFiltradas.set(filtradas);

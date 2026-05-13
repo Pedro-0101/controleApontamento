@@ -25,6 +25,20 @@
         [disabled]="_isLoadingMarcacoesFiltroPainel()"
       ></app-multi-select-dropdown>
     </div>
+
+    <div class="filter-item">
+      <label>Filtros Especiais</label>
+      <select
+        class="input-select"
+        [class.select-vazio]="filtroEspecialSelecionado() === ''"
+        [value]="filtroEspecialSelecionado()"
+        (change)="aoSelecionarFiltroEspecial($any($event.target).value)"
+        [disabled]="_isLoadingMarcacoesFiltroPainel()"
+      >
+        <option value="">Nenhum</option>
+        <option value="almoco_irregular">Almoço Irregular</option>
+      </select>
+    </div>
   </div>
 
   <div class="actions">

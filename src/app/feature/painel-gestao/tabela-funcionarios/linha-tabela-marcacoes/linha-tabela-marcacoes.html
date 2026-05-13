@@ -17,6 +17,13 @@
     </span>
   }
 </td>
+<td class="col-almoco" (click)="abrirDetalhes()">
+  @if (isAlmocoIrregular()) {
+    <span class="badge almoco-irregular">{{ getTempoAlmoco() }}</span>
+  } @else {
+    {{ getTempoAlmoco() }}
+  }
+</td>
 <td class="col-total-horas" (click)="abrirDetalhes()">{{ marcacao().getHorasTrabalhadas() }}</td>
 <td class="col-status" (click)="abrirDetalhes()">
   <span class="badge" [class]="'status-' + marcacao().getStatus().toLowerCase()">

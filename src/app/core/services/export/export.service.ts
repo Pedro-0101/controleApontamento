@@ -44,11 +44,30 @@ export class ExportService {
       fields.forEach(field => {
         switch (field) {
           case 'id': obj['ID'] = item.id; break;
+          case 'cpf': obj['CPF'] = item.cpf; break;
           case 'matricula': obj['Matrícula'] = item.matricula; break;
+          case 'empresa': obj['Empresa'] = item.empresa || ''; break;
           case 'nome': obj['Nome'] = item.nome; break;
           case 'data': obj['Data'] = item.getDataFormatada(); break;
           case 'diaSemana': obj['Dia Semana'] = item.getDiaSemana(); break;
           case 'marcacoes': obj['Marcações'] = item.getMarcacoesFormatadas(); break;
+          case 'almoco': {
+            const ativas = item.marcacoes.filter(m => !m.desconsiderado);
+            if (ativas.length !== 4) {
+              obj['Almoço'] = '--:--';
+            } else {
+              const diffMs = ativas[2].dataMarcacao.getTime() - ativas[1].dataMarcacao.getTime();
+              if (diffMs < 0) {
+                obj['Almoço'] = '--:--';
+              } else {
+                const totalMin = Math.floor(diffMs / 60000);
+                const h = Math.floor(totalMin / 60).toString().padStart(2, '0');
+                const m = (totalMin % 60).toString().padStart(2, '0');
+                obj['Almoço'] = `${h}:${m}`;
+              }
+            }
+            break;
+          }
           case 'totalHoras': obj['Total Horas'] = item.getHorasTrabalhadas(); break;
           case 'status': obj['Status'] = item.getStatus(); break;
           case 'comentario': obj['Comentário'] = item.comentario || ''; break;

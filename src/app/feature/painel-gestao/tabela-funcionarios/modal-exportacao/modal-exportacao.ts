@@ -21,15 +21,18 @@ export class ModalExportacaoComponent {
   @Output() close = new EventEmitter<void>();
 
   fields = [
-    { key: 'id', label: 'ID', selected: true },
     { key: 'matricula', label: 'Matrícula', selected: true },
+    { key: 'cpf', label: 'CPF', selected: false },
+    { key: 'empresa', label: 'Empresa', selected: true },
     { key: 'nome', label: 'Nome', selected: true },
     { key: 'data', label: 'Data', selected: true },
     { key: 'diaSemana', label: 'Dia Semana', selected: true },
     { key: 'marcacoes', label: 'Marcações', selected: true },
+    { key: 'almoco', label: 'Almoço', selected: true },
     { key: 'totalHoras', label: 'Total Horas', selected: true },
     { key: 'status', label: 'Status', selected: true },
-    { key: 'comentario', label: 'Comentário', selected: true }
+    { key: 'comentario', label: 'Comentário', selected: true },
+    { key: 'id', label: 'ID', selected: false }
   ];
 
   selectedFormat: ExportFormat = 'excel';

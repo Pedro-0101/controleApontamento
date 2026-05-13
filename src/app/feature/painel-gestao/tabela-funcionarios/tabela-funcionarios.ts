@@ -69,6 +69,18 @@ export class TabelaFuncionarios {
         }
       }
 
+      if (column === 'totalHoras') {
+        valueA = a.getWorkedMinutes();
+        valueB = b.getWorkedMinutes();
+      }
+
+      if (column === 'almoco') {
+        const ativasA = a.marcacoes.filter(m => !m.desconsiderado);
+        const ativasB = b.marcacoes.filter(m => !m.desconsiderado);
+        valueA = ativasA.length === 4 ? Math.floor((ativasA[2].dataMarcacao.getTime() - ativasA[1].dataMarcacao.getTime()) / 60000) : -1;
+        valueB = ativasB.length === 4 ? Math.floor((ativasB[2].dataMarcacao.getTime() - ativasB[1].dataMarcacao.getTime()) / 60000) : -1;
+      }
+
       if (typeof valueA === 'string') valueA = valueA.toLowerCase();
       if (typeof valueB === 'string') valueB = valueB.toLowerCase();
 

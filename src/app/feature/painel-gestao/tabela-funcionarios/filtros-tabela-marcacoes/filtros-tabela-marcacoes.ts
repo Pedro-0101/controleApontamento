@@ -28,10 +28,14 @@ export class FiltrosTabelaMarcacoes {
   protected statusSelecionados = signal<string[]>([]);
   readonly _statusFiltroComContagem = this.marcacaoService._statusFiltroComContagem;
 
+  // Signal filtros especiais
+  protected filtroEspecialSelecionado = signal<string>('');
+
   ngOnInit() {
     this.loggerService.info('FiltroTabelaMarcacoesComponent', 'Componente inicializado');
     this.empresasSelecionadas.set([]);
     this.statusSelecionados.set([]);
+    this.filtroEspecialSelecionado.set('');
   }
 
   public aoSelecionarEmpresa(empresas: string[]): void {
@@ -44,10 +48,17 @@ export class FiltrosTabelaMarcacoes {
     this.marcacaoService.filtrarMarcacoesPorStatus(status);
   }
 
+  public aoSelecionarFiltroEspecial(value: string): void {
+    this.filtroEspecialSelecionado.set(value);
+    this.marcacaoService.filtrarMarcacoesPorFiltroEspecial(value);
+  }
+
   public limparFiltros(): void {
     this.empresasSelecionadas.set([]);
     this.statusSelecionados.set([]);
+    this.filtroEspecialSelecionado.set('');
     this.marcacaoService.filtrarMarcacoesPorEmpresa([]);
     this.marcacaoService.filtrarMarcacoesPorStatus([]);
+    this.marcacaoService.filtrarMarcacoesPorFiltroEspecial('');
   }
 }
