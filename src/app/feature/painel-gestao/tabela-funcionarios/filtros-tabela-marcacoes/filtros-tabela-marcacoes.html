@@ -27,6 +27,19 @@
     </div>
 
     <div class="filter-item">
+      <label>Relógio</label>
+      <app-multi-select-dropdown
+        [options]="_relogiosFiltroPainel()"
+        [initialValue]="relogiosSelecionados()"
+        labelProp="label"
+        valueProp="value"
+        placeholder="Todos"
+        (selectionChange)="aoSelecionarRelogio($event)"
+        [disabled]="_isLoadingMarcacoesFiltroPainel()"
+      ></app-multi-select-dropdown>
+    </div>
+
+    <div class="filter-item">
       <label>Filtros Especiais</label>
       <select
         class="input-select"

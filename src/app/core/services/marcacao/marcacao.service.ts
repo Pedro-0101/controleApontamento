@@ -28,6 +28,7 @@ export class MarcacaoService {
   private http = inject(HttpClient);
   private authService = inject(AuthService);
   private marcacaoApiService = inject(MarcacaoApiService);
+  private relogioService = inject(RelogioService);
 
   private marcacoes = signal<Marcacao[]>([]);
   private marcacoesFiltradas = signal<MarcacaoDia[]>([]);
@@ -86,6 +87,41 @@ export class MarcacaoService {
       .sort((a, b) => a.value.localeCompare(b.value));
   });
 
+  readonly _relogiosFiltroPainel = computed(() => {
+    const backup = this.marcacaoesFiltradasBackup();
+    const selecionadosEmpresas = this.empresasFiltro();
+    const selecionadosStatus = this.statusFiltro().map(s => s.toLowerCase());
+
+    const numSeriesUnicas = new Set<string>();
+    backup.forEach(dia =>
+      dia.marcacoes.forEach(m => {
+        const ns = this.relogioService.normalizeNumSerie(m.numSerieRelogio);
+        if (ns) numSeriesUnicas.add(ns);
+      })
+    );
+
+    return Array.from(numSeriesUnicas).map(numSerie => {
+      const relogio = this.relogioService.getRelogioFromNumSerie(numSerie);
+      const label = relogio.descricao && relogio.descricao !== 'Nao encontrado'
+        ? relogio.descricao
+        : numSerie;
+
+      const count = backup.filter(dia => {
+        const matchesEmpresa = selecionadosEmpresas.length === 0 || (dia.empresa && selecionadosEmpresas.includes(dia.empresa));
+        const matchesStatus = selecionadosStatus.length === 0 || selecionadosStatus.includes((dia.getStatus() || '').toLowerCase());
+        const matchesRelogio = dia.marcacoes.some(m =>
+          this.relogioService.normalizeNumSerie(m.numSerieRelogio) === numSerie
+        );
+        return matchesEmpresa && matchesStatus && matchesRelogio;
+      }).length;
+
+      return {
+        label: `${label} (${count})`,
+        value: numSerie
+      };
+    }).sort((a, b) => a.label.localeCompare(b.label));
+  });
+
   readonly _totalFaltas = computed(() => {
     return this.marcacaoesFiltradasBackup().filter(m => m.getStatus() === 'Falta').length;
   });
@@ -107,6 +143,7 @@ export class MarcacaoService {
   private statusFiltro = signal<string[]>([]);
   private empresasFiltro = signal<string[]>([]);
   private filtroEspecial = signal<string>('');
+  private relogiosFiltro = signal<string[]>([]);
 
   // Cache de prefetch: chave = "dataInicio|dataFim", valor = MarcacaoDia[] já formatado
   private prefetchCache = new Map<string, { marcacoes: Marcacao[], marcacoesDia: MarcacaoDia[] }>();
@@ -806,6 +843,11 @@ export class MarcacaoService {
     this.applyFilters();
   }
 
+  filtrarMarcacoesPorRelogio(numSeries: string[]): void {
+    this.relogiosFiltro.set(numSeries);
+    this.applyFilters();
+  }
+
   private temAlmocoIrregular(dia: MarcacaoDia): boolean {
     const marcacoesAtivas = dia.marcacoes.filter(m => !m.desconsiderado);
     if (marcacoesAtivas.length !== 4) return false;
@@ -834,6 +876,15 @@ export class MarcacaoService {
         const statusDia = dia.getStatus().toLowerCase();
         return statuses.includes(statusDia);
       });
+    }
+
+    const relogios = this.relogiosFiltro();
+    if (relogios.length > 0) {
+      filtradas = filtradas.filter(dia =>
+        dia.marcacoes.some(m =>
+          relogios.includes(this.relogioService.normalizeNumSerie(m.numSerieRelogio))
+        )
+      );
     }
 
     if (this.filtroEspecial() === 'almoco_irregular') {

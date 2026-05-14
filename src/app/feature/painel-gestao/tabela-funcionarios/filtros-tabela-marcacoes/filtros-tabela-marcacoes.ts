@@ -28,6 +28,10 @@ export class FiltrosTabelaMarcacoes {
   protected statusSelecionados = signal<string[]>([]);
   readonly _statusFiltroComContagem = this.marcacaoService._statusFiltroComContagem;
 
+  // Signals relógios
+  protected relogiosSelecionados = signal<string[]>([]);
+  readonly _relogiosFiltroPainel = this.marcacaoService._relogiosFiltroPainel;
+
   // Signal filtros especiais
   protected filtroEspecialSelecionado = signal<string>('');
 
@@ -35,6 +39,7 @@ export class FiltrosTabelaMarcacoes {
     this.loggerService.info('FiltroTabelaMarcacoesComponent', 'Componente inicializado');
     this.empresasSelecionadas.set([]);
     this.statusSelecionados.set([]);
+    this.relogiosSelecionados.set([]);
     this.filtroEspecialSelecionado.set('');
   }
 
@@ -48,6 +53,11 @@ export class FiltrosTabelaMarcacoes {
     this.marcacaoService.filtrarMarcacoesPorStatus(status);
   }
 
+  public aoSelecionarRelogio(relogios: string[]): void {
+    this.relogiosSelecionados.set(relogios);
+    this.marcacaoService.filtrarMarcacoesPorRelogio(relogios);
+  }
+
   public aoSelecionarFiltroEspecial(value: string): void {
     this.filtroEspecialSelecionado.set(value);
     this.marcacaoService.filtrarMarcacoesPorFiltroEspecial(value);
@@ -56,9 +66,11 @@ export class FiltrosTabelaMarcacoes {
   public limparFiltros(): void {
     this.empresasSelecionadas.set([]);
     this.statusSelecionados.set([]);
+    this.relogiosSelecionados.set([]);
     this.filtroEspecialSelecionado.set('');
     this.marcacaoService.filtrarMarcacoesPorEmpresa([]);
     this.marcacaoService.filtrarMarcacoesPorStatus([]);
+    this.marcacaoService.filtrarMarcacoesPorRelogio([]);
     this.marcacaoService.filtrarMarcacoesPorFiltroEspecial('');
   }
 }
