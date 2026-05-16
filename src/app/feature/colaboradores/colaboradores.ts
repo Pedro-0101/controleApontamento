@@ -49,7 +49,8 @@ export class Colaboradores implements OnInit {
       nome: c,
       matricula: c,
       empresa: c,
-      qrcod: '',
+      local: '',
+      cargo: '',
       ativo: 1
     } as Employee));
   });
@@ -75,7 +76,9 @@ export class Colaboradores implements OnInit {
       result = result.filter(emp =>
         emp.nome.toLowerCase().includes(search) ||
         emp.matricula.toLowerCase().includes(search) ||
-        emp.empresa.toLowerCase().includes(search)
+        emp.empresa.toLowerCase().includes(search) ||
+        (emp.cargo ?? '').toLowerCase().includes(search) ||
+        (emp.local ?? '').toLowerCase().includes(search)
       );
     }
 

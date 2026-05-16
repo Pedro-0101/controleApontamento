@@ -99,7 +99,8 @@ export class Relatorios {
       nome: c,
       matricula: c,
       empresa: c,
-      qrcod: '',
+      local: '',
+      cargo: '',
       ativo: 1
     } as Employee));
   });
@@ -342,12 +343,13 @@ export class Relatorios {
           acc[key] = {
             matricula: curr.matricula,
             nome: curr.nome,
+            cargo: curr.cargo || '',
             dias: []
           };
         }
         acc[key].dias.push(curr);
         return acc;
-      }, {} as Record<string, { matricula: string, nome: string, dias: MarcacaoDia[] }>);
+      }, {} as Record<string, { matricula: string, nome: string, cargo: string, dias: MarcacaoDia[] }>);
 
       const funcionariosOrdenados = Object.values(dadosPorFuncionario).sort((a, b) => a.nome.localeCompare(b.nome));
 
@@ -369,7 +371,10 @@ export class Relatorios {
           `Período: ${this.formatDateToDDMMYYYY(this.dataInicio())} a ${this.formatDateToDDMMYYYY(this.dataFim())}`,
           14, 22
         );
-        doc.text(`Funcionário: ${func.nome} (${func.matricula})`, 14, 28);
+        doc.text(`Funcionário: ${this.toTitleCase(func.nome)} (${func.matricula})`, 14, 28);
+        if (func.cargo) {
+          doc.text(`Cargo: ${this.toSentenceCase(func.cargo)}`, 14, 34);
+        }
 
         // Ordenar dias por data
         const diasOrdenados = func.dias.sort((a, b) => {
@@ -401,7 +406,7 @@ export class Relatorios {
         ]);
 
         autoTable(doc, {
-          startY: 35,
+          startY: func.cargo ? 40 : 35,
           head: [['Data', 'Dia', 'Marcações', 'Horas', 'Status']],
           body: tableData,
           theme: 'grid',
@@ -460,7 +465,7 @@ export class Relatorios {
         const hasCancelled = diasOrdenados.some(d => d.marcacoes.some(m => m.desconsiderado));
 
         if (hasManual || hasCancelled) {
-          const finalY = (doc as any).lastAutoTable.finalY || 35;
+          const finalY = (doc as any).lastAutoTable.finalY || (func.cargo ? 40 : 35);
           doc.setFontSize(8);
           let legendY = finalY + 10;
           if (hasManual) {
@@ -499,6 +504,8 @@ export class Relatorios {
         Matricula: dia.matricula,
         Nome: dia.nome,
         Empresa: dia.empresa || 'Não encontrado',
+        Cargo: dia.cargo || '',
+        Local: dia.local || '',
         Data: dia.getDataFormatada(),
         DiaSemana: dia.getDiaSemana(),
         Marcacoes: dia.marcacoes.map(m => {
@@ -532,6 +539,21 @@ export class Relatorios {
     ];
 
     return csvRows.join('\n');
+  }
+
+  private toTitleCase(value: string): string {
+    if (!value) return '';
+    const exceptions = ['da', 'de', 'do', 'das', 'dos', 'e'];
+    return value.toLowerCase().split(' ').map((word, i) => {
+      if (i !== 0 && exceptions.includes(word)) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    }).join(' ');
+  }
+
+  private toSentenceCase(value: string): string {
+    if (!value) return '';
+    const lower = value.toLowerCase();
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
   }
 
   private downloadFile(content: string, filename: string, type: string) {

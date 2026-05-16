@@ -28,19 +28,27 @@ export class FiltrosTabelaMarcacoes {
   protected statusSelecionados = signal<string[]>([]);
   readonly _statusFiltroComContagem = this.marcacaoService._statusFiltroComContagem;
 
+  // Signals locais
+  protected locaisSelecionados = signal<string[]>([]);
+  readonly _locaisFiltroPainel = this.marcacaoService._locaisFiltroPainel;
+
   // Signals relógios
   protected relogiosSelecionados = signal<string[]>([]);
   readonly _relogiosFiltroPainel = this.marcacaoService._relogiosFiltroPainel;
 
   // Signal filtros especiais
-  protected filtroEspecialSelecionado = signal<string>('');
+  protected filtrosEspeciaisSelecionados = signal<string[]>([]);
+  readonly _filtrosEspeciaisOpcoes = [
+    { label: 'Almoço Irregular', value: 'almoco_irregular' }
+  ];
 
   ngOnInit() {
     this.loggerService.info('FiltroTabelaMarcacoesComponent', 'Componente inicializado');
     this.empresasSelecionadas.set([]);
     this.statusSelecionados.set([]);
+    this.locaisSelecionados.set([]);
     this.relogiosSelecionados.set([]);
-    this.filtroEspecialSelecionado.set('');
+    this.filtrosEspeciaisSelecionados.set([]);
   }
 
   public aoSelecionarEmpresa(empresas: string[]): void {
@@ -53,24 +61,31 @@ export class FiltrosTabelaMarcacoes {
     this.marcacaoService.filtrarMarcacoesPorStatus(status);
   }
 
+  public aoSelecionarLocal(locais: string[]): void {
+    this.locaisSelecionados.set(locais);
+    this.marcacaoService.filtrarMarcacoesPorLocal(locais);
+  }
+
   public aoSelecionarRelogio(relogios: string[]): void {
     this.relogiosSelecionados.set(relogios);
     this.marcacaoService.filtrarMarcacoesPorRelogio(relogios);
   }
 
-  public aoSelecionarFiltroEspecial(value: string): void {
-    this.filtroEspecialSelecionado.set(value);
-    this.marcacaoService.filtrarMarcacoesPorFiltroEspecial(value);
+  public aoSelecionarFiltroEspecial(values: string[]): void {
+    this.filtrosEspeciaisSelecionados.set(values);
+    this.marcacaoService.filtrarMarcacoesPorFiltroEspecial(values);
   }
 
   public limparFiltros(): void {
     this.empresasSelecionadas.set([]);
     this.statusSelecionados.set([]);
+    this.locaisSelecionados.set([]);
     this.relogiosSelecionados.set([]);
-    this.filtroEspecialSelecionado.set('');
+    this.filtrosEspeciaisSelecionados.set([]);
     this.marcacaoService.filtrarMarcacoesPorEmpresa([]);
     this.marcacaoService.filtrarMarcacoesPorStatus([]);
+    this.marcacaoService.filtrarMarcacoesPorLocal([]);
     this.marcacaoService.filtrarMarcacoesPorRelogio([]);
-    this.marcacaoService.filtrarMarcacoesPorFiltroEspecial('');
+    this.marcacaoService.filtrarMarcacoesPorFiltroEspecial([]);
   }
 }

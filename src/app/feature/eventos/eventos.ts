@@ -39,7 +39,8 @@ export class EventosComponent implements OnInit {
       nome: c,
       matricula: c,
       empresa: c,
-      qrcod: '',
+      local: '',
+      cargo: '',
       ativo: 1
     } as Employee))
   );

@@ -424,7 +424,7 @@ app.get('/api/employee/:matricula', async (req, res) => {
   
   try {
     const [rows] = await pool.query(
-      'SELECT id, matricula, empresa, nome, qrcod, trabalha_sabado FROM qrcod_2023 WHERE matricula = ?',
+      'SELECT id, matricula, empresa, nome, local, cargo, trabalha_sabado FROM qrcod_2023 WHERE matricula = ?',
       [matricula]
     );
 
@@ -463,24 +463,26 @@ app.post('/api/employees/batch', async (req, res) => {
   try {
     const placeholders = matriculas.map(() => '?').join(',');
     const [rows] = await pool.query(
-      `SELECT id, matricula, empresa, nome, qrcod, trabalha_sabado FROM qrcod_2023 WHERE matricula IN (${placeholders})`,
+      `SELECT id, matricula, empresa, nome, local, cargo, trabalha_sabado FROM qrcod_2023 WHERE matricula IN (${placeholders})`,
       matriculas
     );
 
-    // Criar um mapa de matrícula -> {nome, empresa}
+    // Criar um mapa de matrícula -> {nome, empresa, local, cargo}
     const employeeMap = {};
     rows.forEach(row => {
-      employeeMap[row.matricula] = { nome: row.nome, empresa: row.empresa, trabalha_sabado: row.trabalha_sabado };
+      employeeMap[row.matricula] = { nome: row.nome, empresa: row.empresa, trabalha_sabado: row.trabalha_sabado, local: row.local || '', cargo: row.cargo || '' };
     });
 
-    // Para cada matrícula solicitada, retornar nome, empresa ou fallback
+    // Para cada matrícula solicitada, retornar dados ou fallback
     const result = matriculas.map(matricula => {
       const data = employeeMap[matricula];
       return {
         matricula,
         nome: data ? data.nome : 'nome nao encontrado',
         empresa: data ? data.empresa : '',
-        trabalha_sabado: data ? data.trabalha_sabado : 1
+        trabalha_sabado: data ? data.trabalha_sabado : 1,
+        local: data ? data.local : '',
+        cargo: data ? data.cargo : ''
       };
     });
 
@@ -501,7 +503,7 @@ app.post('/api/employees/batch', async (req, res) => {
 app.get('/api/employees', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, matricula, empresa, nome, qrcod, ativo, trabalha_sabado FROM qrcod_2023 ORDER BY nome ASC'
+      'SELECT id, matricula, empresa, nome, local, cargo, ativo, trabalha_sabado FROM qrcod_2023 ORDER BY nome ASC'
     );
 
     res.json({
@@ -520,7 +522,7 @@ app.get('/api/employees', async (req, res) => {
 
 // Rota para criar novo funcionário
 app.post('/api/employees', async (req, res) => {
-  const { matricula, empresa, nome, qrcod, ativo, trabalha_sabado } = req.body;
+  const { matricula, empresa, nome, local, cargo, ativo, trabalha_sabado } = req.body;
 
   if (!matricula || !nome) {
     return res.status(400).json({
@@ -531,13 +533,13 @@ app.post('/api/employees', async (req, res) => {
 
   try {
     const [result] = await pool.query(
-      'INSERT INTO qrcod_2023 (matricula, empresa, nome, qrcod, ativo, trabalha_sabado) VALUES (?, ?, ?, ?, ?, ?)',
-      [matricula, empresa || '', nome, qrcod || '', ativo !== undefined ? ativo : 1, trabalha_sabado !== undefined ? trabalha_sabado : 1]
+      'INSERT INTO qrcod_2023 (matricula, empresa, nome, local, cargo, ativo, trabalha_sabado) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [matricula, empresa || '', nome, local || '', cargo || '', ativo !== undefined ? ativo : 1, trabalha_sabado !== undefined ? trabalha_sabado : 1]
     );
 
     // Buscar o funcionário criado para retornar
     const [rows] = await pool.query(
-      'SELECT id, matricula, empresa, nome, qrcod, ativo, trabalha_sabado FROM qrcod_2023 WHERE id = ?',
+      'SELECT id, matricula, empresa, nome, local, cargo, ativo, trabalha_sabado FROM qrcod_2023 WHERE id = ?',
       [result.insertId]
     );
 
@@ -564,7 +566,7 @@ app.post('/api/employees', async (req, res) => {
 // Rota para atualizar funcionário
 app.put('/api/employees/:id', async (req, res) => {
   const { id } = req.params;
-  const { matricula, empresa, nome, qrcod, ativo, trabalha_sabado } = req.body;
+  const { matricula, empresa, nome, local, cargo, ativo, trabalha_sabado } = req.body;
 
   if (!matricula || !nome) {
     return res.status(400).json({
@@ -575,13 +577,13 @@ app.put('/api/employees/:id', async (req, res) => {
 
   try {
     await pool.query(
-      'UPDATE qrcod_2023 SET matricula = ?, empresa = ?, nome = ?, qrcod = ?, ativo = ?, trabalha_sabado = ? WHERE id = ?',
-      [matricula, empresa || '', nome, qrcod || '', ativo !== undefined ? ativo : 1, trabalha_sabado !== undefined ? trabalha_sabado : 1, id]
+      'UPDATE qrcod_2023 SET matricula = ?, empresa = ?, nome = ?, local = ?, cargo = ?, ativo = ?, trabalha_sabado = ? WHERE id = ?',
+      [matricula, empresa || '', nome, local || '', cargo || '', ativo !== undefined ? ativo : 1, trabalha_sabado !== undefined ? trabalha_sabado : 1, id]
     );
 
     // Buscar o funcionário atualizado
     const [rows] = await pool.query(
-      'SELECT id, matricula, empresa, nome, qrcod, ativo, trabalha_sabado FROM qrcod_2023 WHERE id = ?',
+      'SELECT id, matricula, empresa, nome, local, cargo, ativo, trabalha_sabado FROM qrcod_2023 WHERE id = ?',
       [id]
     );
 
@@ -708,7 +710,7 @@ app.delete('/api/marcacoes/manual/:id', async (req, res) => {
 app.get('/api/employees/active', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, matricula, empresa, nome, qrcod, ativo, trabalha_sabado FROM qrcod_2023 WHERE ativo = 1'
+      'SELECT id, matricula, empresa, nome, local, cargo, ativo, trabalha_sabado FROM qrcod_2023 WHERE ativo = 1'
     );
 
     res.json({

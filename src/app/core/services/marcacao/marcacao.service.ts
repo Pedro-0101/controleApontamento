@@ -63,6 +63,24 @@ export class MarcacaoService {
     });
   });
 
+  readonly _locaisFiltroPainel = computed(() => {
+    const backup = this.marcacaoesFiltradasBackup();
+    const selecionadosEmpresas = this.empresasFiltro();
+    const selecionadosStatus = this.statusFiltro().map(s => s.toLowerCase());
+
+    const locaisUnicos = [...new Set(backup.map(m => m.local).filter(l => !!l))].sort();
+
+    return locaisUnicos.map(local => {
+      const count = backup.filter(m => {
+        const matchesEmpresa = selecionadosEmpresas.length === 0 || (m.empresa && selecionadosEmpresas.includes(m.empresa));
+        const matchesStatus = selecionadosStatus.length === 0 || selecionadosStatus.includes((m.getStatus() || '').toLowerCase());
+        return m.local === local && matchesEmpresa && matchesStatus;
+      }).length;
+
+      return { label: `${local} (${count})`, value: local };
+    });
+  });
+
   readonly _statusFiltroComContagem = computed(() => {
     const backup = this.marcacaoesFiltradasBackup();
     const selecionadosEmpresas = this.empresasFiltro();
@@ -142,7 +160,8 @@ export class MarcacaoService {
   private currentDataFim = signal<string>('');
   private statusFiltro = signal<string[]>([]);
   private empresasFiltro = signal<string[]>([]);
-  private filtroEspecial = signal<string>('');
+  private locaisFiltro = signal<string[]>([]);
+  private filtroEspecial = signal<string[]>([]);
   private relogiosFiltro = signal<string[]>([]);
 
   // Cache de prefetch: chave = "dataInicio|dataFim", valor = MarcacaoDia[] já formatado
@@ -255,13 +274,15 @@ export class MarcacaoService {
     const matriculasUnicas = [...new Set(marcacoes.map(m => m.matriculaFuncionario))];
 
     // 2. Buscar nomes em lote (1 chamada HTTP ao invés de N)
-    const employeeDataMap = new Map<string, { nome: string, empresa: string, trabalha_sabado: number }>();
+    const employeeDataMap = new Map<string, { nome: string, empresa: string, trabalha_sabado: number, local: string, cargo: string }>();
     try {
       const employeesBatch = await this.employeeService.getEmployeeNamesBatch(matriculasUnicas);
       employeesBatch.forEach(item => employeeDataMap.set(item.matricula, {
         nome: item.nome,
         empresa: item.empresa,
-        trabalha_sabado: item.trabalha_sabado
+        trabalha_sabado: item.trabalha_sabado,
+        local: item.local ?? '',
+        cargo: item.cargo ?? ''
       }));
     } catch (error) {
       this.loggerService.error('MarcacaoService', 'Erro ao buscar dados dos funcionários em lote', error);
@@ -289,6 +310,8 @@ export class MarcacaoService {
         const empData = employeeDataMap.get(marcacao.matriculaFuncionario);
         const nome = empData ? empData.nome : 'nome nao encontrado';
         const empresa = empData ? empData.empresa : '';
+        const local = empData ? (empData.local ?? '') : '';
+        const cargo = empData ? (empData.cargo ?? '') : '';
 
         const marcacaoDia = new MarcacaoDia(
           marcacao.id,
@@ -298,7 +321,10 @@ export class MarcacaoService {
           dateStr,
           [marcacao],
           empresa,
-          empData ? (empData.trabalha_sabado === 1) : true
+          empData ? (empData.trabalha_sabado === 1) : true,
+          undefined,
+          local,
+          cargo
         );
         gruposMap.set(chave, marcacaoDia);
       }
@@ -358,7 +384,10 @@ export class MarcacaoService {
               dateStr,
               [],
               funcionario.empresa,
-              funcionario.trabalha_sabado === 1
+              funcionario.trabalha_sabado === 1,
+              undefined,
+              funcionario.local ?? '',
+              funcionario.cargo ?? ''
             );
             marcacoesDia.push(marcacaoDia);
             marcacoesMap.add(key);
@@ -478,7 +507,7 @@ export class MarcacaoService {
             const emp = funcionariosAtivos.find(f => String(f.matricula).trim() === matriculaStr);
 
             if (emp) {
-              md = new MarcacaoDia(0, '', matriculaStr, emp.nome, dataStr, [], emp.empresa, emp.trabalha_sabado === 1);
+              md = new MarcacaoDia(0, '', matriculaStr, emp.nome, dataStr, [], emp.empresa, emp.trabalha_sabado === 1, undefined, emp.local ?? '', emp.cargo ?? '');
               marcacoesDia.push(md);
             }
           }
@@ -779,16 +808,21 @@ export class MarcacaoService {
   }
 
   private async fetchMarcacoes(dataInicio: string, dataFim: string, matriculaFuncionario?: string): Promise<Marcacao[]> {
-    // Ajuste: Alargar a data final de busca na API para captar pontos de tablets offline
-    // que foram batidos nos dias corretos, mas que só subiram para a nuvem dias depois.
-    // A API externa tem filtro exclusivo no dia final, por isso precisamos garantir pelo menos +1 dia.
-    // Usamos +5 dias como margem de segurança para captar os uploads tardios ("offline").
+    // Estende o intervalo em ±1 dia para capturar batidas offline que sincronizaram
+    // no dia seguinte e batidas antes das 04:00 que pertencem à jornada do dia anterior.
+    let dataInicioAjustada = dataInicio;
     let dataFimAjustada = dataFim;
-    const dateObj = DateHelper.fromStringDate(dataFim);
 
-    if (dateObj) {
-      dateObj.setDate(dateObj.getDate() + 5);
-      dataFimAjustada = DateHelper.getStringDate(dateObj);
+    const inicioObj = DateHelper.fromStringDate(dataInicio);
+    if (inicioObj) {
+      inicioObj.setDate(inicioObj.getDate() - 1);
+      dataInicioAjustada = DateHelper.getStringDate(inicioObj);
+    }
+
+    const fimObj = DateHelper.fromStringDate(dataFim);
+    if (fimObj) {
+      fimObj.setDate(fimObj.getDate() + 1);
+      dataFimAjustada = DateHelper.getStringDate(fimObj);
     }
 
     try {
@@ -797,12 +831,12 @@ export class MarcacaoService {
       if (matriculaFuncionario) {
         marcacoes = await this.marcacaoApiService.getMarcacoesByEmployee(
           matriculaFuncionario,
-          dataInicio,
+          dataInicioAjustada,
           dataFimAjustada
         );
       } else {
         marcacoes = await this.marcacaoApiService.getAllMarcacoes(
-          dataInicio,
+          dataInicioAjustada,
           dataFimAjustada
         );
       }
@@ -838,8 +872,13 @@ export class MarcacaoService {
     this.applyFilters();
   }
 
-  filtrarMarcacoesPorFiltroEspecial(filtro: string): void {
-    this.filtroEspecial.set(filtro);
+  filtrarMarcacoesPorLocal(locais: string[]): void {
+    this.locaisFiltro.set(locais);
+    this.applyFilters();
+  }
+
+  filtrarMarcacoesPorFiltroEspecial(filtros: string[]): void {
+    this.filtroEspecial.set(filtros);
     this.applyFilters();
   }
 
@@ -856,7 +895,7 @@ export class MarcacaoService {
     const almocoFim = marcacoesAtivas[2].dataMarcacao;
     const diffMinutos = (almocoFim.getTime() - almocoInicio.getTime()) / (1000 * 60);
 
-    return diffMinutos < 60 || diffMinutos > 60;
+    return diffMinutos < 55 || diffMinutos > 65;
   }
 
   private applyFilters(): void {
@@ -878,6 +917,13 @@ export class MarcacaoService {
       });
     }
 
+    const locais = this.locaisFiltro();
+    if (locais.length > 0) {
+      filtradas = filtradas.filter(dia =>
+        dia.local && locais.includes(dia.local)
+      );
+    }
+
     const relogios = this.relogiosFiltro();
     if (relogios.length > 0) {
       filtradas = filtradas.filter(dia =>
@@ -887,7 +933,8 @@ export class MarcacaoService {
       );
     }
 
-    if (this.filtroEspecial() === 'almoco_irregular') {
+    const filtrosEspeciais = this.filtroEspecial();
+    if (filtrosEspeciais.includes('almoco_irregular')) {
       filtradas = filtradas.filter(dia => this.temAlmocoIrregular(dia));
     }
 

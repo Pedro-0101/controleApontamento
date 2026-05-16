@@ -5,12 +5,12 @@
 }
 
 .dashboard-content {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 32px 24px;
+  max-width: 100%;
+  margin: 0;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
 }
 
 .dashboard-header {

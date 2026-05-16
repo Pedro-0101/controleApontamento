@@ -58,6 +58,8 @@
             <th>Nome</th>
             <th>Matrícula</th>
             <th>Empresa</th>
+            <th>Cargo</th>
+            <th>Local</th>
             <th>Status</th>
             <th class="actions-column">Ações</th>
           </tr>
@@ -73,7 +75,9 @@
                 {{ employee.nome | titleCaseCustom }}
               </td>
               <td>{{ employee.matricula }}</td>
-              <td>{{ employee.empresa }}</td>
+              <td>{{ employee.empresa | titleCaseCustom }}</td>
+              <td>{{ employee.cargo | titleCaseCustom }}</td>
+              <td>{{ employee.local | titleCaseCustom }}</td>
               <td>
                 <span class="badge" [class]="getStatusClass(employee.ativo)">
                   {{ getStatusLabel(employee.ativo) | titleCaseCustom }}
@@ -93,7 +97,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="5" class="empty-state">
+              <td colspan="7" class="empty-state">
                 <lucide-icon name="users" [size]="48"></lucide-icon>
                 <p>Nenhum colaborador encontrado</p>
                 <app-button size="sm" (onClick)="openCreateModal()">

@@ -47,6 +47,8 @@ export class ExportService {
           case 'cpf': obj['CPF'] = item.cpf; break;
           case 'matricula': obj['Matrícula'] = item.matricula; break;
           case 'empresa': obj['Empresa'] = item.empresa || ''; break;
+          case 'cargo': obj['Cargo'] = item.cargo || ''; break;
+          case 'local': obj['Local'] = item.local || ''; break;
           case 'nome': obj['Nome'] = item.nome; break;
           case 'data': obj['Data'] = item.getDataFormatada(); break;
           case 'diaSemana': obj['Dia Semana'] = item.getDiaSemana(); break;

@@ -38,11 +38,6 @@ label {
 }
 
 
-/* Select de filtro especial em estado vazio (sem seleção) — imita o placeholder dos multi-selects */
-select.select-vazio {
-  color: var(--color-gray-400);
-}
-
 /* Grupo dos Botões (lado direito) */
 .actions {
   display: flex;

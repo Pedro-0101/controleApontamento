@@ -15,6 +15,8 @@ export interface MarcacaoDia {
     comentarios?: ComentarioMarcacao[];
     comentario?: string; // Comentário do dia (String simples)
     empresa?: string;
+    local?: string;
+    cargo?: string;
     evento?: string; // Nome do evento/status
     evento_categoria?: 'PERIODO' | 'FIXO'; // Categoria do evento
     trabalhaSabado?: boolean;
@@ -35,6 +37,8 @@ export class MarcacaoDia implements MarcacaoDia {
     comentarios?: ComentarioMarcacao[];
     comentario?: string;
     empresa?: string;
+    local?: string;
+    cargo?: string;
     evento?: string;
     evento_categoria?: 'PERIODO' | 'FIXO';
     trabalhaSabado?: boolean;
@@ -48,13 +52,17 @@ export class MarcacaoDia implements MarcacaoDia {
         marcacoes: Marcacao[],
         empresa?: string,
         trabalhaSabado: boolean = true,
-        comentarios?: ComentarioMarcacao[]
+        comentarios?: ComentarioMarcacao[],
+        local?: string,
+        cargo?: string
     ) {
         this.id = id;
         this.cpf = cpf;
         this.matricula = matricula;
         this.nome = nome;
         this.empresa = empresa || '';
+        this.local = local || '';
+        this.cargo = cargo || '';
         this.trabalhaSabado = trabalhaSabado;
         this.comentarios = comentarios || [];
         this.data = data;

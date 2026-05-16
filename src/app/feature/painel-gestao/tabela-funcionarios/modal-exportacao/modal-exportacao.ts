@@ -24,6 +24,8 @@ export class ModalExportacaoComponent {
     { key: 'matricula', label: 'Matrícula', selected: true },
     { key: 'cpf', label: 'CPF', selected: false },
     { key: 'empresa', label: 'Empresa', selected: true },
+    { key: 'cargo', label: 'Cargo', selected: true },
+    { key: 'local', label: 'Local', selected: true },
     { key: 'nome', label: 'Nome', selected: true },
     { key: 'data', label: 'Data', selected: true },
     { key: 'diaSemana', label: 'Dia Semana', selected: true },

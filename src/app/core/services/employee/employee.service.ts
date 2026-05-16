@@ -13,7 +13,7 @@ interface EmployeeResponse {
 
 interface BatchEmployeeResponse {
   success: boolean;
-  employees: Array<{ matricula: string; nome: string; empresa: string; trabalha_sabado: number }>;
+  employees: Array<{ matricula: string; nome: string; empresa: string; trabalha_sabado: number; local: string; cargo: string }>;
   error?: string;
 }
 
@@ -92,7 +92,7 @@ export class EmployeeService {
    * @param matriculas - Array de matrículas
    * @returns Array de objetos com matricula e nome
    */
-  async getEmployeeNamesBatch(matriculas: string[]): Promise<Array<{ matricula: string; nome: string; empresa: string; trabalha_sabado: number }>> {
+  async getEmployeeNamesBatch(matriculas: string[]): Promise<Array<{ matricula: string; nome: string; empresa: string; trabalha_sabado: number; local: string; cargo: string }>> {
     try {
       this.logger.info('EmployeeService', `Buscando nomes para ${matriculas.length} matrículas`);
 
@@ -102,14 +102,14 @@ export class EmployeeService {
 
       if (response.success) {
         this.logger.info('EmployeeService', 'Nomes encontrados com sucesso');
-        return response.employees;
+        return response.employees.map(e => ({ ...e, local: e.local ?? '', cargo: e.cargo ?? '' }));
       }
 
       this.logger.warn('EmployeeService', 'Erro ao buscar nomes em lote');
-      return matriculas.map(matricula => ({ matricula, nome: 'nome nao encontrado', empresa: '', trabalha_sabado: 1 }));
+      return matriculas.map(matricula => ({ matricula, nome: 'nome nao encontrado', empresa: '', trabalha_sabado: 1, local: '', cargo: '' }));
     } catch (error: any) {
       this.logger.error('EmployeeService', 'Erro ao buscar nomes em lote:', error);
-      return matriculas.map(matricula => ({ matricula, nome: 'nome nao encontrado', empresa: '', trabalha_sabado: 1 }));
+      return matriculas.map(matricula => ({ matricula, nome: 'nome nao encontrado', empresa: '', trabalha_sabado: 1, local: '', cargo: '' }));
     }
   }
 

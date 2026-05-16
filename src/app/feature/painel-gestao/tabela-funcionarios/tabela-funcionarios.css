@@ -1,5 +1,14 @@
 /* Using global styles from styles.css */
 
+/* Permite rolagem horizontal quando a tabela excede a largura do container */
+:host .table-container {
+  overflow-x: auto;
+}
+
+:host .data-table {
+  min-width: 1400px;
+}
+
 .btn-export {
   display: flex;
   align-items: center;

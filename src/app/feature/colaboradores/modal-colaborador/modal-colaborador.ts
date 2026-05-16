@@ -26,6 +26,8 @@ export class ModalColaborador implements OnInit {
   nome = signal('');
   matricula = signal('');
   empresa = signal('');
+  local = signal('');
+  cargo = signal('');
   ativo = signal(true);
   trabalhaSabado = signal(true);
   isSaving = signal(false);
@@ -36,6 +38,8 @@ export class ModalColaborador implements OnInit {
       this.nome.set(emp.nome);
       this.matricula.set(emp.matricula);
       this.empresa.set(emp.empresa);
+      this.local.set(emp.local ?? '');
+      this.cargo.set(emp.cargo ?? '');
       this.ativo.set(emp.ativo === 1);
       this.trabalhaSabado.set(emp.trabalha_sabado === 1);
     }
@@ -53,6 +57,8 @@ export class ModalColaborador implements OnInit {
         nome: this.nome(),
         matricula: this.matricula(),
         empresa: this.empresa(),
+        local: this.local(),
+        cargo: this.cargo(),
         ativo: this.ativo() ? 1 : 0,
         trabalha_sabado: this.trabalhaSabado() ? 1 : 0
       };

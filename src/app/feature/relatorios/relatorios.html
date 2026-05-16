@@ -159,6 +159,8 @@
               <tr>
                 <th>Matrícula</th>
                 <th>Nome</th>
+                <th>Cargo</th>
+                <th>Local</th>
                 <th>Marcações</th>
                 <th>Horas</th>
                 <th>Status</th>
@@ -168,7 +170,7 @@
               @for (dia of paginatedMarcacoesPorDia; track dia.matricula + dia.data) {
                 @if ($index === 0 || dia.data !== paginatedMarcacoesPorDia[$index - 1].data) {
                   <tr class="date-group-row">
-                    <td colspan="5">
+                    <td colspan="7">
                       <div class="date-header">
                         <lucide-icon name="calendar" [size]="16"></lucide-icon>
                         {{ dia.getDataFormatada() }} - {{ dia.getDiaSemana() }}
@@ -179,6 +181,8 @@
                 <tr>
                   <td>{{ dia.matricula }}</td>
                   <td>{{ dia.nome | titleCaseCustom }}</td>
+                  <td>{{ dia.cargo | titleCaseCustom }}</td>
+                  <td>{{ dia.local | titleCaseCustom }}</td>
                   <td>
                     <div class="marcacoes-list">
                       @for (m of dia.marcacoes; track m.id || $index) {

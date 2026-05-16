@@ -14,6 +14,19 @@
     </div>
 
     <div class="filter-item">
+      <label>Local</label>
+      <app-multi-select-dropdown
+        [options]="_locaisFiltroPainel()"
+        [initialValue]="locaisSelecionados()"
+        labelProp="label"
+        valueProp="value"
+        placeholder="Todos"
+        (selectionChange)="aoSelecionarLocal($event)"
+        [disabled]="_isLoadingMarcacoesFiltroPainel()"
+      ></app-multi-select-dropdown>
+    </div>
+
+    <div class="filter-item">
       <label>Status</label>
       <app-multi-select-dropdown
         [options]="_statusFiltroComContagem()"
@@ -41,16 +54,15 @@
 
     <div class="filter-item">
       <label>Filtros Especiais</label>
-      <select
-        class="input-select"
-        [class.select-vazio]="filtroEspecialSelecionado() === ''"
-        [value]="filtroEspecialSelecionado()"
-        (change)="aoSelecionarFiltroEspecial($any($event.target).value)"
+      <app-multi-select-dropdown
+        [options]="_filtrosEspeciaisOpcoes"
+        [initialValue]="filtrosEspeciaisSelecionados()"
+        labelProp="label"
+        valueProp="value"
+        placeholder="Nenhum"
+        (selectionChange)="aoSelecionarFiltroEspecial($event)"
         [disabled]="_isLoadingMarcacoesFiltroPainel()"
-      >
-        <option value="">Nenhum</option>
-        <option value="almoco_irregular">Almoço Irregular</option>
-      </select>
+      ></app-multi-select-dropdown>
     </div>
   </div>
 

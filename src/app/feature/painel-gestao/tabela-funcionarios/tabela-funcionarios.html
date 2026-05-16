@@ -63,6 +63,14 @@
               Empresa
               @if(sortColumn() === 'empresa') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
             </th>
+            <th (click)="onSort('cargo')" class="sortable col-cargo">
+              Cargo
+              @if(sortColumn() === 'cargo') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+            </th>
+            <th (click)="onSort('local')" class="sortable col-local">
+              Local
+              @if(sortColumn() === 'local') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+            </th>
             <th (click)="onSort('nome')" class="sortable col-nome">
               Nome
               @if(sortColumn() === 'nome') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
@@ -89,7 +97,7 @@
             <tr app-linha-tabela-marcacoes [marcacao]="item" (openDetails)="abrirDetalhes($event)" class="clickable-row"></tr>
           } @empty {
             <tr>
-              <td colspan="8" style="text-align: center">Nenhuma marcação encontrada.</td>
+              <td colspan="10" style="text-align: center">Nenhuma marcação encontrada.</td>
             </tr>
           }
         </tbody>

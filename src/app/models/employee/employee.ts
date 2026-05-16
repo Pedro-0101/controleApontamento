@@ -3,7 +3,8 @@ export class Employee {
   matricula!: string;
   empresa!: string;
   nome!: string;
-  qrcod!: string;
+  local!: string;
+  cargo!: string;
   ativo!: number; // 0 ou 1
   trabalha_sabado!: number; // 0 ou 1
 
@@ -13,9 +14,10 @@ export class Employee {
     employee.matricula = json.matricula;
     employee.empresa = json.empresa;
     employee.nome = json.nome;
-    employee.qrcod = json.qrcod;
-    employee.ativo = json.ativo ?? 1; // Default 1 se não informado
-    employee.trabalha_sabado = Number(json.trabalha_sabado ?? 1); // Default 1 se não informado
+    employee.local = json.local ?? '';
+    employee.cargo = json.cargo ?? '';
+    employee.ativo = json.ativo ?? 1;
+    employee.trabalha_sabado = Number(json.trabalha_sabado ?? 1);
     return employee;
   }
 }
