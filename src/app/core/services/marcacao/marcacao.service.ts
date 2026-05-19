@@ -42,74 +42,38 @@ export class MarcacaoService {
   readonly _marcacoesFiltradasBackup = computed(() => this.marcacaoesFiltradasBackup());
   readonly _empresasFiltroPainel = computed(() => {
     const backup = this.marcacaoesFiltradasBackup();
-    const selecionadosStatus = this.statusFiltro().map(s => s.toLowerCase());
-
-    // 1. Identificar todas as empresas únicas no backup
     const empresasUnicas = [...new Set(backup.map(m => m.empresa).filter(e => !!e))].sort();
-
-    // 2. Calcular contagens para cada empresa considerando APENAS o filtro de STATUS
-    // (Ignoramos o filtro de empresas aqui para que a lista de opções não suma ao selecionar uma)
-    return empresasUnicas.map(empresa => {
-      const count = backup.filter(m => {
-        const matchesEmpresa = m.empresa === empresa;
-        const matchesStatus = selecionadosStatus.length === 0 || selecionadosStatus.includes((m.getStatus() || '').toLowerCase());
-        return matchesEmpresa && matchesStatus;
-      }).length;
-
-      return {
-        label: `${empresa} (${count})`,
-        value: empresa
-      };
-    });
+    return empresasUnicas.map(empresa => ({
+      label: `${empresa} (${backup.filter(m => m.empresa === empresa && this.matchesOtherFilters(m, { skipEmpresa: true })).length})`,
+      value: empresa
+    }));
   });
 
   readonly _locaisFiltroPainel = computed(() => {
     const backup = this.marcacaoesFiltradasBackup();
-    const selecionadosEmpresas = this.empresasFiltro();
-    const selecionadosStatus = this.statusFiltro().map(s => s.toLowerCase());
-
     const locaisUnicos = [...new Set(backup.map(m => m.local).filter(l => !!l))].sort();
-
-    return locaisUnicos.map(local => {
-      const count = backup.filter(m => {
-        const matchesEmpresa = selecionadosEmpresas.length === 0 || (m.empresa && selecionadosEmpresas.includes(m.empresa));
-        const matchesStatus = selecionadosStatus.length === 0 || selecionadosStatus.includes((m.getStatus() || '').toLowerCase());
-        return m.local === local && matchesEmpresa && matchesStatus;
-      }).length;
-
-      return { label: `${local} (${count})`, value: local };
-    });
+    return locaisUnicos.map(local => ({
+      label: `${local} (${backup.filter(m => m.local === local && this.matchesOtherFilters(m, { skipLocal: true })).length})`,
+      value: local
+    }));
   });
 
   readonly _statusFiltroComContagem = computed(() => {
     const backup = this.marcacaoesFiltradasBackup();
-    const selecionadosEmpresas = this.empresasFiltro();
-
-    // 1. Identificar todos os status possíveis no backup (filtrados por empresa)
-    // Para contagem de status, respeitamos apenas o filtro de empresas
     const counts = new Map<string, number>();
-
     backup.forEach(m => {
-      const matchesEmpresa = selecionadosEmpresas.length === 0 || (m.empresa && selecionadosEmpresas.includes(m.empresa));
-      if (matchesEmpresa) {
+      if (this.matchesOtherFilters(m, { skipStatus: true })) {
         const status = m.getStatus();
         counts.set(status, (counts.get(status) || 0) + 1);
       }
     });
-
     return Array.from(counts.entries())
-      .map(([status, count]) => ({
-        label: `${status} (${count})`,
-        value: status
-      }))
+      .map(([status, count]) => ({ label: `${status} (${count})`, value: status }))
       .sort((a, b) => a.value.localeCompare(b.value));
   });
 
   readonly _relogiosFiltroPainel = computed(() => {
     const backup = this.marcacaoesFiltradasBackup();
-    const selecionadosEmpresas = this.empresasFiltro();
-    const selecionadosStatus = this.statusFiltro().map(s => s.toLowerCase());
-
     const numSeriesUnicas = new Set<string>();
     backup.forEach(dia =>
       dia.marcacoes.forEach(m => {
@@ -117,26 +81,14 @@ export class MarcacaoService {
         if (ns) numSeriesUnicas.add(ns);
       })
     );
-
     return Array.from(numSeriesUnicas).map(numSerie => {
       const relogio = this.relogioService.getRelogioFromNumSerie(numSerie);
-      const label = relogio.descricao && relogio.descricao !== 'Nao encontrado'
-        ? relogio.descricao
-        : numSerie;
-
-      const count = backup.filter(dia => {
-        const matchesEmpresa = selecionadosEmpresas.length === 0 || (dia.empresa && selecionadosEmpresas.includes(dia.empresa));
-        const matchesStatus = selecionadosStatus.length === 0 || selecionadosStatus.includes((dia.getStatus() || '').toLowerCase());
-        const matchesRelogio = dia.marcacoes.some(m =>
-          this.relogioService.normalizeNumSerie(m.numSerieRelogio) === numSerie
-        );
-        return matchesEmpresa && matchesStatus && matchesRelogio;
-      }).length;
-
-      return {
-        label: `${label} (${count})`,
-        value: numSerie
-      };
+      const label = relogio.descricao && relogio.descricao !== 'Nao encontrado' ? relogio.descricao : numSerie;
+      const count = backup.filter(dia =>
+        dia.marcacoes.some(m => this.relogioService.normalizeNumSerie(m.numSerieRelogio) === numSerie) &&
+        this.matchesOtherFilters(dia, { skipRelogio: true })
+      ).length;
+      return { label: `${label} (${count})`, value: numSerie };
     }).sort((a, b) => a.label.localeCompare(b.label));
   });
 
@@ -885,6 +837,33 @@ export class MarcacaoService {
   filtrarMarcacoesPorRelogio(numSeries: string[]): void {
     this.relogiosFiltro.set(numSeries);
     this.applyFilters();
+  }
+
+  private matchesOtherFilters(dia: MarcacaoDia, skip: {
+    skipEmpresa?: boolean;
+    skipLocal?: boolean;
+    skipStatus?: boolean;
+    skipRelogio?: boolean;
+  } = {}): boolean {
+    if (!skip.skipEmpresa) {
+      const empresas = this.empresasFiltro();
+      if (empresas.length > 0 && !(dia.empresa && empresas.includes(dia.empresa))) return false;
+    }
+    if (!skip.skipLocal) {
+      const locais = this.locaisFiltro();
+      if (locais.length > 0 && !(dia.local && locais.includes(dia.local))) return false;
+    }
+    if (!skip.skipStatus) {
+      const statuses = this.statusFiltro().map(s => s.toLowerCase());
+      if (statuses.length > 0 && !statuses.includes((dia.getStatus() || '').toLowerCase())) return false;
+    }
+    if (!skip.skipRelogio) {
+      const relogios = this.relogiosFiltro();
+      if (relogios.length > 0 && !dia.marcacoes.some(m => relogios.includes(this.relogioService.normalizeNumSerie(m.numSerieRelogio)))) return false;
+    }
+    const filtrosEspeciais = this.filtroEspecial();
+    if (filtrosEspeciais.includes('almoco_irregular') && !this.temAlmocoIrregular(dia)) return false;
+    return true;
   }
 
   private temAlmocoIrregular(dia: MarcacaoDia): boolean {
