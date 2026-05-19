@@ -117,13 +117,6 @@ export class QRCodeService {
     doc.setFontSize(7);
     doc.setTextColor(100, 100, 100);
     doc.text(employee.empresa.toUpperCase(), x + cardWidth / 2, yMatricula + 4, { align: 'center' });
-
-    if (employee.cargo) {
-      doc.text(employee.cargo, x + cardWidth / 2, yMatricula + 8, { align: 'center' });
-    }
-    if (employee.local) {
-      doc.text(employee.local, x + cardWidth / 2, yMatricula + 12, { align: 'center' });
-    }
   }
 
   private getImageData(url: string): Promise<string> {
