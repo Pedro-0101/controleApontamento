@@ -1,13 +1,5 @@
 <div class="modal-overlay" (click)="close.emit()">
   <div class="modal-content" (click)="$event.stopPropagation()">
-    <!-- Loading Overlay -->
-    @if (isLoadingInitial()) {
-      <div class="loading-overlay">
-        <div class="spinner"></div>
-        <p>Carregando informações...</p>
-      </div>
-    }
-
     <div class="modal-header">
       <div class="header-info">
         <h3>Detalhes da Marcação</h3>
@@ -150,28 +142,6 @@
           </button>
         </div>
 
-        @if (employeeHistory()?.eventos) {
-          @for (e of employeeHistory().eventos; track e.id) {
-            @if (
-              (e.data_inicio ? e.data_inicio.substring(0, 10) : '') === record().data ||
-              (e.data_inicio ? e.data_inicio.substring(0, 10) : '') === DateHelper.toIsoDate(record().data).substring(0, 10)
-            ) {
-              <div class="applied-event">
-                <span class="badge" [class]="'status-' + e.tipo_evento.toLowerCase()">{{
-                  e.tipo_evento | titleCaseCustom
-                }}</span>
-                <span class="event-info">Aplicado por {{ e.criado_por }}</span>
-                <button
-                  class="btn-icon btn-danger"
-                  (click)="removerStatusFixo(e.id)"
-                  title="Remover Status"
-                >
-                  <lucide-icon name="trash-2" [size]="14"></lucide-icon>
-                </button>
-              </div>
-            }
-          }
-        }
       </div>
 
       <div class="section">
@@ -220,71 +190,6 @@
         </div>
       </div>
 
-      <div class="section history-section">
-        <label class="section-label">
-          <lucide-icon name="history" [size]="16"></lucide-icon>
-          Histórico (Dia anterior e seguinte)
-        </label>
-
-        @if (isLoadingHistory()) {
-          <div class="loading-small">
-            <div class="spinner-small"></div>
-            <p class="empty-msg">Carregando histórico...</p>
-          </div>
-        } @else if (employeeHistory()) {
-          <div class="history-container">
-            <table class="history-table">
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Marcações</th>
-                  <th>Total</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (day of getHistoryTableData(); track day.date) {
-                  <tr>
-                    <td class="col-date">{{ formatHistoryDate(day.date) }}</td>
-                    <td class="col-marcacoes">
-                      <div class="pills-container">
-                        @for (m of day.horasFormatadas; track $index) {
-                          <span class="history-pill" 
-                                [class.manual]="m.tipo === 'manual'"
-                                [class.desconsiderado]="m.desconsiderado"
-                                [class.extended-journey]="m.isNextDay"
-                                [title]="m.isNextDay ? 'Jornada Estendida (+1 dia)' : ''">
-                            {{ m.hora }}
-                            @if (m.isNextDay) {
-                              <sup style="font-size: 0.6em; margin-left: 1px;">+1</sup>
-                            }
-                          </span>
-                        }
-                      </div>
-                    </td>
-                    <td class="col-total">
-                      <span class="total-badge" [class.has-hours]="day.totalHoras !== '--:--'">
-                        {{ day.totalHoras }}
-                      </span>
-                    </td>
-                    <td class="col-status">
-                      <span class="badge" [class]="'status-' + day.status.toLowerCase()">
-                        {{ day.status | titleCaseCustom }}
-                      </span>
-                    </td>
-                  </tr>
-                } @empty {
-                  <tr>
-                    <td colspan="4" class="empty-msg">Nenhum registro de dias adjacentes na memória.</td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        } @else {
-          <p class="empty-msg">Erro ao carregar histórico.</p>
-        }
-      </div>
     </div>
 
     <div class="modal-footer">
