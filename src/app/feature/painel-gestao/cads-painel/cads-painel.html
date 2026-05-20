@@ -1,5 +1,63 @@
 <div class="cards-grid">
-  <app-card-faltas class="card-item" [total]="_totalFaltas()"></app-card-faltas>
-  <app-card-incompletos class="card-item" [total]="_totalIncompletos()"></app-card-incompletos>
-  <app-card-solicitacoes class="card-item" [total]="_totalPendentes()"></app-card-solicitacoes>
+
+  <!-- Card 1: Presença -->
+  <div class="card card-presenca" (click)="onPresencaClick()" title="Exibir apenas funcionários com ponto registrado">
+    <div class="card-header">
+      <div class="card-icon">
+        <lucide-icon name="user-check" [size]="20"></lucide-icon>
+      </div>
+      <span class="card-title">Presença</span>
+    </div>
+    <div class="card-value">
+      <span class="card-number">{{ _totalPresentes() }}</span>
+      <span class="card-total"> / {{ _totalFuncionarios() }}</span>
+    </div>
+    <div class="card-subtitle">Colaboradores com ponto</div>
+  </div>
+
+  <!-- Card 2: Atrasos -->
+  <div class="card card-atraso" (click)="onAtrasoClick()" title="Exibir funcionários com entrada após 07:00">
+    <div class="card-header">
+      <div class="card-icon">
+        <lucide-icon name="clock" [size]="20"></lucide-icon>
+      </div>
+      <span class="card-title">Atrasos</span>
+    </div>
+    <div class="card-value">
+      <span class="card-number">{{ _totalAtrasoEntrada() }}</span>
+    </div>
+    <div class="card-subtitle">Entrada após 07:00</div>
+  </div>
+
+  <!-- Card 3: Afastamentos -->
+  <div class="card card-afastamento" (click)="onAfastamentoClick()" title="Exibir funcionários em férias, atestado ou afastamento">
+    <div class="card-header">
+      <div class="card-icon">
+        <lucide-icon name="calendar-off" [size]="20"></lucide-icon>
+      </div>
+      <span class="card-title">Afastamentos / Férias</span>
+    </div>
+    <div class="card-value">
+      <span class="card-number">{{ _totalAfastamentos() }}</span>
+    </div>
+    <div class="card-subtitle">Férias, atestado ou licença</div>
+  </div>
+
+  <!-- Card 4: Inconsistências -->
+  <div class="card card-inconsistencia" (click)="onInconsistenciasClick()" title="Exibir marcações com inconsistências que requerem ação">
+    <div class="card-header">
+      <div class="card-icon">
+        <lucide-icon name="alert-triangle" [size]="20"></lucide-icon>
+      </div>
+      <span class="card-title">Inconsistências</span>
+      @if (_totalInconsistencias() > 0) {
+        <span class="badge-alerta" title="{{ _totalInconsistencias() }} pendências">⚠️</span>
+      }
+    </div>
+    <div class="card-value">
+      <span class="card-number">{{ _totalInconsistencias() }}</span>
+    </div>
+    <div class="card-subtitle">Falta, atraso ou incompleto</div>
+  </div>
+
 </div>

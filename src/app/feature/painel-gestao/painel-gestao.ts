@@ -4,7 +4,7 @@ import { LoggerService } from '../../core/services/logger/logger.service';
 import { MarcacaoDia } from '../../models/marcacaoDia/marcacao-dia';
 import { TabelaFuncionarios } from './tabela-funcionarios/tabela-funcionarios';
 import { FiltrosTabelaMarcacoes } from './tabela-funcionarios/filtros-tabela-marcacoes/filtros-tabela-marcacoes';
-import { CadsPainel } from "./cads-painel/cads-painel";
+import { CadsPainel, CardFilter } from './cads-painel/cads-painel';
 import { ModalAdicionarPontoGlobal } from './modal-adicionar-ponto-global/modal-adicionar-ponto-global';
 import { LucideAngularModule } from 'lucide-angular';
 import { MarcacaoService } from '../../core/services/marcacao/marcacao.service';
@@ -30,6 +30,7 @@ export class PainelGestao {
   protected isRefreshing = signal(false);
 
   @ViewChild('dateInput') dateInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('filtros') filtros!: FiltrosTabelaMarcacoes;
 
   // Navegação por dia
   protected currentDate = signal<Date>(new Date());
@@ -110,6 +111,10 @@ export class PainelGestao {
     this.marcacaoService.clearPrefetchCache(`${dateStr}|${dateStr}`);
     await this.carregarDia();
     this.isRefreshing.set(false);
+  }
+
+  onCardClicked(filter: CardFilter): void {
+    this.filtros.filtrarPorCard(filter.statuses, filter.especiais);
   }
 
   onDatePicked(event: Event) {

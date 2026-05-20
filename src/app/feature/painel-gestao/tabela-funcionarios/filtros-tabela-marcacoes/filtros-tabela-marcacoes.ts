@@ -39,7 +39,9 @@ export class FiltrosTabelaMarcacoes {
   // Signal filtros especiais
   protected filtrosEspeciaisSelecionados = signal<string[]>([]);
   readonly _filtrosEspeciaisOpcoes = [
-    { label: 'Almoço Irregular', value: 'almoco_irregular' }
+    { label: 'Almoço Irregular', value: 'almoco_irregular' },
+    { label: 'Entrada após 07:00', value: 'atraso_entrada' },
+    { label: 'Com ponto registrado', value: 'com_marcacoes' }
   ];
 
   constructor() {
@@ -117,6 +119,20 @@ export class FiltrosTabelaMarcacoes {
   public aoSelecionarFiltroEspecial(values: string[]): void {
     this.filtrosEspeciaisSelecionados.set(values);
     this.marcacaoService.filtrarMarcacoesPorFiltroEspecial(values);
+  }
+
+  public filtrarPorCard(statuses: string[], especiais: string[] = []): void {
+    this.empresasSelecionadas.set([]);
+    this.locaisSelecionados.set([]);
+    this.relogiosSelecionados.set([]);
+    this.statusSelecionados.set(statuses);
+    this.filtrosEspeciaisSelecionados.set(especiais);
+
+    this.marcacaoService.filtrarMarcacoesPorEmpresa([]);
+    this.marcacaoService.filtrarMarcacoesPorLocal([]);
+    this.marcacaoService.filtrarMarcacoesPorRelogio([]);
+    this.marcacaoService.filtrarMarcacoesPorStatus(statuses);
+    this.marcacaoService.filtrarMarcacoesPorFiltroEspecial(especiais);
   }
 
   public limparFiltros(): void {

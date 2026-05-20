@@ -12,7 +12,7 @@
   </header>
 
   <section class="section-cards">
-    <app-cads-painel></app-cads-painel>
+    <app-cads-painel (cardClicked)="onCardClicked($event)"></app-cads-painel>
   </section>
 
   <section class="section-date-nav">
@@ -46,7 +46,7 @@
   </section>
 
   <section class="section-filters">
-    <app-filtros-tabela-marcacoes></app-filtros-tabela-marcacoes>
+    <app-filtros-tabela-marcacoes #filtros></app-filtros-tabela-marcacoes>
   </section>
 
   <section class="section-table">

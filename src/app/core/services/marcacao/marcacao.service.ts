@@ -110,6 +110,35 @@ export class MarcacaoService {
     return this.marcacaoesFiltradasBackup().filter(m => m.getStatus() === 'Atraso').length;
   });
 
+  // ── Cards de métricas operacionais ────────────────────────────────────────
+
+  private readonly AFASTAMENTO_EVENTOS = ['Ferias', 'Atestado', 'Afastado', 'Suspensao', 'Folga', 'Feriado'];
+
+  readonly _totalFuncionarios = computed(() => this.marcacaoesFiltradasBackup().length);
+
+  readonly _totalPresentes = computed(() =>
+    this.marcacaoesFiltradasBackup().filter(m =>
+      m.marcacoes.filter(mc => !mc.desconsiderado).length > 0
+    ).length
+  );
+
+  readonly _totalAtrasoEntrada = computed(() =>
+    this.marcacaoesFiltradasBackup().filter(m => this.temAtrasoEntrada(m)).length
+  );
+
+  readonly _totalAfastamentos = computed(() =>
+    this.marcacaoesFiltradasBackup().filter(m => {
+      const evtStr = m.evento ? m.evento.trim() : null;
+      return evtStr !== null && this.AFASTAMENTO_EVENTOS.includes(evtStr);
+    }).length
+  );
+
+  readonly _totalInconsistencias = computed(() =>
+    this.marcacaoesFiltradasBackup().filter(m =>
+      ['Falta', 'Atraso', 'Incompleto', 'Pendente'].includes(m.getStatus())
+    ).length
+  );
+
   private currentDataInicio = signal<string>('');
   private currentDataFim = signal<string>('');
   private statusFiltro = signal<string[]>([]);
@@ -934,7 +963,18 @@ export class MarcacaoService {
     }
     const filtrosEspeciais = this.filtroEspecial();
     if (filtrosEspeciais.includes('almoco_irregular') && !this.temAlmocoIrregular(dia)) return false;
+    if (filtrosEspeciais.includes('atraso_entrada') && !this.temAtrasoEntrada(dia)) return false;
+    if (filtrosEspeciais.includes('com_marcacoes') && dia.marcacoes.filter(m => !m.desconsiderado).length === 0) return false;
     return true;
+  }
+
+  private temAtrasoEntrada(dia: MarcacaoDia): boolean {
+    const ativas = dia.marcacoes.filter(m => !m.desconsiderado);
+    if (ativas.length === 0) return false;
+    const primeira = ativas[0].dataMarcacao;
+    const hora = primeira.getHours();
+    const minuto = primeira.getMinutes();
+    return hora > 7 || (hora === 7 && minuto > 0);
   }
 
   private temAlmocoIrregular(dia: MarcacaoDia): boolean {
@@ -986,6 +1026,12 @@ export class MarcacaoService {
     const filtrosEspeciais = this.filtroEspecial();
     if (filtrosEspeciais.includes('almoco_irregular')) {
       filtradas = filtradas.filter(dia => this.temAlmocoIrregular(dia));
+    }
+    if (filtrosEspeciais.includes('atraso_entrada')) {
+      filtradas = filtradas.filter(dia => this.temAtrasoEntrada(dia));
+    }
+    if (filtrosEspeciais.includes('com_marcacoes')) {
+      filtradas = filtradas.filter(dia => dia.marcacoes.filter(m => !m.desconsiderado).length > 0);
     }
 
     this.marcacoesFiltradas.set(filtradas);

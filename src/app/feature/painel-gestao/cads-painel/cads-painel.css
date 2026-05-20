@@ -4,16 +4,116 @@
 }
 
 .cards-grid {
-  display: flex;
-  flex-wrap: wrap; /* Permite que os cards quebrem linha em telas menores */
-  gap: 24px;       /* Espaçamento entre os cards */
-  align-items: stretch;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
 }
 
-/* Opcional: Garante que os cards tenham comportamento responsivo */
-.card-item {
+/* ── Card base ───────────────────────────────────────────── */
+
+.card {
+  background: white;
+  border-radius: 10px;
+  padding: 20px 22px;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid transparent;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.09);
+}
+
+.card:active {
+  transform: translateY(-1px);
+}
+
+/* ── Card color variants ────────────────────────────────── */
+
+.card-presenca     { border-left-color: #16a34a; }
+.card-atraso       { border-left-color: #d97706; }
+.card-afastamento  { border-left-color: #2563eb; }
+.card-inconsistencia { border-left-color: #dc2626; }
+
+/* ── Card header ────────────────────────────────────────── */
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.card-presenca     .card-icon { background: #dcfce7; color: #16a34a; }
+.card-atraso       .card-icon { background: #fef3c7; color: #d97706; }
+.card-afastamento  .card-icon { background: #dbeafe; color: #2563eb; }
+.card-inconsistencia .card-icon { background: #fee2e2; color: #dc2626; }
+
+.card-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   flex: 1;
-  min-width: 280px; /* Evita que fiquem muito estreitos */
-  max-width: 320px; /* Mantém o tamanho próximo ao design original */
+}
+
+.badge-alerta {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* ── Card value ─────────────────────────────────────────── */
+
+.card-value {
+  margin-bottom: 6px;
+  line-height: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.card-number {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.card-total {
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: #9ca3af;
+}
+
+.card-subtitle {
+  font-size: 0.78rem;
+  color: #9ca3af;
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
 }
