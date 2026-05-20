@@ -84,6 +84,9 @@
                 </span>
               </td>
               <td class="actions-cell">
+                <button class="btn-icon" (click)="openPerfil(employee)" title="Ver Perfil">
+                  <lucide-icon name="user" [size]="16"></lucide-icon>
+                </button>
                 <button class="btn-icon" (click)="generateCard(employee)" title="Gerar Cartão">
                   <lucide-icon name="printer" [size]="16"></lucide-icon>
                 </button>
@@ -126,5 +129,13 @@
       (close)="closeModal()"
       (save)="handleSave()"
     ></app-modal-colaborador>
+  }
+
+  @if (perfilEmployee()) {
+    <app-modal-perfil-colaborador
+      [matricula]="perfilEmployee()!.matricula"
+      [nomeInicial]="perfilEmployee()!.nome"
+      (close)="closePerfil()"
+    ></app-modal-perfil-colaborador>
   }
 </div>

@@ -11,11 +11,12 @@ import { QRCodeService } from '../../core/services/qrcode/qrcode.service';
 import { ToastService } from '../../core/services/toast/toast.service';
 import { ButtonComponent } from '../../shared/button/button';
 import { TitleCaseCustomPipe } from '../../shared/pipes/title-case-custom.pipe';
+import { ModalPerfilColaborador } from '../../shared/modal-perfil-colaborador/modal-perfil-colaborador';
 
 @Component({
   selector: 'app-colaboradores',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, ModalColaborador, Pagination, SearchFilter, MultiSelectDropdown, ButtonComponent, TitleCaseCustomPipe],
+  imports: [CommonModule, LucideAngularModule, ModalColaborador, Pagination, SearchFilter, MultiSelectDropdown, ButtonComponent, TitleCaseCustomPipe, ModalPerfilColaborador],
   templateUrl: './colaboradores.html',
   styleUrl: './colaboradores.css'
 })
@@ -37,6 +38,7 @@ export class Colaboradores implements OnInit {
   selectedEmployee = signal<Employee | null>(null);
   selectedEmployeeIds = signal<number[]>([]);
   selectedCompanies = signal<string[]>([]);
+  perfilEmployee = signal<Employee | null>(null);
 
   distinctCompanies = computed(() => {
     const emps = this.allEmployees();
@@ -246,6 +248,14 @@ export class Colaboradores implements OnInit {
     } finally {
       this.isLoading.set(false);
     }
+  }
+
+  openPerfil(employee: Employee) {
+    this.perfilEmployee.set(employee);
+  }
+
+  closePerfil() {
+    this.perfilEmployee.set(null);
   }
 
   closeModal() {

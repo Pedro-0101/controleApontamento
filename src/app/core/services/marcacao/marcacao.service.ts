@@ -310,6 +310,22 @@ export class MarcacaoService {
     }
   }
 
+  async getPerfilMensalFuncionario(matricula: string, dataInicio: string, dataFim: string): Promise<MarcacaoDia[]> {
+    try {
+      const marcacoes = await this.fetchMarcacoes(dataInicio, dataFim, matricula);
+      const filtradas = marcacoes.filter(m => String(m.matriculaFuncionario).trim() === String(matricula).trim());
+      return await this.formatarMarcacoesPorDia(
+        filtradas.sort((a, b) => a.cpf.localeCompare(b.cpf)),
+        dataInicio,
+        dataFim,
+        [matricula]
+      );
+    } catch (error) {
+      this.loggerService.error('MarcacaoService', 'Erro ao buscar perfil mensal:', error);
+      return [];
+    }
+  }
+
   async refreshMarcacoes(): Promise<void> {
     const dataInicio = this.currentDataInicio();
     const dataFim = this.currentDataFim();

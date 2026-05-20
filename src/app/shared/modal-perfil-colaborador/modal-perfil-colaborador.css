@@ -1,0 +1,316 @@
+/* ── Overlay & Modal ─────────────────────────────────────── */
+
+.perfil-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.perfil-modal {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 92vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+
+.perfil-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 2;
+  border-radius: 12px 12px 0 0;
+}
+
+.perfil-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #dbeafe;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.perfil-info { flex: 1; min-width: 0; }
+
+.perfil-nome {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.perfil-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.sep { color: #d1d5db; }
+
+.btn-fechar {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.btn-fechar:hover { background: #f3f4f6; color: #111827; }
+
+/* ── Navegação de mês ────────────────────────────────────── */
+
+.mes-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 12px 24px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.mes-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  min-width: 160px;
+  text-align: center;
+}
+
+.btn-nav {
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  transition: all 0.15s;
+}
+.btn-nav:hover:not(:disabled) { background: #f3f4f6; }
+.btn-nav:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ── Loading ─────────────────────────────────────────────── */
+
+.perfil-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+/* ── Resumo ──────────────────────────────────────────────── */
+
+.resumo-cards {
+  display: flex;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid #f3f4f6;
+  flex-wrap: wrap;
+}
+
+.resumo-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 14px;
+  flex: 1;
+  min-width: 100px;
+}
+
+.resumo-card div {
+  display: flex;
+  flex-direction: column;
+}
+
+.r-valor {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.r-valor small {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #9ca3af;
+}
+
+.r-label {
+  font-size: 0.7rem;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.ic-green  { color: #16a34a; }
+.ic-blue   { color: #2563eb; }
+.ic-red    { color: #dc2626; }
+.ic-orange { color: #d97706; }
+
+/* ── Calendário ──────────────────────────────────────────── */
+
+.calendario {
+  padding: 16px 24px 8px;
+}
+
+.cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  margin-bottom: 3px;
+}
+
+.cal-weekdays span {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #9ca3af;
+  padding: 4px 0;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.cal-vazio { background: transparent; }
+
+.cal-dia {
+  border-radius: 6px;
+  padding: 5px 4px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: default;
+  min-height: 46px;
+}
+
+.cal-hoje {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
+.cal-num {
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.cal-info {
+  font-size: 0.6rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+/* Status colors */
+.cal-ok        { background: #dcfce7; color: #15803d; }
+.cal-andamento { background: #ccfbf1; color: #0f766e; }
+.cal-atraso    { background: #fef3c7; color: #b45309; }
+.cal-falta     { background: #fee2e2; color: #b91c1c; }
+.cal-incompleto{ background: #fef9c3; color: #a16207; }
+.cal-evento    { background: #dbeafe; color: #1d4ed8; }
+.cal-dom       { background: #f3f4f6; color: #9ca3af; }
+.cal-futuro    { background: #f9fafb; color: #d1d5db; }
+.cal-sem-dado  { background: #f3f4f6; color: #9ca3af; }
+
+/* ── Legenda ─────────────────────────────────────────────── */
+
+.legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 8px 24px 12px;
+}
+
+.leg-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+.leg-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* ── Lista de dias ───────────────────────────────────────── */
+
+.lista-dias {
+  padding: 0 24px 24px;
+  overflow-x: auto;
+}
+
+.dias-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.dias-table th {
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dias-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.dias-table tr:last-child td { border-bottom: none; }
+.dias-table tr:hover td { background: #f9fafb; }
+
+.txt-extra  { color: #16a34a; font-weight: 700; font-size: 0.78rem; }
+.txt-atraso { color: #dc2626; font-weight: 700; font-size: 0.78rem; }
+.txt-neutro { color: #9ca3af; }

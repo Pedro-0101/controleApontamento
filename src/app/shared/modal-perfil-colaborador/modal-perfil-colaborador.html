@@ -1,0 +1,158 @@
+<div class="perfil-overlay" (click)="close.emit()">
+  <div class="perfil-modal" (click)="$event.stopPropagation()">
+
+    <!-- ── Header ──────────────────────────────────────────── -->
+    <div class="perfil-header">
+      <div class="perfil-avatar">
+        <lucide-icon name="user" [size]="28"></lucide-icon>
+      </div>
+      <div class="perfil-info">
+        <h2 class="perfil-nome">{{ (employee()?.nome || nomeInicial()) | titleCaseCustom }}</h2>
+        <div class="perfil-meta">
+          <span>{{ employee()?.matricula || matricula() }}</span>
+          @if (employee()?.empresa) { <span class="sep">·</span><span>{{ employee()?.empresa | titleCaseCustom }}</span> }
+          @if (employee()?.cargo)   { <span class="sep">·</span><span>{{ employee()?.cargo | titleCaseCustom }}</span> }
+          @if (employee()?.local)   { <span class="sep">·</span><span>{{ employee()?.local | titleCaseCustom }}</span> }
+        </div>
+      </div>
+      <button class="btn-fechar" (click)="close.emit()">
+        <lucide-icon name="x" [size]="20"></lucide-icon>
+      </button>
+    </div>
+
+    <!-- ── Navegação de mês ─────────────────────────────────── -->
+    <div class="mes-nav">
+      <button class="btn-nav" (click)="mesAnterior()">
+        <lucide-icon name="chevron-left" [size]="18"></lucide-icon>
+      </button>
+      <span class="mes-label">{{ mesLabel() }}</span>
+      <button class="btn-nav" (click)="proximoMes()" [disabled]="isMesAtual()">
+        <lucide-icon name="chevron-right" [size]="18"></lucide-icon>
+      </button>
+    </div>
+
+    <!-- ── Corpo ────────────────────────────────────────────── -->
+    @if (isLoading()) {
+      <div class="perfil-loading">
+        <div class="spinner"></div>
+        <p>Carregando dados...</p>
+      </div>
+    } @else {
+
+      <!-- Cards de resumo -->
+      <div class="resumo-cards">
+        <div class="resumo-card">
+          <lucide-icon name="check-circle" [size]="16" class="ic-green"></lucide-icon>
+          <div>
+            <span class="r-valor">{{ totalPresenca() }}<small>/{{ diasUteis() }}</small></span>
+            <span class="r-label">Presença</span>
+          </div>
+        </div>
+        <div class="resumo-card">
+          <lucide-icon name="clock" [size]="16" class="ic-blue"></lucide-icon>
+          <div>
+            <span class="r-valor">{{ totalHoras() }}</span>
+            <span class="r-label">Horas Trabalhadas</span>
+          </div>
+        </div>
+        <div class="resumo-card">
+          <lucide-icon name="calendar-off" [size]="16" class="ic-red"></lucide-icon>
+          <div>
+            <span class="r-valor">{{ totalFaltas() }}</span>
+            <span class="r-label">Faltas</span>
+          </div>
+        </div>
+        <div class="resumo-card">
+          <lucide-icon name="alert-triangle" [size]="16" class="ic-orange"></lucide-icon>
+          <div>
+            <span class="r-valor">{{ totalAtrasos() }}</span>
+            <span class="r-label">Atrasos</span>
+          </div>
+        </div>
+        <div class="resumo-card">
+          <lucide-icon name="activity" [size]="16" class="ic-green"></lucide-icon>
+          <div>
+            <span class="r-valor">{{ totalExtras() }}</span>
+            <span class="r-label">Horas Extras</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calendário -->
+      <div class="calendario">
+        <div class="cal-weekdays">
+          <span>Dom</span><span>Seg</span><span>Ter</span>
+          <span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span>
+        </div>
+        <div class="cal-grid">
+          @for (cell of diasDoMes(); track $index) {
+            @if (cell === null) {
+              <div class="cal-vazio"></div>
+            } @else {
+              <div class="cal-dia {{ getCellClass(cell) }}" [class.cal-hoje]="cell.isToday">
+                <span class="cal-num">{{ cell.dia }}</span>
+                @if (!cell.isFuturo && cell.md) {
+                  <span class="cal-info">{{ getCellInfo(cell.md) }}</span>
+                }
+              </div>
+            }
+          }
+        </div>
+      </div>
+
+      <!-- Legenda -->
+      <div class="legenda">
+        <span class="leg-item"><span class="leg-dot cal-ok"></span>Ok/Extra</span>
+        <span class="leg-item"><span class="leg-dot cal-andamento"></span>Em andamento</span>
+        <span class="leg-item"><span class="leg-dot cal-atraso"></span>Atraso</span>
+        <span class="leg-item"><span class="leg-dot cal-falta"></span>Falta</span>
+        <span class="leg-item"><span class="leg-dot cal-incompleto"></span>Incompleto</span>
+        <span class="leg-item"><span class="leg-dot cal-evento"></span>Evento</span>
+        <span class="leg-item"><span class="leg-dot cal-dom"></span>Descanso</span>
+      </div>
+
+      <!-- Tabela de dias úteis -->
+      @if (listaDias().length > 0) {
+        <div class="lista-dias">
+          <table class="dias-table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Dia</th>
+                <th>Horas</th>
+                <th>Extra / Atraso</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (md of listaDias(); track md.data) {
+                <tr>
+                  <td>{{ md.getDataFormatada() }}</td>
+                  <td>{{ md.getDiaSemana().slice(0, 3) }}</td>
+                  <td>{{ md.getHorasNormaisFormatadas() }}</td>
+                  <td>
+                    @if (md.getHorasExtrasFormatadas()) {
+                      <span class="txt-extra">{{ md.getHorasExtrasFormatadas() }}</span>
+                    }
+                    @if (md.getHorasAtrasoFormatadas()) {
+                      <span class="txt-atraso">{{ md.getHorasAtrasoFormatadas() }}</span>
+                    }
+                    @if (!md.getHorasExtrasFormatadas() && !md.getHorasAtrasoFormatadas()) {
+                      <span class="txt-neutro">--</span>
+                    }
+                  </td>
+                  <td>
+                    <span class="badge {{ getStatusClass(md) }}">
+                      {{ md.getStatus() }}
+                    </span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+
+  </div>
+</div>
