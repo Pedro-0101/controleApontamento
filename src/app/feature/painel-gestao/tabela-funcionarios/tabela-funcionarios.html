@@ -45,10 +45,60 @@
   }
 
 
+  @if (_isBackgroundRefreshing()) {
+    <div class="background-refresh-bar"></div>
+  }
+
   @if (_isLoadingMarcacoesPainel()) {
-    <div class="loading-container">
-      <div class="spinner"></div>
-      <p>Carregando marcações...</p>
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="col-matricula">Matrícula</th>
+            <th class="col-empresa">Empresa</th>
+            <th class="col-cargo">Cargo</th>
+            <th class="col-local">Local</th>
+            <th class="col-nome">Nome</th>
+            <th class="col-data">Data</th>
+            <th class="col-dia-semana">Dia Semana</th>
+            <th class="col-hora">Hora</th>
+            <th class="col-almoco">Almoço</th>
+            <th class="col-total-horas">Total Horas</th>
+            <th class="col-status">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of skeletonRows; track row; let i = $index) {
+            <tr class="skeleton-row" [style.--row-delay]="(i * 60) + 'ms'">
+              <td><div class="skeleton-cell sk-matricula"></div></td>
+              <td><div class="skeleton-cell sk-empresa"></div></td>
+              <td><div class="skeleton-cell sk-cargo"></div></td>
+              <td><div class="skeleton-cell sk-local"></div></td>
+              <td><div class="skeleton-cell sk-nome"></div></td>
+              <td><div class="skeleton-cell sk-data"></div></td>
+              <td><div class="skeleton-cell sk-diasemana"></div></td>
+              <td>
+                <div class="sk-hora-group">
+                  <div class="skeleton-cell sk-hora-badge"></div>
+                  <div class="skeleton-cell sk-hora-badge"></div>
+                  <div class="skeleton-cell sk-hora-badge"></div>
+                  <div class="skeleton-cell sk-hora-badge"></div>
+                </div>
+              </td>
+              <td><div class="skeleton-cell sk-almoco"></div></td>
+              <td><div class="skeleton-cell sk-totalhoras"></div></td>
+              <td><div class="skeleton-cell sk-status"></div></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="skeleton-pagination">
+      <div class="skeleton-cell" style="width: 220px;"></div>
+      <div style="display: flex; gap: 8px;">
+        <div class="skeleton-cell sk-btn-pag"></div>
+        <div class="skeleton-cell sk-btn-pag"></div>
+      </div>
     </div>
   } @else {
     <div class="table-container">

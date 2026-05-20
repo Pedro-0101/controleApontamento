@@ -37,3 +37,95 @@
 .btn-export lucide-icon {
   display: flex;
 }
+
+.background-refresh-bar {
+  height: 3px;
+  background: linear-gradient(90deg, transparent 0%, #0d6efd 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: refresh-slide 1.5s ease-in-out infinite;
+}
+
+@keyframes refresh-slide {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Skeleton loader ─────────────────────────────────── */
+
+.skeleton-row td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--color-gray-200, #e5e7eb);
+}
+
+.skeleton-cell {
+  border-radius: 4px;
+  height: 14px;
+  background: linear-gradient(90deg, #ececec 25%, #d5d5d5 50%, #ececec 75%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  animation-delay: var(--row-delay, 0ms);
+}
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+/* Widths por coluna */
+.sk-matricula  { width: 58px; }
+.sk-empresa    { width: 120px; }
+.sk-cargo      { width: 110px; }
+.sk-local      { width: 130px; }
+.sk-nome       { width: 160px; }
+.sk-data       { width: 56px; }
+.sk-diasemana  { width: 80px; }
+.sk-almoco     { width: 36px; margin: 0 auto; }
+.sk-totalhoras { width: 44px; margin: 0 auto; }
+.sk-status     { width: 76px; height: 22px; border-radius: 12px; }
+
+/* Variação de largura para nomes (parece mais realista) */
+.skeleton-row:nth-child(3n)   .sk-nome { width: 200px; }
+.skeleton-row:nth-child(3n+1) .sk-nome { width: 140px; }
+.skeleton-row:nth-child(3n+2) .sk-nome { width: 170px; }
+
+/* Variação para empresa/cargo */
+.skeleton-row:nth-child(2n) .sk-empresa { width: 90px; }
+.skeleton-row:nth-child(2n) .sk-cargo   { width: 140px; }
+
+/* Coluna de hora: badges agrupados */
+.sk-hora-group {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.sk-hora-badge {
+  width: 46px;
+  height: 24px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+/* Ocultar badges extras em linhas pares (simula dias incompletos) */
+.skeleton-row:nth-child(2n) .sk-hora-badge:nth-child(n+3) { display: none; }
+.skeleton-row:nth-child(3n) .sk-hora-badge:nth-child(n+2) { display: none; }
+
+/* Paginação skeleton */
+.skeleton-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-xl, 16px);
+  background: white;
+  border-top: 1px solid var(--color-gray-200, #e5e7eb);
+}
+
+.skeleton-pagination .skeleton-cell {
+  height: 16px;
+}
+
+.sk-btn-pag {
+  width: 100px;
+  height: 36px;
+  border-radius: 6px;
+}

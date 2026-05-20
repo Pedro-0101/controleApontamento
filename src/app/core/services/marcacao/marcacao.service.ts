@@ -34,9 +34,11 @@ export class MarcacaoService {
   private marcacoesFiltradas = signal<MarcacaoDia[]>([]);
   private marcacaoesFiltradasBackup = signal<MarcacaoDia[]>([]);
   private isLoadingMarcacoes = signal(false);
+  private isBackgroundRefreshing = signal(false);
 
 
   readonly _isLoadingMarcacoes = computed(() => this.isLoadingMarcacoes());
+  readonly _isBackgroundRefreshing = computed(() => this.isBackgroundRefreshing());
   readonly _marcacoes = computed(() => this.marcacoes());
   readonly _marcacoesFiltradas = computed(() => this.marcacoesFiltradas());
   readonly _marcacoesFiltradasBackup = computed(() => this.marcacaoesFiltradasBackup());
@@ -202,6 +204,75 @@ export class MarcacaoService {
       this.prefetchCache.delete(cacheKey);
     } else {
       this.prefetchCache.clear();
+    }
+  }
+
+  /**
+   * Insere pontos manuais diretamente no estado em memória (atualização otimista).
+   * Não faz chamada de API. O refresh em background posterior irá confirmar os dados.
+   */
+  appendManualPoints(matriculas: string[], data: string, hora: string): void {
+    const [year, month, day] = data.split('-').map(Number);
+    const [hour, min] = hora.split(':').map(Number);
+    const dateObj = new Date(year, month - 1, day, hour, min);
+
+    const logicalDate = new Date(dateObj);
+    if (hour < 4) {
+      logicalDate.setDate(logicalDate.getDate() - 1);
+    }
+    const logicalDataFormatada = DateHelper.getStringDate(logicalDate);
+
+    const currentBackup = [...this.marcacaoesFiltradasBackup()];
+    let modified = false;
+
+    for (const matricula of matriculas) {
+      const md = currentBackup.find(m =>
+        String(m.matricula).trim() === String(matricula).trim() &&
+        m.data === logicalDataFormatada
+      );
+
+      if (md) {
+        const exists = md.marcacoes.some(m =>
+          m.numSerieRelogio === 'MANUAL' && m.dataMarcacao.getTime() === dateObj.getTime()
+        );
+        if (!exists) {
+          md.marcacoes.push(new Marcacao({ id: 0, dataMarcacao: dateObj, numSerieRelogio: 'MANUAL', tipoRegistro: 99 }));
+          md.marcacoes.sort((a, b) => a.dataMarcacao.getTime() - b.dataMarcacao.getTime());
+          modified = true;
+        }
+      }
+    }
+
+    if (modified) {
+      this.marcacaoesFiltradasBackup.set(currentBackup);
+      this.applyFilters();
+    }
+  }
+
+  /**
+   * Recarrega os dados completos em segundo plano sem mostrar o skeleton da tabela.
+   * Usa o sinal _isBackgroundRefreshing para mostrar um indicador sutil na UI.
+   */
+  async backgroundRefreshMarcacoes(): Promise<void> {
+    const dataInicio = this.currentDataInicio();
+    const dataFim = this.currentDataFim();
+    if (!dataInicio || !dataFim) return;
+
+    this.isBackgroundRefreshing.set(true);
+    try {
+      const marcacoes = await this.fetchMarcacoes(dataInicio, dataFim);
+      this.marcacoes.set(marcacoes);
+
+      const marcacoesOrdenadas = marcacoes.sort((a, b) => a.cpf.localeCompare(b.cpf));
+      const marcacoesPorDia = await this.formatarMarcacoesPorDia(marcacoesOrdenadas, dataInicio, dataFim);
+
+      this.ordenarTodasMarcacoes(marcacoesPorDia);
+      this.marcacaoesFiltradasBackup.set(marcacoesPorDia);
+      this.applyFilters();
+    } catch (error) {
+      this.loggerService.error('MarcacaoService', 'Erro no refresh em background:', error);
+    } finally {
+      this.isBackgroundRefreshing.set(false);
     }
   }
 

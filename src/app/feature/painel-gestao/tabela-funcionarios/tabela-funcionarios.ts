@@ -21,6 +21,7 @@ export class TabelaFuncionarios {
 
   // Dados originais do serviço
   readonly _isLoadingMarcacoesPainel = this.marcacaoService._isLoadingMarcacoes;
+  readonly _isBackgroundRefreshing = this.marcacaoService._isBackgroundRefreshing;
   readonly _marcacoesDiaTabelaPainel = this.marcacaoService._marcacoesFiltradas;
 
   // --- Filtro (Pesquisa) ---
@@ -117,6 +118,9 @@ export class TabelaFuncionarios {
 
   readonly _totalItems = computed(() => this._filteredMarcacoes().length);
 
+  // Skeleton rows for loading state
+  readonly skeletonRows = Array.from({ length: 10 }, (_, i) => i);
+
   // --- Modal Detalhes ---
   readonly selectedRecord = signal<MarcacaoDia | null>(null);
 
@@ -129,11 +133,11 @@ export class TabelaFuncionarios {
   }
 
   async recarregarDados() {
-    this.loggerService.info('TabelaFuncionarios', 'Recarregando dados após alteração no modal');
-    await this.marcacaoService.refreshMarcacoes();
+    this.loggerService.info('TabelaFuncionarios', 'Recarregando dados em background após alteração no modal');
+    const atual = this.selectedRecord();
+    await this.marcacaoService.backgroundRefreshMarcacoes();
 
     // Sincronizar record selecionado se o modal estiver aberto
-    const atual = this.selectedRecord();
     if (atual) {
       const novo = this._marcacoesDiaTabelaPainel().find(m =>
         m.matricula === atual.matricula && m.data === atual.data

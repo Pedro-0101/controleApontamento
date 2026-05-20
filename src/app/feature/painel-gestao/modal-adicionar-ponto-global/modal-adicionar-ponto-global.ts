@@ -82,6 +82,7 @@ export class ModalAdicionarPontoGlobal implements OnInit {
       );
 
       this.toastService.success(`${this.selectedMatriculas().length} ponto(s) manual(is) adicionado(s) com sucesso!`);
+      this.marcacaoService.appendManualPoints(this.selectedMatriculas(), this.selectedDate(), this.selectedTime());
       this.updated.emit();
       this.close.emit();
     } catch (error: any) {

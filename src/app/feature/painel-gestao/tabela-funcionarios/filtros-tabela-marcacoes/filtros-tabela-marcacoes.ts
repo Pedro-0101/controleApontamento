@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
 import { LoggerService } from '../../../../core/services/logger/logger.service';
 import { MarcacaoService } from '../../../../core/services/marcacao/marcacao.service';
@@ -41,6 +41,49 @@ export class FiltrosTabelaMarcacoes {
   readonly _filtrosEspeciaisOpcoes = [
     { label: 'Almoço Irregular', value: 'almoco_irregular' }
   ];
+
+  constructor() {
+    // Autopurgar seleções cujo count zerou após atualização de dados
+    effect(() => {
+      const disponiveis = new Set(this._statusFiltroComContagem().map(o => o.value));
+      const atuais = this.statusSelecionados();
+      const pruned = atuais.filter(v => disponiveis.has(v));
+      if (pruned.length !== atuais.length) {
+        this.statusSelecionados.set(pruned);
+        this.marcacaoService.filtrarMarcacoesPorStatus(pruned);
+      }
+    }, { allowSignalWrites: true });
+
+    effect(() => {
+      const disponiveis = new Set(this._empresasFiltroPainel().map(o => o.value));
+      const atuais = this.empresasSelecionadas();
+      const pruned = atuais.filter(v => disponiveis.has(v));
+      if (pruned.length !== atuais.length) {
+        this.empresasSelecionadas.set(pruned);
+        this.marcacaoService.filtrarMarcacoesPorEmpresa(pruned);
+      }
+    }, { allowSignalWrites: true });
+
+    effect(() => {
+      const disponiveis = new Set(this._locaisFiltroPainel().map(o => o.value));
+      const atuais = this.locaisSelecionados();
+      const pruned = atuais.filter(v => disponiveis.has(v));
+      if (pruned.length !== atuais.length) {
+        this.locaisSelecionados.set(pruned);
+        this.marcacaoService.filtrarMarcacoesPorLocal(pruned);
+      }
+    }, { allowSignalWrites: true });
+
+    effect(() => {
+      const disponiveis = new Set(this._relogiosFiltroPainel().map(o => o.value));
+      const atuais = this.relogiosSelecionados();
+      const pruned = atuais.filter(v => disponiveis.has(v));
+      if (pruned.length !== atuais.length) {
+        this.relogiosSelecionados.set(pruned);
+        this.marcacaoService.filtrarMarcacoesPorRelogio(pruned);
+      }
+    }, { allowSignalWrites: true });
+  }
 
   ngOnInit() {
     this.loggerService.info('FiltroTabelaMarcacoesComponent', 'Componente inicializado');
