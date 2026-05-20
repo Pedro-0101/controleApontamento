@@ -136,7 +136,10 @@
             @if (cell === null) {
               <div class="cal-vazio"></div>
             } @else {
-              <div class="cal-dia {{ getCellClass(cell) }}" [class.cal-hoje]="cell.isToday">
+              <div class="cal-dia {{ getCellClass(cell) }}"
+                   [class.cal-hoje]="cell.isToday"
+                   [class.cal-clicavel]="!cell.isFuturo && cell.md !== null"
+                   (click)="onDiaClick(cell)">
                 <span class="cal-num">{{ cell.dia }}</span>
                 @if (!cell.isFuturo && cell.md) {
                   <span class="cal-info">{{ getCellInfo(cell.md) }}</span>

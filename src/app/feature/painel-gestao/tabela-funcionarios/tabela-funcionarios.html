@@ -50,6 +50,7 @@
       [matricula]="perfilRecord()!.matricula"
       [nomeInicial]="perfilRecord()!.nome"
       (close)="fecharPerfil()"
+      (abrirDetalheDia)="onAbrirDetalheDoPerfil($event)"
     ></app-modal-perfil-colaborador>
   }
 

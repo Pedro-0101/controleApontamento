@@ -32,6 +32,7 @@ export class ModalPerfilColaborador implements OnInit {
   nomeInicial = input<string>('');
 
   @Output() close = new EventEmitter<void>();
+  @Output() abrirDetalheDia = new EventEmitter<MarcacaoDia>();
 
   protected employee = signal<Employee | null>(null);
   protected marcacoesMes = signal<MarcacaoDia[]>([]);
@@ -188,6 +189,11 @@ export class ModalPerfilColaborador implements OnInit {
   }
 
   // ── Helpers de template ───────────────────────────────────────────────────
+
+  onDiaClick(cell: NonNullable<CalCell>): void {
+    if (cell.isFuturo || !cell.md) return;
+    this.abrirDetalheDia.emit(cell.md);
+  }
 
   getCellClass(cell: NonNullable<CalCell>): string {
     if (cell.isFuturo) return 'cal-futuro';

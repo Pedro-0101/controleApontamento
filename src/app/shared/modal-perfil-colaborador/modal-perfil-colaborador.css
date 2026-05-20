@@ -254,6 +254,16 @@
   outline-offset: -2px;
 }
 
+.cal-clicavel {
+  cursor: pointer;
+  transition: filter 0.1s, transform 0.1s;
+}
+
+.cal-clicavel:hover {
+  filter: brightness(0.88);
+  transform: scale(1.05);
+}
+
 .cal-num {
   font-size: 0.75rem;
   font-weight: 600;

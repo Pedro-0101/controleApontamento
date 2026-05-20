@@ -134,10 +134,16 @@ export class TabelaFuncionarios {
 
   abrirPerfil() {
     this.perfilRecord.set(this.selectedRecord());
+    this.selectedRecord.set(null); // fecha detalhes antes de abrir perfil
   }
 
   fecharPerfil() {
     this.perfilRecord.set(null);
+  }
+
+  onAbrirDetalheDoPerfil(md: MarcacaoDia) {
+    this.perfilRecord.set(null); // fecha perfil
+    this.selectedRecord.set(md); // abre detalhes do dia clicado
   }
 
   async recarregarDados() {
