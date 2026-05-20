@@ -29,12 +29,13 @@
     {{ getTempoAlmoco() }}
   }
 </td>
-<td class="col-total-horas" (click)="abrirDetalhes()">{{ marcacao().getHorasTrabalhadas() }}</td>
-<td class="col-saldo" (click)="abrirDetalhes()">
-  <span [class.saldo-positivo]="(marcacao().getSaldoMinutos() ?? -1) >= 0"
-        [class.saldo-negativo]="(marcacao().getSaldoMinutos() ?? 1) < 0">
-    {{ marcacao().getSaldoFormatado() }}
-  </span>
+<td class="col-total-horas" (click)="abrirDetalhes()">
+  <div class="horas-cell">
+    <span class="horas-normal">{{ marcacao().getHorasNormaisFormatadas() }}</span>
+    @if (marcacao().getHorasExtrasFormatadas()) {
+      <span class="horas-extra">{{ marcacao().getHorasExtrasFormatadas() }}</span>
+    }
+  </div>
 </td>
 <td class="col-status" (click)="abrirDetalhes()">
   <span class="badge" [class]="'status-' + marcacao().getStatus().toLowerCase()">

@@ -181,30 +181,47 @@ export class MarcacaoDia implements MarcacaoDia {
         return marcacoesOrdenadas;
     }
 
-    getSaldoMinutos(): number | null {
-        if (this.evento) return null;
+    getHorasNormaisEExtras(): { normais: number; extras: number } | null {
         const marcacoesValidas = this.marcacoes.filter(m => !m.desconsiderado);
         if (marcacoesValidas.length < 2 || marcacoesValidas.length % 2 !== 0) return null;
 
         const dataObj = DateHelper.fromStringDate(this.data);
         if (!dataObj) return null;
         const diaSemana = dataObj.getDay();
+        const worked = this.getWorkedMinutes();
 
-        if (diaSemana === 0) return null;
-        if (diaSemana === 6 && !this.trabalhaSabado) return null;
+        let normalLimit: number;
+        if (this.trabalhaSabado) {
+            // Trabalha sábado: seg-sex=8h, sáb=4h, dom=0h
+            if (diaSemana === 0)      normalLimit = 0;
+            else if (diaSemana === 6) normalLimit = 240;
+            else                      normalLimit = 480;
+        } else {
+            // Não trabalha sábado: seg-sex=8h48, sáb/dom=0h
+            normalLimit = (diaSemana >= 1 && diaSemana <= 5) ? 528 : 0;
+        }
 
-        const expectedMinutes = diaSemana === 6 ? 240 : 480;
-        return this.getWorkedMinutes() - expectedMinutes;
+        return {
+            normais: Math.min(worked, normalLimit),
+            extras:  Math.max(0, worked - normalLimit),
+        };
     }
 
-    getSaldoFormatado(): string {
-        const saldo = this.getSaldoMinutos();
-        if (saldo === null) return '--';
-        const sign = saldo >= 0 ? '+' : '-';
-        const abs = Math.abs(saldo);
-        const h = Math.floor(abs / 60).toString().padStart(2, '0');
-        const m = (abs % 60).toString().padStart(2, '0');
-        return `${sign}${h}:${m}`;
+    getHorasNormaisFormatadas(): string {
+        const r = this.getHorasNormaisEExtras();
+        if (r === null) return '--';
+        if (r.normais === 0 && r.extras > 0) return '--'; // dia de extra puro (domingo, sáb sem trabalhar)
+        const h = Math.floor(r.normais / 60).toString().padStart(2, '0');
+        const m = (r.normais % 60).toString().padStart(2, '0');
+        return `${h}:${m}`;
+    }
+
+    getHorasExtrasFormatadas(): string {
+        const r = this.getHorasNormaisEExtras();
+        if (r === null || r.extras === 0) return '';
+        const h = Math.floor(r.extras / 60).toString().padStart(2, '0');
+        const m = (r.extras % 60).toString().padStart(2, '0');
+        return `+${h}:${m}`;
     }
 
     getDataFormatada(): string {

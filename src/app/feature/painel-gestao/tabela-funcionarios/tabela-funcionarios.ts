@@ -82,16 +82,6 @@ export class TabelaFuncionarios {
         valueB = ativasB.length === 4 ? Math.floor((ativasB[2].dataMarcacao.getTime() - ativasB[1].dataMarcacao.getTime()) / 60000) : -1;
       }
 
-      if (column === 'saldo') {
-        const sA = a.getSaldoMinutos();
-        const sB = b.getSaldoMinutos();
-        if (sA === null && sB === null) return a.nome.localeCompare(b.nome);
-        if (sA === null) return 1;
-        if (sB === null) return -1;
-        valueA = sA;
-        valueB = sB;
-      }
-
       if (typeof valueA === 'string') valueA = valueA.toLowerCase();
       if (typeof valueB === 'string') valueB = valueB.toLowerCase();
 

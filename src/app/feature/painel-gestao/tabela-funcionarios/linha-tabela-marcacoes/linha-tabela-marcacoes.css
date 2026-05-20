@@ -69,13 +69,21 @@
   background-color: #eff6ff;
 }
 
-.saldo-positivo {
-  color: #16a34a;
-  font-weight: 600;
+.horas-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  line-height: 1.2;
 }
 
-.saldo-negativo {
-  color: #dc2626;
+.horas-normal {
+  font-size: 0.875rem;
+}
+
+.horas-extra {
+  font-size: 0.75rem;
+  color: #16a34a;
   font-weight: 600;
 }
 

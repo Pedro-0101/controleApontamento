@@ -63,8 +63,7 @@
             <th class="col-dia-semana">Dia Semana</th>
             <th class="col-hora">Hora</th>
             <th class="col-almoco">Almoço</th>
-            <th class="col-total-horas">Total Horas</th>
-            <th class="col-saldo">Saldo</th>
+            <th class="col-total-horas">Horas / Extra</th>
             <th class="col-status">Status</th>
           </tr>
         </thead>
@@ -88,8 +87,12 @@
                 </div>
               </td>
               <td><div class="skeleton-cell sk-almoco"></div></td>
-              <td><div class="skeleton-cell sk-totalhoras"></div></td>
-              <td><div class="skeleton-cell sk-totalhoras"></div></td>
+              <td>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+                  <div class="skeleton-cell sk-totalhoras"></div>
+                  <div class="skeleton-cell" style="width:32px;height:10px;border-radius:4px;"></div>
+                </div>
+              </td>
               <td><div class="skeleton-cell sk-status"></div></td>
             </tr>
           }
@@ -149,12 +152,8 @@
               @if(sortColumn() === 'almoco') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
             </th>
             <th (click)="onSort('totalHoras')" class="sortable col-total-horas">
-              Total Horas
+              Horas / Extra
               @if(sortColumn() === 'totalHoras') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
-            </th>
-            <th (click)="onSort('saldo')" class="sortable col-saldo">
-              Saldo
-              @if(sortColumn() === 'saldo') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
             </th>
             <th class="col-status">Status</th>
           </tr>
@@ -171,7 +170,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="13" style="text-align: center">Nenhuma marcação encontrada.</td>
+              <td colspan="12" style="text-align: center">Nenhuma marcação encontrada.</td>
             </tr>
           }
         </tbody>
