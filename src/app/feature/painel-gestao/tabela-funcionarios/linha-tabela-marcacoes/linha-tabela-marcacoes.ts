@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, Output, EventEmitter } from '@angular/core';
+import { Component, inject, input, Output, EventEmitter } from '@angular/core';
 import { MarcacaoService } from '../../../../core/services/marcacao/marcacao.service';
 import { MarcacaoDia } from '../../../../models/marcacaoDia/marcacao-dia';
 import { DateHelper } from '../../../../core/helpers/dateHelper';
@@ -16,7 +16,9 @@ export class LinhaTabelaMarcacoes {
   private marcacaoService = inject(MarcacaoService);
 
   marcacao = input.required<MarcacaoDia>();
+  isSelected = input<boolean>(false);
   @Output() openDetails = new EventEmitter<MarcacaoDia>();
+  @Output() toggleSelect = new EventEmitter<void>();
 
 
 

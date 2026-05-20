@@ -31,6 +31,7 @@ export class PainelGestao {
 
   @ViewChild('dateInput') dateInput!: ElementRef<HTMLInputElement>;
   @ViewChild('filtros') filtros!: FiltrosTabelaMarcacoes;
+  @ViewChild('tabela') tabela!: TabelaFuncionarios;
 
   // Navegação por dia
   protected currentDate = signal<Date>(new Date());
@@ -83,6 +84,7 @@ export class PainelGestao {
     const novaData = new Date(this.currentDate());
     novaData.setDate(novaData.getDate() - 1);
     this.currentDate.set(novaData);
+    this.tabela?.clearSelection();
     this.carregarDia();
   }
 
@@ -91,16 +93,19 @@ export class PainelGestao {
     const novaData = new Date(this.currentDate());
     novaData.setDate(novaData.getDate() + 1);
     this.currentDate.set(novaData);
+    this.tabela?.clearSelection();
     this.carregarDia();
   }
 
   irParaHoje() {
     this.currentDate.set(new Date());
+    this.tabela?.clearSelection();
     this.carregarDia();
   }
 
   irParaData(date: Date) {
     this.currentDate.set(date);
+    this.tabela?.clearSelection();
     this.carregarDia();
   }
 

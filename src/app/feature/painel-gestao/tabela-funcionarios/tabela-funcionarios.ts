@@ -1,6 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { LoggerService } from '../../../core/services/logger/logger.service';
 import { MarcacaoService } from '../../../core/services/marcacao/marcacao.service';
+import { ToastService } from '../../../core/services/toast/toast.service';
+import { DateHelper } from '../../../core/helpers/dateHelper';
 
 import { MarcacaoDia } from '../../../models/marcacaoDia/marcacao-dia';
 import { LinhaTabelaMarcacoes } from './linha-tabela-marcacoes/linha-tabela-marcacoes';
@@ -18,6 +20,7 @@ export class TabelaFuncionarios {
 
   private loggerService = inject(LoggerService);
   private marcacaoService = inject(MarcacaoService);
+  private toastService = inject(ToastService);
 
   // Dados originais do serviço
   readonly _isLoadingMarcacoesPainel = this.marcacaoService._isLoadingMarcacoes;
@@ -55,12 +58,9 @@ export class TabelaFuncionarios {
       let valueA: any = (a as any)[column];
       let valueB: any = (b as any)[column];
 
-      // Tratamento especial para métodos ou propriedades específicas
       if (column === 'data') {
         const dateA = a.data.includes('/') ? a.data.split('/') : a.data.split('-');
         const dateB = b.data.includes('/') ? b.data.split('/') : b.data.split('-');
-
-        // Handle YYYY-MM-DD vs DD/MM/YYYY
         if (dateA[0].length === 4) {
           valueA = new Date(a.data).getTime();
           valueB = new Date(b.data).getTime();
@@ -82,18 +82,26 @@ export class TabelaFuncionarios {
         valueB = ativasB.length === 4 ? Math.floor((ativasB[2].dataMarcacao.getTime() - ativasB[1].dataMarcacao.getTime()) / 60000) : -1;
       }
 
+      if (column === 'saldo') {
+        const sA = a.getSaldoMinutos();
+        const sB = b.getSaldoMinutos();
+        if (sA === null && sB === null) return a.nome.localeCompare(b.nome);
+        if (sA === null) return 1;
+        if (sB === null) return -1;
+        valueA = sA;
+        valueB = sB;
+      }
+
       if (typeof valueA === 'string') valueA = valueA.toLowerCase();
       if (typeof valueB === 'string') valueB = valueB.toLowerCase();
 
       if (valueA < valueB) return direction === 'asc' ? -1 : 1;
       if (valueA > valueB) return direction === 'asc' ? 1 : -1;
 
-      // Critério de desempate: Nome (Alfabético Crescentemente)
       const nomeA = a.nome.toLowerCase();
       const nomeB = b.nome.toLowerCase();
       if (nomeA < nomeB) return -1;
       if (nomeA > nomeB) return 1;
-
       return 0;
     });
   });
@@ -107,14 +115,12 @@ export class TabelaFuncionarios {
     const data = this._sortedMarcacoes();
     const page = this.currentPage();
     const limit = this.itemsPerPage();
-    const startIndex = (page - 1) * limit;
-
-    return data.slice(startIndex, startIndex + limit);
+    return data.slice((page - 1) * limit, page * limit);
   });
 
-  readonly _totalPages = computed(() => {
-    return Math.ceil(this._filteredMarcacoes().length / this.itemsPerPage());
-  });
+  readonly _totalPages = computed(() =>
+    Math.ceil(this._filteredMarcacoes().length / this.itemsPerPage())
+  );
 
   readonly _totalItems = computed(() => this._filteredMarcacoes().length);
 
@@ -137,7 +143,6 @@ export class TabelaFuncionarios {
     const atual = this.selectedRecord();
     await this.marcacaoService.backgroundRefreshMarcacoes();
 
-    // Sincronizar record selecionado se o modal estiver aberto
     if (atual) {
       const novo = this._marcacoesDiaTabelaPainel().find(m =>
         m.matricula === atual.matricula && m.data === atual.data
@@ -152,17 +157,89 @@ export class TabelaFuncionarios {
   // --- Modal Exportação ---
   readonly exibindoModalExportacao = signal(false);
 
-  abrirModalExportacao() {
-    this.exibindoModalExportacao.set(true);
+  abrirModalExportacao() { this.exibindoModalExportacao.set(true); }
+  fecharModalExportacao() { this.exibindoModalExportacao.set(false); }
+
+  // ── Seleção em lote ──────────────────────────────────────────────────────
+
+  readonly selectedKeys = signal<Set<string>>(new Set());
+  readonly selectedAction = signal('Falta Confirmada');
+  readonly isApplyingBulk = signal(false);
+
+  readonly bulkActions = [
+    'Falta Confirmada',
+    'Atraso Confirmado',
+    'Corrigido',
+    'Folga',
+    'BH',
+  ];
+
+  readonly isAllPageSelected = computed(() => {
+    const keys = this.selectedKeys();
+    const page = this._paginatedMarcacoes();
+    return page.length > 0 && page.every(item => keys.has(`${item.matricula}:${item.data}`));
+  });
+
+  readonly isSomePageSelected = computed(() => {
+    const keys = this.selectedKeys();
+    const page = this._paginatedMarcacoes();
+    return page.some(item => keys.has(`${item.matricula}:${item.data}`)) && !this.isAllPageSelected();
+  });
+
+  itemKey(item: MarcacaoDia): string {
+    return `${item.matricula}:${item.data}`;
   }
 
-  fecharModalExportacao() {
-    this.exibindoModalExportacao.set(false);
+  isItemSelected(item: MarcacaoDia): boolean {
+    return this.selectedKeys().has(this.itemKey(item));
   }
 
-
-  constructor() {
+  toggleSelectItem(key: string): void {
+    const next = new Set(this.selectedKeys());
+    next.has(key) ? next.delete(key) : next.add(key);
+    this.selectedKeys.set(next);
   }
+
+  toggleSelectAll(): void {
+    const next = new Set(this.selectedKeys());
+    const page = this._paginatedMarcacoes();
+    if (this.isAllPageSelected()) {
+      page.forEach(item => next.delete(this.itemKey(item)));
+    } else {
+      page.forEach(item => next.add(this.itemKey(item)));
+    }
+    this.selectedKeys.set(next);
+  }
+
+  clearSelection(): void {
+    this.selectedKeys.set(new Set());
+  }
+
+  async applyBulkAction(): Promise<void> {
+    const keys = this.selectedKeys();
+    if (keys.size === 0) return;
+
+    this.isApplyingBulk.set(true);
+    const action = this.selectedAction();
+    const allData = this._marcacoesDiaTabelaPainel();
+    const selected = allData.filter(m => keys.has(this.itemKey(m)));
+
+    try {
+      await Promise.all(selected.map(md => {
+        const isoDate = DateHelper.toIsoDate(md.data);
+        return this.marcacaoService.saveEvent(md.matricula, isoDate, isoDate, action, 'FIXO');
+      }));
+      this.toastService.success(`"${action}" aplicado em ${selected.length} registro(s).`);
+      this.clearSelection();
+      await this.marcacaoService.backgroundRefreshMarcacoes();
+    } catch (error) {
+      this.toastService.error('Erro ao aplicar ação em lote.');
+    } finally {
+      this.isApplyingBulk.set(false);
+    }
+  }
+
+  constructor() {}
 
   ngOnInit() {
     // Dados são carregados pelo componente pai (PainelGestao) via navegação de dia
@@ -173,15 +250,13 @@ export class TabelaFuncionarios {
   onSearch(event: Event) {
     const input = event.target as HTMLInputElement;
     this.searchQuery.set(input.value);
-    this.currentPage.set(1); // Resetar para primeira página ao pesquisar
+    this.currentPage.set(1);
   }
 
   onSort(column: string) {
     if (this.sortColumn() === column) {
-      // Alternar direção
       this.sortDirection.update(d => d === 'asc' ? 'desc' : 'asc');
     } else {
-      // Nova coluna, default asc
       this.sortColumn.set(column);
       this.sortDirection.set('asc');
     }
@@ -190,18 +265,14 @@ export class TabelaFuncionarios {
   onItemsPerPageChange(event: Event) {
     const select = event.target as HTMLSelectElement;
     this.itemsPerPage.set(Number(select.value));
-    this.currentPage.set(1); // Resetar para primeira página
+    this.currentPage.set(1);
   }
 
   prevPage() {
-    if (this.currentPage() > 1) {
-      this.currentPage.update(p => p - 1);
-    }
+    if (this.currentPage() > 1) this.currentPage.update(p => p - 1);
   }
 
   nextPage() {
-    if (this.currentPage() < this._totalPages()) {
-      this.currentPage.update(p => p + 1);
-    }
+    if (this.currentPage() < this._totalPages()) this.currentPage.update(p => p + 1);
   }
 }

@@ -1,11 +1,11 @@
 <div class="table-container">
-  
-  <!-- Search and controls will use global styles -->
+
+  <!-- Search and controls -->
   <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-xl); background: white; border-bottom: 1px solid var(--color-gray-200);">
     <div style="position: relative; flex: 1; max-width: 400px;">
-      <input 
-        type="text" 
-        placeholder="Pesquisar por nome, matrícula ou empresa..." 
+      <input
+        type="text"
+        placeholder="Pesquisar por nome, matrícula ou empresa..."
         (input)="onSearch($event)"
         class="input-text"
         style="width: 100%; padding-left: 40px;"
@@ -30,8 +30,8 @@
   </div>
 
   @if (exibindoModalExportacao()) {
-    <app-modal-exportacao 
-      [data]="_sortedMarcacoes()" 
+    <app-modal-exportacao
+      [data]="_sortedMarcacoes()"
       (close)="fecharModalExportacao()"
     ></app-modal-exportacao>
   }
@@ -44,7 +44,6 @@
     ></app-modal-detalhes-marcacao>
   }
 
-
   @if (_isBackgroundRefreshing()) {
     <div class="background-refresh-bar"></div>
   }
@@ -54,6 +53,7 @@
       <table class="data-table">
         <thead>
           <tr>
+            <th class="col-checkbox"></th>
             <th class="col-matricula">Matrícula</th>
             <th class="col-empresa">Empresa</th>
             <th class="col-cargo">Cargo</th>
@@ -64,12 +64,14 @@
             <th class="col-hora">Hora</th>
             <th class="col-almoco">Almoço</th>
             <th class="col-total-horas">Total Horas</th>
+            <th class="col-saldo">Saldo</th>
             <th class="col-status">Status</th>
           </tr>
         </thead>
         <tbody>
           @for (row of skeletonRows; track row; let i = $index) {
             <tr class="skeleton-row" [style.--row-delay]="(i * 60) + 'ms'">
+              <td><div class="skeleton-cell" style="width: 16px; height: 16px; border-radius: 3px; margin: auto;"></div></td>
               <td><div class="skeleton-cell sk-matricula"></div></td>
               <td><div class="skeleton-cell sk-empresa"></div></td>
               <td><div class="skeleton-cell sk-cargo"></div></td>
@@ -86,6 +88,7 @@
                 </div>
               </td>
               <td><div class="skeleton-cell sk-almoco"></div></td>
+              <td><div class="skeleton-cell sk-totalhoras"></div></td>
               <td><div class="skeleton-cell sk-totalhoras"></div></td>
               <td><div class="skeleton-cell sk-status"></div></td>
             </tr>
@@ -105,6 +108,16 @@
       <table class="data-table">
         <thead>
           <tr>
+            <th class="col-checkbox">
+              <input
+                type="checkbox"
+                class="row-checkbox"
+                [checked]="isAllPageSelected()"
+                [indeterminate]="isSomePageSelected()"
+                (change)="toggleSelectAll()"
+                title="Selecionar página"
+              >
+            </th>
             <th (click)="onSort('matricula')" class="sortable col-matricula">
               Matrícula
               @if(sortColumn() === 'matricula') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
@@ -139,15 +152,26 @@
               Total Horas
               @if(sortColumn() === 'totalHoras') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
             </th>
+            <th (click)="onSort('saldo')" class="sortable col-saldo">
+              Saldo
+              @if(sortColumn() === 'saldo') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+            </th>
             <th class="col-status">Status</th>
           </tr>
         </thead>
         <tbody>
           @for (item of _paginatedMarcacoes(); track item.matricula + '_' + item.data) {
-            <tr app-linha-tabela-marcacoes [marcacao]="item" (openDetails)="abrirDetalhes($event)" class="clickable-row"></tr>
+            <tr app-linha-tabela-marcacoes
+                [marcacao]="item"
+                [isSelected]="isItemSelected(item)"
+                (openDetails)="abrirDetalhes($event)"
+                (toggleSelect)="toggleSelectItem(itemKey(item))"
+                class="clickable-row"
+                [class.row-selected]="isItemSelected(item)">
+            </tr>
           } @empty {
             <tr>
-              <td colspan="10" style="text-align: center">Nenhuma marcação encontrada.</td>
+              <td colspan="13" style="text-align: center">Nenhuma marcação encontrada.</td>
             </tr>
           }
         </tbody>
@@ -165,3 +189,35 @@
     </div>
   }
 </div>
+
+<!-- Barra de ação em lote (flutuante, fixa no rodapé) -->
+@if (selectedKeys().size > 0) {
+  <div class="bulk-action-bar">
+    <span class="bulk-count">
+      <strong>{{ selectedKeys().size }}</strong> selecionado{{ selectedKeys().size === 1 ? '' : 's' }}
+    </span>
+
+    <div class="bulk-controls">
+      <select
+        class="bulk-select"
+        (change)="selectedAction.set($any($event.target).value)"
+      >
+        @for (action of bulkActions; track action) {
+          <option [value]="action">{{ action }}</option>
+        }
+      </select>
+
+      <button
+        class="btn bulk-apply-btn"
+        (click)="applyBulkAction()"
+        [disabled]="isApplyingBulk()"
+      >
+        {{ isApplyingBulk() ? 'Aplicando...' : 'Aplicar' }}
+      </button>
+    </div>
+
+    <button class="bulk-clear-btn" (click)="clearSelection()">
+      Limpar seleção
+    </button>
+  </div>
+}
