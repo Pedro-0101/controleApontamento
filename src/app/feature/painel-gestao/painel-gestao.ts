@@ -1,4 +1,5 @@
-import { Component, inject, signal, computed, ViewChild, ElementRef } from '@angular/core';
+import { Component, inject, signal, computed, ViewChild, ElementRef, effect } from '@angular/core';
+import { Router, ActivatedRoute } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { LoggerService } from '../../core/services/logger/logger.service';
 import { MarcacaoDia } from '../../models/marcacaoDia/marcacao-dia';
@@ -23,6 +24,8 @@ export class PainelGestao {
 
   private loggerService = inject(LoggerService);
   private marcacaoService = inject(MarcacaoService);
+  private router = inject(Router);
+  private activatedRoute = inject(ActivatedRoute);
 
   protected isLoading = signal(true);
   protected marcacoesDia = signal<MarcacaoDia[]>([]);
@@ -54,9 +57,29 @@ export class PainelGestao {
 
   constructor() {
     this.loggerService.info('PainelGestaoComponent', 'Componente inicializado');
+
+    // Sincroniza a data selecionada na query string (?data=YYYY-MM-DD)
+    effect(() => {
+      const d = this.currentDate();
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      this.router.navigate([], {
+        relativeTo: this.activatedRoute,
+        queryParams: { data: iso },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      });
+    });
   }
 
   ngOnInit() {
+    // Restaura a data da URL ao abrir a página
+    const dataParam = this.activatedRoute.snapshot.queryParams['data'];
+    if (dataParam) {
+      const [year, month, day] = dataParam.split('-').map(Number);
+      if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+        this.currentDate.set(new Date(year, month - 1, day));
+      }
+    }
     this.carregarDia();
   }
 
