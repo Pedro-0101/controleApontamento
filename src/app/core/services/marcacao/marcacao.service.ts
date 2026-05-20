@@ -33,7 +33,7 @@ export class MarcacaoService {
   private marcacoes = signal<Marcacao[]>([]);
   private marcacoesFiltradas = signal<MarcacaoDia[]>([]);
   private marcacaoesFiltradasBackup = signal<MarcacaoDia[]>([]);
-  private isLoadingMarcacoes = signal(false);
+  private isLoadingMarcacoes = signal(true);
   private isBackgroundRefreshing = signal(false);
 
 
