@@ -9,12 +9,11 @@ import { ToastService } from '../../../../core/services/toast/toast.service';
 import { Marcacao } from '../../../../models/marcacao/marcacao';
 import { TitleCaseCustomPipe } from '../../../../shared/pipes/title-case-custom.pipe';
 import { EmployeeService } from '../../../../core/services/employee/employee.service';
-import { ModalPerfilColaborador } from '../../../../shared/modal-perfil-colaborador/modal-perfil-colaborador';
 
 @Component({
   selector: 'app-modal-detalhes-marcacao',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, TitleCaseCustomPipe, ModalPerfilColaborador],
+  imports: [CommonModule, FormsModule, LucideAngularModule, TitleCaseCustomPipe],
   templateUrl: './modal-detalhes-marcacao.html',
   styleUrl: './modal-detalhes-marcacao.css'
 })
@@ -26,13 +25,13 @@ export class ModalDetalhesMarcacaoComponent {
   record = input.required<MarcacaoDia>();
   @Output() close = new EventEmitter<void>();
   @Output() updated = new EventEmitter<void>();
+  @Output() verPerfil = new EventEmitter<void>();
 
   DateHelper = DateHelper;
 
   novoComentario = signal('');
   novoPontoHora = signal('');
   isSaving = signal(false);
-  showPerfil = signal(false);
 
   novoStatusFixo = signal('');
   statusDisponiveis = MarcacaoService.getPossiveisStatus();

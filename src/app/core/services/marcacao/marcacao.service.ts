@@ -312,8 +312,23 @@ export class MarcacaoService {
 
   async getPerfilMensalFuncionario(matricula: string, dataInicio: string, dataFim: string): Promise<MarcacaoDia[]> {
     try {
-      const marcacoes = await this.fetchMarcacoes(dataInicio, dataFim, matricula);
-      const filtradas = marcacoes.filter(m => String(m.matriculaFuncionario).trim() === String(matricula).trim());
+      // Estende ±1 dia igual ao fetchMarcacoes para capturar batidas offline e lógica < 04:00
+      const inicioObj = DateHelper.fromStringDate(dataInicio);
+      const fimObj    = DateHelper.fromStringDate(dataFim);
+      if (inicioObj) inicioObj.setDate(inicioObj.getDate() - 1);
+      if (fimObj)    fimObj.setDate(fimObj.getDate() + 1);
+      const inicioAjustado = inicioObj ? DateHelper.getStringDate(inicioObj) : dataInicio;
+      const fimAjustado    = fimObj    ? DateHelper.getStringDate(fimObj)    : dataFim;
+
+      // Chamada direta com MatriculaFuncionario no body (não busca todos os funcionários)
+      const marcacoes = await this.marcacaoApiService.getMarcacoesByEmployee(
+        matricula, inicioAjustado, fimAjustado
+      );
+
+      const filtradas = marcacoes.filter(m =>
+        String(m.matriculaFuncionario).trim() === String(matricula).trim()
+      );
+
       return await this.formatarMarcacoesPorDia(
         filtradas.sort((a, b) => a.cpf.localeCompare(b.cpf)),
         dataInicio,

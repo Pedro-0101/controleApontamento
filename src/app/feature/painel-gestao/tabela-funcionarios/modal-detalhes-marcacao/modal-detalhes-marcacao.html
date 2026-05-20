@@ -5,7 +5,7 @@
         <h3>Detalhes da Marcação</h3>
         <div style="display: flex; align-items: center; gap: 12px;">
           <p style="margin: 0;">{{ record().nome }} - {{ record().matricula }}</p>
-          <button class="btn btn-sm btn-outline" style="display: flex; align-items: center; justify-content: center; gap: 6px;" (click)="showPerfil.set(true)" title="Ver Perfil do Colaborador">
+          <button class="btn btn-sm btn-outline" style="display: flex; align-items: center; justify-content: center; gap: 6px;" (click)="verPerfil.emit()" title="Ver Perfil do Colaborador">
             <lucide-icon name="user" [size]="14"></lucide-icon>
             <span>Ver Perfil</span>
           </button>
@@ -202,10 +202,3 @@
   </div>
 </div>
 
-@if (showPerfil()) {
-  <app-modal-perfil-colaborador
-    [matricula]="record().matricula"
-    [nomeInicial]="record().nome"
-    (close)="showPerfil.set(false)"
-  ></app-modal-perfil-colaborador>
-}

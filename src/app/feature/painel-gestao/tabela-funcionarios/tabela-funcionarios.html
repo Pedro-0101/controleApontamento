@@ -41,7 +41,16 @@
       [record]="selectedRecord()!"
       (close)="fecharDetalhes()"
       (updated)="recarregarDados()"
+      (verPerfil)="abrirPerfil()"
     ></app-modal-detalhes-marcacao>
+  }
+
+  @if (perfilRecord()) {
+    <app-modal-perfil-colaborador
+      [matricula]="perfilRecord()!.matricula"
+      [nomeInicial]="perfilRecord()!.nome"
+      (close)="fecharPerfil()"
+    ></app-modal-perfil-colaborador>
   }
 
   @if (_isBackgroundRefreshing()) {

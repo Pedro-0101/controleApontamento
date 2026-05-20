@@ -8,11 +8,12 @@ import { MarcacaoDia } from '../../../models/marcacaoDia/marcacao-dia';
 import { LinhaTabelaMarcacoes } from './linha-tabela-marcacoes/linha-tabela-marcacoes';
 import { ModalExportacaoComponent } from './modal-exportacao/modal-exportacao';
 import { ModalDetalhesMarcacaoComponent } from './modal-detalhes-marcacao/modal-detalhes-marcacao';
+import { ModalPerfilColaborador } from '../../../shared/modal-perfil-colaborador/modal-perfil-colaborador';
 import { LucideAngularModule } from 'lucide-angular';
 
 @Component({
   selector: 'app-tabela-funcionarios',
-  imports: [LinhaTabelaMarcacoes, ModalExportacaoComponent, ModalDetalhesMarcacaoComponent, LucideAngularModule],
+  imports: [LinhaTabelaMarcacoes, ModalExportacaoComponent, ModalDetalhesMarcacaoComponent, ModalPerfilColaborador, LucideAngularModule],
   templateUrl: './tabela-funcionarios.html',
   styleUrl: './tabela-funcionarios.css',
 })
@@ -126,6 +127,17 @@ export class TabelaFuncionarios {
 
   fecharDetalhes() {
     this.selectedRecord.set(null);
+  }
+
+  // --- Modal Perfil ---
+  readonly perfilRecord = signal<MarcacaoDia | null>(null);
+
+  abrirPerfil() {
+    this.perfilRecord.set(this.selectedRecord());
+  }
+
+  fecharPerfil() {
+    this.perfilRecord.set(null);
   }
 
   async recarregarDados() {

@@ -140,6 +140,10 @@ export class ModalPerfilColaborador implements OnInit {
     });
   });
 
+  // ── Skeleton ─────────────────────────────────────────────────────────────
+  readonly skeletonCalCells = Array.from({ length: 35 }, (_, i) => i);
+  readonly skeletonRows     = Array.from({ length: 10 }, (_, i) => i);
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   async ngOnInit() {
