@@ -6,8 +6,8 @@ import { Marcacao } from '../../../models/marcacao/marcacao';
 import { LoggerService } from '../logger/logger.service';
 
 export interface SelecionaMarcacoesParams {
-  NumSerieRelogio?: string;
-  MatriculaFuncionario?: string;
+  numSerieRelogio?: string;
+  matriculaFuncionario?: string;
   dataInicio: string; // DD/MM/YYYY HH:MM:SS
   dataFim: string; // DD/MM/YYYY HH:MM:SS
   tokenAcesso: string | null;
@@ -51,7 +51,7 @@ export class MarcacaoApiService {
     this.logger.info('MarcacaoApiService', `Getting marcacoes for clock ${numSerieRelogio}`);
 
     const params: SelecionaMarcacoesParams = {
-      NumSerieRelogio: numSerieRelogio,
+      numSerieRelogio,
       dataInicio: `${dataInicio} 00:00:00`,
       dataFim: `${dataFim} 23:59:59`,
       tokenAcesso: this.apiSessionService.tokenSession()
@@ -67,7 +67,7 @@ export class MarcacaoApiService {
     this.logger.info('MarcacaoApiService', `Getting marcacoes for employee ${matricula}`);
 
     const params: SelecionaMarcacoesParams = {
-      MatriculaFuncionario: matricula,
+      matriculaFuncionario: matricula,
       dataInicio: `${dataInicio} 00:00:00`,
       dataFim: `${dataFim} 23:59:59`,
       tokenAcesso: this.apiSessionService.tokenSession()
@@ -88,8 +88,8 @@ export class MarcacaoApiService {
     this.logger.info('MarcacaoApiService', `Getting marcacoes for employee ${matricula} and clock ${numSerieRelogio}`);
 
     const params: SelecionaMarcacoesParams = {
-      MatriculaFuncionario: matricula,
-      NumSerieRelogio: numSerieRelogio,
+      matriculaFuncionario: matricula,
+      numSerieRelogio,
       dataInicio: `${dataInicio} 00:00:00`,
       dataFim: `${dataFim} 23:59:59`,
       tokenAcesso: this.apiSessionService.tokenSession()

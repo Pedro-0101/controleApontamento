@@ -431,6 +431,9 @@ export class MarcacaoService {
       if (matriculasAlvo && matriculasAlvo.length > 0) {
         // Se tiver alvos específicos, buscamos apenas os nomes/empresas deles (optimizado)
         funcionariosAtivos = await this.employeeService.getEmployeeNamesBatch(matriculasAlvo);
+        // Garantir que marcacoesDia só contenha os alvos (a API pode retornar mais registros)
+        const alvosSet = new Set(matriculasAlvo.map(m => String(m).trim()));
+        marcacoesDia = marcacoesDia.filter(m => alvosSet.has(String(m.matricula).trim()));
       } else {
         funcionariosAtivos = await this.employeeService.getAllActiveEmployees();
         
