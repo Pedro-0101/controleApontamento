@@ -110,11 +110,11 @@ export class ModalPerfilColaborador implements OnInit {
   ));
 
   protected totalFaltas = computed(() =>
-    this.marcacoesMes().filter(md => md.getStatus() === 'Falta').length
+    this.marcacoesMes().filter(md => md.getStatus() === 'Falta Confirmada').length
   );
 
   protected totalAtrasos = computed(() =>
-    this.marcacoesMes().filter(md => (md.getHorasNormaisEExtras()?.atraso ?? 0) > 0).length
+    this.marcacoesMes().filter(md => md.getStatus() === 'Atraso Confirmado').length
   );
 
   protected totalExtras = computed(() => this.fmtMin(
