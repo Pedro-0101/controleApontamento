@@ -181,7 +181,7 @@ export class MarcacaoDia implements MarcacaoDia {
         return marcacoesOrdenadas;
     }
 
-    getHorasNormaisEExtras(): { normais: number; extras: number } | null {
+    getHorasNormaisEExtras(): { normais: number; extras: number; atraso: number } | null {
         const marcacoesValidas = this.marcacoes.filter(m => !m.desconsiderado);
         if (marcacoesValidas.length < 2 || marcacoesValidas.length % 2 !== 0) return null;
 
@@ -192,25 +192,30 @@ export class MarcacaoDia implements MarcacaoDia {
 
         let normalLimit: number;
         if (this.trabalhaSabado) {
-            // Trabalha sábado: seg-sex=8h, sáb=4h, dom=0h
             if (diaSemana === 0)      normalLimit = 0;
             else if (diaSemana === 6) normalLimit = 240;
             else                      normalLimit = 480;
         } else {
-            // Não trabalha sábado: seg-sex=8h48, sáb/dom=0h
             normalLimit = (diaSemana >= 1 && diaSemana <= 5) ? 528 : 0;
         }
+
+        // Atraso só em dias passados — hoje ainda está em andamento
+        const hoje = new Date();
+        const isHoje = dataObj.getFullYear() === hoje.getFullYear() &&
+                       dataObj.getMonth()    === hoje.getMonth()    &&
+                       dataObj.getDate()     === hoje.getDate();
 
         return {
             normais: Math.min(worked, normalLimit),
             extras:  Math.max(0, worked - normalLimit),
+            atraso:  (!isHoje && normalLimit > 0 && worked < normalLimit) ? normalLimit - worked : 0,
         };
     }
 
     getHorasNormaisFormatadas(): string {
         const r = this.getHorasNormaisEExtras();
         if (r === null) return '--';
-        if (r.normais === 0 && r.extras > 0) return '--'; // dia de extra puro (domingo, sáb sem trabalhar)
+        if (r.normais === 0 && r.extras > 0) return '--';
         const h = Math.floor(r.normais / 60).toString().padStart(2, '0');
         const m = (r.normais % 60).toString().padStart(2, '0');
         return `${h}:${m}`;
@@ -222,6 +227,14 @@ export class MarcacaoDia implements MarcacaoDia {
         const h = Math.floor(r.extras / 60).toString().padStart(2, '0');
         const m = (r.extras % 60).toString().padStart(2, '0');
         return `+${h}:${m}`;
+    }
+
+    getHorasAtrasoFormatadas(): string {
+        const r = this.getHorasNormaisEExtras();
+        if (r === null || r.atraso === 0) return '';
+        const h = Math.floor(r.atraso / 60).toString().padStart(2, '0');
+        const m = (r.atraso % 60).toString().padStart(2, '0');
+        return `-${h}:${m}`;
     }
 
     getDataFormatada(): string {

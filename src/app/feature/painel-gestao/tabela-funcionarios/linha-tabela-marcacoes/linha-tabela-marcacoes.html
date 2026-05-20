@@ -30,10 +30,13 @@
   }
 </td>
 <td class="col-total-horas" (click)="abrirDetalhes()">
-  <div class="horas-cell">
+  <div class="horas-linha">
     <span class="horas-normal">{{ marcacao().getHorasNormaisFormatadas() }}</span>
     @if (marcacao().getHorasExtrasFormatadas()) {
       <span class="horas-extra">{{ marcacao().getHorasExtrasFormatadas() }}</span>
+    }
+    @if (marcacao().getHorasAtrasoFormatadas()) {
+      <span class="horas-atraso">{{ marcacao().getHorasAtrasoFormatadas() }}</span>
     }
   </div>
 </td>
