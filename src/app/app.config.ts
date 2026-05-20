@@ -60,6 +60,7 @@ import {
   UserCheck,
   Activity,
   CalendarSearch,
+  CalendarOff,
   UserX,
 } from 'lucide-angular';
 
@@ -128,6 +129,7 @@ export const appConfig: ApplicationConfig = {
       UserCheck,
       Activity,
       CalendarSearch,
+      CalendarOff,
       UserX,
     }))
   ]

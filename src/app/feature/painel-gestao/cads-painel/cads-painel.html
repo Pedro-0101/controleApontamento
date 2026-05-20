@@ -50,9 +50,6 @@
         <lucide-icon name="alert-triangle" [size]="20"></lucide-icon>
       </div>
       <span class="card-title">Inconsistências</span>
-      @if (_totalInconsistencias() > 0) {
-        <span class="badge-alerta" title="{{ _totalInconsistencias() }} pendências">⚠️</span>
-      }
     </div>
     <div class="card-value">
       <span class="card-number">{{ _totalInconsistencias() }}</span>
