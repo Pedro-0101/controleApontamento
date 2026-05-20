@@ -33,11 +33,13 @@ export class MarcacaoService {
   private marcacoes = signal<Marcacao[]>([]);
   private marcacoesFiltradas = signal<MarcacaoDia[]>([]);
   private marcacaoesFiltradasBackup = signal<MarcacaoDia[]>([]);
-  private isLoadingMarcacoes = signal(true);
+  private isLoadingMarcacoes = signal(false);
+  private hasLoadedOnce = signal(false);
   private isBackgroundRefreshing = signal(false);
 
 
-  readonly _isLoadingMarcacoes = computed(() => this.isLoadingMarcacoes());
+  // Verdadeiro enquanto carrega OU enquanto nunca carregou (garante skeleton no primeiro acesso)
+  readonly _isLoadingMarcacoes = computed(() => !this.hasLoadedOnce() || this.isLoadingMarcacoes());
   readonly _isBackgroundRefreshing = computed(() => this.isBackgroundRefreshing());
   readonly _marcacoes = computed(() => this.marcacoes());
   readonly _marcacoesFiltradas = computed(() => this.marcacoesFiltradas());
@@ -173,6 +175,7 @@ export class MarcacaoService {
         this.ordenarTodasMarcacoes(cached.marcacoesDia);
         this.marcacaoesFiltradasBackup.set(cached.marcacoesDia);
         this.applyFilters();
+        this.hasLoadedOnce.set(true);
         this.isLoadingMarcacoes.set(false);
         return cached.marcacoes;
       }
@@ -192,6 +195,7 @@ export class MarcacaoService {
       // Aplicar filtros existentes ao invés de resetar para a lista completa
       this.applyFilters();
 
+      this.hasLoadedOnce.set(true);
       this.isLoadingMarcacoes.set(false);
       return marcacoes;
 
@@ -199,6 +203,7 @@ export class MarcacaoService {
 
       this.loggerService.error('MarcacaoService', 'Erro ao atualizar marcações \n' + error);
       this.marcacoes.set([]);
+      this.hasLoadedOnce.set(true);
       this.isLoadingMarcacoes.set(false);
       return this.marcacoes();
 
