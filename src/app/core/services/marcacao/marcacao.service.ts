@@ -114,27 +114,27 @@ export class MarcacaoService {
 
   private readonly AFASTAMENTO_EVENTOS = ['Ferias', 'Atestado', 'Afastado', 'Suspensao', 'Folga', 'Feriado'];
 
-  readonly _totalFuncionarios = computed(() => this.marcacaoesFiltradasBackup().length);
+  readonly _totalFuncionarios = computed(() => this.marcacoesFiltradas().length);
 
   readonly _totalPresentes = computed(() =>
-    this.marcacaoesFiltradasBackup().filter(m =>
+    this.marcacoesFiltradas().filter(m =>
       m.marcacoes.filter(mc => !mc.desconsiderado).length > 0
     ).length
   );
 
   readonly _totalAtrasoEntrada = computed(() =>
-    this.marcacaoesFiltradasBackup().filter(m => this.temAtrasoEntrada(m)).length
+    this.marcacoesFiltradas().filter(m => this.temAtrasoEntrada(m)).length
   );
 
   readonly _totalAfastamentos = computed(() =>
-    this.marcacaoesFiltradasBackup().filter(m => {
+    this.marcacoesFiltradas().filter(m => {
       const evtStr = m.evento ? m.evento.trim() : null;
       return evtStr !== null && this.AFASTAMENTO_EVENTOS.includes(evtStr);
     }).length
   );
 
   readonly _totalInconsistencias = computed(() =>
-    this.marcacaoesFiltradasBackup().filter(m =>
+    this.marcacoesFiltradas().filter(m =>
       ['Falta', 'Atraso', 'Incompleto', 'Pendente'].includes(m.getStatus())
     ).length
   );
