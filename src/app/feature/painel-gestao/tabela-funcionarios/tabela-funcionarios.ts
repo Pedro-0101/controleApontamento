@@ -142,8 +142,7 @@ export class TabelaFuncionarios {
   }
 
   onAbrirDetalheDoPerfil(md: MarcacaoDia) {
-    this.perfilRecord.set(null); // fecha perfil
-    this.selectedRecord.set(md); // abre detalhes do dia clicado
+    this.selectedRecord.set(md); // abre detalhes na frente do perfil (z-index 2000 > 1100)
   }
 
   async recarregarDados() {
