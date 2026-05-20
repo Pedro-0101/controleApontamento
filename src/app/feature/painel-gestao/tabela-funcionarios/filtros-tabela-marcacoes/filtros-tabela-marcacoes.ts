@@ -122,15 +122,9 @@ export class FiltrosTabelaMarcacoes {
   }
 
   public filtrarPorCard(statuses: string[], especiais: string[] = []): void {
-    this.empresasSelecionadas.set([]);
-    this.locaisSelecionados.set([]);
-    this.relogiosSelecionados.set([]);
     this.statusSelecionados.set(statuses);
     this.filtrosEspeciaisSelecionados.set(especiais);
 
-    this.marcacaoService.filtrarMarcacoesPorEmpresa([]);
-    this.marcacaoService.filtrarMarcacoesPorLocal([]);
-    this.marcacaoService.filtrarMarcacoesPorRelogio([]);
     this.marcacaoService.filtrarMarcacoesPorStatus(statuses);
     this.marcacaoService.filtrarMarcacoesPorFiltroEspecial(especiais);
   }
