@@ -7,6 +7,7 @@ import { MarcacaoDia } from '../../models/marcacaoDia/marcacao-dia';
 import { Employee } from '../../models/employee/employee';
 import { DateHelper } from '../../core/helpers/dateHelper';
 import { TitleCaseCustomPipe } from '../pipes/title-case-custom.pipe';
+import { ModalColaborador } from '../../feature/colaboradores/modal-colaborador/modal-colaborador';
 
 type CalCell = null | {
   dia: number;
@@ -20,7 +21,7 @@ type CalCell = null | {
 @Component({
   selector: 'app-modal-perfil-colaborador',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, TitleCaseCustomPipe],
+  imports: [CommonModule, LucideAngularModule, TitleCaseCustomPipe, ModalColaborador],
   templateUrl: './modal-perfil-colaborador.html',
   styleUrl: './modal-perfil-colaborador.css',
 })
@@ -34,9 +35,10 @@ export class ModalPerfilColaborador implements OnInit {
   @Output() close = new EventEmitter<void>();
   @Output() abrirDetalheDia = new EventEmitter<MarcacaoDia>();
 
-  protected employee = signal<Employee | null>(null);
-  protected marcacoesMes = signal<MarcacaoDia[]>([]);
-  protected isLoading = signal(true);
+  protected employee       = signal<Employee | null>(null);
+  protected marcacoesMes   = signal<MarcacaoDia[]>([]);
+  protected isLoading      = signal(true);
+  protected mostrarEdicao  = signal(false);
 
   private mes = signal(new Date().getMonth());
   private ano = signal(new Date().getFullYear());
@@ -121,14 +123,12 @@ export class ModalPerfilColaborador implements OnInit {
     this.marcacoesMes().reduce((acc, md) => acc + (md.getHorasNormaisEExtras()?.extras ?? 0), 0)
   ));
 
-  // Dias com algum tipo de problema (falta, atraso, incompleto)
   protected diasInconsistentes = computed(() =>
     this.marcacoesMes().filter(md =>
       ['Falta', 'Atraso', 'Incompleto'].includes(md.getStatus())
     ).length
   );
 
-  // Lista de dias úteis para a tabela abaixo do calendário
   protected listaDias = computed(() => {
     const trabSab = this.trabSab();
     return this.marcacoesMes().filter(md => {
@@ -151,6 +151,23 @@ export class ModalPerfilColaborador implements OnInit {
     this.carregarEmployee();
     await this.carregarMes();
   }
+
+  // ── Edição ────────────────────────────────────────────────────────────────
+
+  abrirEdicao(): void {
+    this.mostrarEdicao.set(true);
+  }
+
+  fecharEdicao(): void {
+    this.mostrarEdicao.set(false);
+  }
+
+  async aoSalvarEdicao(): Promise<void> {
+    this.mostrarEdicao.set(false);
+    await this.carregarEmployee();
+  }
+
+  // ── Carregamento ──────────────────────────────────────────────────────────
 
   async carregarEmployee() {
     try {
