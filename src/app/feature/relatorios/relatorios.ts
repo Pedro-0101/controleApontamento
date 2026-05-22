@@ -16,11 +16,19 @@ import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-se
 import { ToastService } from '../../core/services/toast/toast.service';
 import { TitleCaseCustomPipe } from '../../shared/pipes/title-case-custom.pipe';
 
-type marcacaoOrganizada = {
-  nome: string;
+type TipoRelatorio = 'espelho' | 'vr';
+
+interface VRMotivo {
+  tipo: 'menos_90_dias' | 'falta' | 'atestado' | 'atraso' | 'pontos_manuais';
+  descricao: string;
+}
+
+interface VRResultado {
   matricula: string;
+  nome: string;
   empresa: string;
-  marcacoes: Marcacao[];
+  cargo: string;
+  motivos: VRMotivo[];
 }
 
 @Component({
@@ -55,6 +63,11 @@ export class Relatorios {
   marcacoesPorDia = signal<MarcacaoDia[]>([]);
   isLoading = signal(false);
   hasGenerated = signal(false);
+
+  // Tipo de relatório
+  tipoRelatorio = signal<TipoRelatorio>('espelho');
+  maxPontosManualVR = signal(0);
+  resultadosVR = signal<VRResultado[]>([]);
 
   // Pagination
   currentPage = signal(1);
@@ -222,6 +235,7 @@ export class Relatorios {
       const marcacoesPorDia = await this.marcacaoService.formatarMarcacoesPorDia(marcacoesOrdenadas, dataInicioDDMMYYYY, originalDataFimDDMMYYYY, targetMatriculas);
 
       this.marcacoesPorDia.set(marcacoesPorDia);
+      if (this.tipoRelatorio() === 'vr') this.calcularNaoAptosVR();
       this.hasGenerated.set(true);
     } catch (error) {
       console.error('Erro ao gerar relatório:', error);
@@ -238,6 +252,7 @@ export class Relatorios {
     this.setDefaultDates();
     this.marcacoes.set([]);
     this.marcacoesPorDia.set([]);
+    this.resultadosVR.set([]);
     this.hasGenerated.set(false);
     this.currentPage.set(1);
   }
@@ -296,6 +311,198 @@ export class Relatorios {
     return this.marcacoesPorDia().some(dia =>
       dia.marcacoes.some(m => m.desconsiderado)
     );
+  }
+
+  get totalFuncionariosAnalisados(): number {
+    return new Set(this.marcacoesPorDia().map(d => d.matricula)).size;
+  }
+
+  // ── VR ────────────────────────────────────────────────────────────────────
+
+  calcularNaoAptosVR(): void {
+    const todos = this.marcacoesPorDia();
+    const maxManual = this.maxPontosManualVR();
+    const hoje = new Date();
+
+    const porFuncionario = new Map<string, MarcacaoDia[]>();
+    for (const dia of todos) {
+      if (!porFuncionario.has(dia.matricula)) porFuncionario.set(dia.matricula, []);
+      porFuncionario.get(dia.matricula)!.push(dia);
+    }
+
+    const resultados: VRResultado[] = [];
+
+    for (const [matricula, dias] of porFuncionario) {
+      const motivos: VRMotivo[] = [];
+      const primeiro = dias[0];
+
+      const emp = this.employees().find(e => e.matricula === matricula);
+
+      // Regra 0: em período de experiência
+      if (emp?.data_fim_experiencia) {
+        const fimExp = new Date(emp.data_fim_experiencia + 'T23:59:59');
+        if (hoje <= fimExp) {
+          const [y, m, d] = emp.data_fim_experiencia.split('-');
+          motivos.push({
+            tipo: 'menos_90_dias',
+            descricao: `Em período de experiência (até ${d}/${m}/${y})`
+          });
+        }
+      }
+
+      // Regra 1: menos de 90 dias de registro
+      if (emp?.data_admissao) {
+        const admissao = new Date(emp.data_admissao + 'T12:00:00');
+        const diasReg = Math.floor((hoje.getTime() - admissao.getTime()) / 86400000);
+        if (diasReg <= 90) {
+          motivos.push({
+            tipo: 'menos_90_dias',
+            descricao: `Menos de 90 dias de registro (${diasReg} dia${diasReg !== 1 ? 's' : ''})`
+          });
+        }
+      }
+
+      for (const dia of dias) {
+        const status = dia.getStatus();
+        const ddmm = dia.getDataFormatada().substring(0, 5);
+
+        // Regra 2: falta
+        if (status === 'Falta' || status === 'Falta Confirmada') {
+          motivos.push({
+            tipo: 'falta',
+            descricao: `${status === 'Falta Confirmada' ? 'Falta confirmada' : 'Falta'} dia ${ddmm}`
+          });
+        }
+
+        // Regra 3: atestado
+        if (status === 'Atestado') {
+          motivos.push({ tipo: 'atestado', descricao: `Atestado dia ${ddmm}` });
+        }
+
+        // Regra 4: atraso confirmado > 10 min
+        if (status === 'Atraso' || status === 'Atraso Confirmado') {
+          const extras = dia.getHorasNormaisEExtras();
+          const atrasoMin = extras?.atraso ?? 0;
+          if (atrasoMin > 10) {
+            const h = Math.floor(atrasoMin / 60);
+            const m = atrasoMin % 60;
+            const tempo = h > 0 ? `${h}h${String(m).padStart(2, '0')}min` : `${m}min`;
+            motivos.push({
+              tipo: 'atraso',
+              descricao: `Atraso de ${tempo} dia ${ddmm}`
+            });
+          }
+        }
+      }
+
+      // Regra 5: apontamentos manuais
+      const totalManual = dias.reduce(
+        (s, d) => s + d.marcacoes.filter(m => m.numSerieRelogio === 'MANUAL' && !m.desconsiderado).length, 0
+      );
+      if (totalManual > maxManual) {
+        motivos.push({
+          tipo: 'pontos_manuais',
+          descricao: `${totalManual} apontamento${totalManual !== 1 ? 's' : ''} manual${totalManual !== 1 ? 'is' : ''} no período (máx: ${maxManual})`
+        });
+      }
+
+      if (motivos.length > 0) {
+        resultados.push({
+          matricula,
+          nome: primeiro.nome,
+          empresa: primeiro.empresa || '',
+          cargo: primeiro.cargo || '',
+          motivos
+        });
+      }
+    }
+
+    resultados.sort((a, b) => a.nome.localeCompare(b.nome));
+    this.resultadosVR.set(resultados);
+  }
+
+  private vrRows() {
+    return this.resultadosVR().map(r => ({
+      Matricula: r.matricula,
+      Nome: r.nome,
+      Empresa: r.empresa,
+      Cargo: r.cargo,
+      Motivos: r.motivos.map(m => m.descricao).join('; ')
+    }));
+  }
+
+  exportarVRCSV(): void {
+    const csv = this.convertToCSV(this.vrRows());
+    this.downloadFile(csv, `relatorio-vr-${Date.now()}.csv`, 'text/csv');
+  }
+
+  async exportarVRExcel(): Promise<void> {
+    try {
+      const XLSX = await import('xlsx');
+      const ws = XLSX.utils.json_to_sheet(this.vrRows());
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Não Aptos VR');
+      XLSX.writeFile(wb, `relatorio-vr-${Date.now()}.xlsx`);
+    } catch (e) {
+      console.error('Erro ao exportar Excel VR:', e);
+    }
+  }
+
+  async exportarVRPDF(): Promise<void> {
+    try {
+      const jsPDF = (await import('jspdf')).default;
+      const autoTable = (await import('jspdf-autotable')).default;
+      const doc = new jsPDF();
+
+      doc.setFontSize(16);
+      doc.text('Relatório — Não Aptos para VR', 14, 15);
+      doc.setFontSize(10);
+      doc.text(
+        `Período: ${this.formatDateToDDMMYYYY(this.dataInicio())} a ${this.formatDateToDDMMYYYY(this.dataFim())}`,
+        14, 23
+      );
+      doc.text(
+        `Gerado em: ${new Date().toLocaleString('pt-BR')} — ${this.resultadosVR().length} funcionário(s) não apto(s)`,
+        14, 29
+      );
+
+      const body = this.resultadosVR().map(r => [
+        this.toTitleCase(r.nome),
+        r.matricula,
+        this.toTitleCase(r.empresa),
+        r.motivos.map(m => m.descricao).join('\n')
+      ]);
+
+      autoTable(doc, {
+        startY: 35,
+        head: [['Nome', 'Matrícula', 'Empresa', 'Motivos']],
+        body,
+        theme: 'grid',
+        styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak' },
+        headStyles: { fillColor: [220, 38, 38] },
+        columnStyles: {
+          0: { cellWidth: 55 },
+          1: { cellWidth: 22 },
+          2: { cellWidth: 35 },
+          3: { cellWidth: 'auto' }
+        }
+      });
+
+      doc.save(`relatorio-vr-${Date.now()}.pdf`);
+    } catch (e) {
+      console.error('Erro ao exportar PDF VR:', e);
+    }
+  }
+
+  motivoClass(tipo: VRMotivo['tipo']): string {
+    const map: Record<VRMotivo['tipo'], string> = {
+      menos_90_dias: 'motivo-dias',
+      falta:         'motivo-falta',
+      atestado:      'motivo-atestado',
+      atraso:        'motivo-atraso',
+      pontos_manuais:'motivo-manual'
+    };
+    return map[tipo];
   }
 
   exportarCSV() {

@@ -1,3 +1,68 @@
+/* ── Tabs de tipo de relatório ────────────────────────── */
+
+.tipo-relatorio-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.tipo-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tipo-tab:hover { background: #f9fafb; color: #374151; }
+.tipo-tab.ativo {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+/* ── Dica de campo ─────────────────────────────────── */
+
+.form-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
+/* ── Resultados VR ─────────────────────────────────── */
+
+.vr-nao-aptos { color: #dc2626; font-weight: 700; }
+
+.motivos-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.motivo-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.motivo-falta    { background: #fee2e2; color: #b91c1c; }
+.motivo-atestado { background: #ffedd5; color: #c2410c; }
+.motivo-atraso   { background: #fef3c7; color: #b45309; }
+.motivo-manual   { background: #dbeafe; color: #1d4ed8; }
+.motivo-dias     { background: #f3f4f6; color: #374151; }
+
+/* ── page-container ─────────────────────────────────── */
+
 .page-container {
   padding: var(--spacing-xl);
   max-width: 1400px;

@@ -4,10 +4,22 @@
     <p>Gere relatórios detalhados de marcações por período, funcionário ou relógio</p>
   </div>
 
+  <!-- Selector de tipo de relatório -->
+  <div class="tipo-relatorio-tabs">
+    <button class="tipo-tab" [class.ativo]="tipoRelatorio() === 'espelho'" (click)="tipoRelatorio.set('espelho'); limparFiltros()">
+      <lucide-icon name="file-text" [size]="16"></lucide-icon>
+      Espelho de Ponto
+    </button>
+    <button class="tipo-tab" [class.ativo]="tipoRelatorio() === 'vr'" (click)="tipoRelatorio.set('vr'); limparFiltros()">
+      <lucide-icon name="utensils" [size]="16"></lucide-icon>
+      Não Aptos para VR
+    </button>
+  </div>
+
   <!-- Filters Section -->
   <div class="filters-card">
-    <h2>Filtros do Relatório</h2>
-    
+    <h2>{{ tipoRelatorio() === 'vr' ? 'Filtros — Não Aptos para VR' : 'Filtros do Relatório' }}</h2>
+
     <div class="filter-grid">
       <!-- Date Range -->
       <div class="form-group">
@@ -56,6 +68,21 @@
       </div>
 
 
+      @if (tipoRelatorio() === 'vr') {
+        <div class="form-group">
+          <label for="maxManual">Máx. de apontamentos manuais</label>
+          <input
+            type="number"
+            id="maxManual"
+            name="maxManual"
+            [ngModel]="maxPontosManualVR()" (ngModelChange)="maxPontosManualVR.set(+$event)"
+            class="input-text"
+            min="0"
+            placeholder="0"
+          >
+          <small class="form-hint">Funcionários com mais que este número serão listados</small>
+        </div>
+      }
     </div>
 
     <!-- Action Buttons -->
@@ -82,27 +109,30 @@
         Limpar Filtros
       </button>
 
-      @if (hasGenerated() && marcacoesPorDia().length > 0) {
-        <button 
-          class="btn btn-outline"
-          (click)="exportarCSV()"
-        >
+      @if (hasGenerated() && tipoRelatorio() === 'espelho' && marcacoesPorDia().length > 0) {
+        <button class="btn btn-outline" (click)="exportarCSV()">
           <lucide-icon name="download" [size]="16"></lucide-icon>
           Exportar CSV
         </button>
-
-        <button 
-          class="btn btn-outline"
-          (click)="exportarExcel()"
-        >
+        <button class="btn btn-outline" (click)="exportarExcel()">
           <lucide-icon name="file-spreadsheet" [size]="16"></lucide-icon>
           Exportar Excel
         </button>
-
-        <button 
-          class="btn btn-outline"
-          (click)="exportarPDF()"
-        >
+        <button class="btn btn-outline" (click)="exportarPDF()">
+          <lucide-icon name="file-code" [size]="16"></lucide-icon>
+          Exportar PDF
+        </button>
+      }
+      @if (hasGenerated() && tipoRelatorio() === 'vr' && resultadosVR().length > 0) {
+        <button class="btn btn-outline" (click)="exportarVRCSV()">
+          <lucide-icon name="download" [size]="16"></lucide-icon>
+          Exportar CSV
+        </button>
+        <button class="btn btn-outline" (click)="exportarVRExcel()">
+          <lucide-icon name="file-spreadsheet" [size]="16"></lucide-icon>
+          Exportar Excel
+        </button>
+        <button class="btn btn-outline" (click)="exportarVRPDF()">
           <lucide-icon name="file-code" [size]="16"></lucide-icon>
           Exportar PDF
         </button>
@@ -118,6 +148,70 @@
           <div class="spinner"></div>
           <p>Carregando marcações...</p>
         </div>
+      } @else if (tipoRelatorio() === 'vr') {
+
+        <!-- ── Resultados VR ── -->
+        <div class="summary-section">
+          <div class="summary-item">
+            <lucide-icon name="calendar" [size]="20"></lucide-icon>
+            <div>
+              <span class="summary-label">Período</span>
+              <span class="summary-value">{{ formatDateToDDMMYYYY(dataInicio()) }} a {{ formatDateToDDMMYYYY(dataFim()) }}</span>
+            </div>
+          </div>
+          <div class="summary-item">
+            <lucide-icon name="users" [size]="20"></lucide-icon>
+            <div>
+              <span class="summary-label">Funcionários analisados</span>
+              <span class="summary-value">{{ totalFuncionariosAnalisados }}</span>
+            </div>
+          </div>
+          <div class="summary-item">
+            <lucide-icon name="alert-circle" [size]="20"></lucide-icon>
+            <div>
+              <span class="summary-label">Não aptos para VR</span>
+              <span class="summary-value vr-nao-aptos">{{ resultadosVR().length }} funcionário{{ resultadosVR().length !== 1 ? 's' : '' }}</span>
+            </div>
+          </div>
+        </div>
+
+        @if (resultadosVR().length === 0) {
+          <div class="empty-state">
+            <lucide-icon name="check-circle" [size]="48"></lucide-icon>
+            <h3>Todos os funcionários estão aptos</h3>
+            <p>Nenhuma pendência encontrada no período selecionado.</p>
+          </div>
+        } @else {
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Matrícula</th>
+                  <th>Empresa</th>
+                  <th>Motivos de Inelegibilidade</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of resultadosVR(); track r.matricula) {
+                  <tr>
+                    <td>{{ r.nome | titleCaseCustom }}</td>
+                    <td>{{ r.matricula }}</td>
+                    <td>{{ r.empresa | titleCaseCustom }}</td>
+                    <td>
+                      <div class="motivos-list">
+                        @for (m of r.motivos; track $index) {
+                          <span class="motivo-chip {{ motivoClass(m.tipo) }}">{{ m.descricao }}</span>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
       } @else if (marcacoesPorDia().length === 0) {
         <div class="empty-state">
           <lucide-icon name="inbox" [size]="48"></lucide-icon>

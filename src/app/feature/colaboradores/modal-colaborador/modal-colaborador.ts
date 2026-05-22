@@ -30,7 +30,9 @@ export class ModalColaborador implements OnInit {
   cargo = signal('');
   ativo = signal(true);
   trabalhaSabado = signal(true);
-  isSaving = signal(false);
+  dataAdmissao      = signal('');
+  dataFimExperiencia = signal('');
+  isSaving          = signal(false);
 
   ngOnInit() {
     if (this.mode() === 'edit' && this.employee()) {
@@ -42,6 +44,15 @@ export class ModalColaborador implements OnInit {
       this.cargo.set(emp.cargo ?? '');
       this.ativo.set(emp.ativo === 1);
       this.trabalhaSabado.set(emp.trabalha_sabado === 1);
+      this.dataAdmissao.set(emp.data_admissao ?? '');
+      this.dataFimExperiencia.set(emp.data_fim_experiencia ?? emp.data_admissao ?? '');
+    }
+  }
+
+  onDataAdmissaoChange(value: string): void {
+    this.dataAdmissao.set(value);
+    if (!this.dataFimExperiencia()) {
+      this.dataFimExperiencia.set(value);
     }
   }
 
@@ -60,7 +71,9 @@ export class ModalColaborador implements OnInit {
         local: this.local(),
         cargo: this.cargo(),
         ativo: this.ativo() ? 1 : 0,
-        trabalha_sabado: this.trabalhaSabado() ? 1 : 0
+        trabalha_sabado: this.trabalhaSabado() ? 1 : 0,
+        data_admissao: this.dataAdmissao() || undefined,
+        data_fim_experiencia: this.dataFimExperiencia() || undefined,
       };
 
       if (this.mode() === 'create') {

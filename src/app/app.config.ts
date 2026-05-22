@@ -62,6 +62,7 @@ import {
   CalendarSearch,
   CalendarOff,
   UserX,
+  Utensils,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -131,6 +132,7 @@ export const appConfig: ApplicationConfig = {
       CalendarSearch,
       CalendarOff,
       UserX,
+      Utensils,
     }))
   ]
 };
