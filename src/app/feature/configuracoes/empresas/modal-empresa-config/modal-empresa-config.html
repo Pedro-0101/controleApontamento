@@ -1,0 +1,78 @@
+<div class="modal-overlay" (click)="close.emit()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+
+    <div class="modal-header">
+      <h3>{{ getTitle() }}</h3>
+      <button class="btn-close" (click)="close.emit()">
+        <lucide-icon name="x" [size]="20"></lucide-icon>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Nome de exibição *</label>
+        <input type="text" [(ngModel)]="nome" class="input-text" placeholder="Ex: DNP / São João" />
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>E-mail *</label>
+          <input type="email" [(ngModel)]="email" class="input-text" placeholder="usuario@empresa.com.br" />
+        </div>
+        <div class="form-group">
+          <label>Senha {{ mode() === 'edit' ? '(vazio = não altera)' : '*' }}</label>
+          <input type="password" [(ngModel)]="senha" class="input-text" placeholder="••••••••" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Chave da Empresa *</label>
+        <input type="text" [(ngModel)]="chave" class="input-text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+      </div>
+
+      @if (mode() === 'edit') {
+        <div class="teste-conexao">
+          <button class="btn btn-outline" (click)="testarConexao()" [disabled]="isTesting()">
+            @if (isTesting()) {
+              <lucide-icon name="loader-2" [size]="15" class="spin"></lucide-icon>
+            } @else {
+              <lucide-icon name="plug" [size]="15"></lucide-icon>
+            }
+            Testar Conexão
+          </button>
+          @if (testeOk() === true) {
+            <span class="teste-badge ok">
+              <lucide-icon name="check-circle" [size]="14"></lucide-icon> Conexão OK
+            </span>
+          } @else if (testeOk() === false) {
+            <span class="teste-badge falha">
+              <lucide-icon name="alert-circle" [size]="14"></lucide-icon> Falha na conexão
+            </span>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="close.emit()" [disabled]="isSaving()">Cancelar</button>
+      <button class="btn btn-primary" (click)="handleSave()" [disabled]="isSaving()">
+        @if (isSaving()) {
+          <div class="btn-spinner"></div>
+        } @else {
+          <lucide-icon name="save" [size]="16"></lucide-icon>
+        }
+        {{ mode() === 'create' ? 'Criar' : 'Salvar' }}
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<style>
+  .teste-conexao { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+  .teste-badge { display: flex; align-items: center; gap: 5px; font-size: 0.82rem; font-weight: 600; padding: 4px 10px; border-radius: 99px; }
+  .teste-badge.ok { background: #dcfce7; color: #15803d; }
+  .teste-badge.falha { background: #fee2e2; color: #b91c1c; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin 0.8s linear infinite; display: inline-flex; }
+</style>

@@ -61,5 +61,10 @@ export class Sidebar {
       route: '/auditoria',
       icon: 'shield-check'
     },
+    {
+      label: 'Empresas da API',
+      route: '/configuracoes/empresas',
+      icon: 'building-2'
+    },
   ];
 }

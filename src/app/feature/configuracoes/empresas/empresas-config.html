@@ -1,0 +1,79 @@
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1>Empresas da API</h1>
+      <p>Gerencie as empresas cujos dados são integrados no sistema</p>
+    </div>
+    <button class="btn btn-primary" (click)="abrirCriar()">
+      <lucide-icon name="plus" [size]="16"></lucide-icon>
+      Nova Empresa
+    </button>
+  </div>
+
+  <div class="results-card">
+    @if (isLoading()) {
+      <div class="loading-container">
+        <div class="spinner"></div>
+        <p>Carregando empresas...</p>
+      </div>
+    } @else if (empresas().length === 0) {
+      <div class="empty-state">
+        <lucide-icon name="building-2" [size]="48"></lucide-icon>
+        <h3>Nenhuma empresa cadastrada</h3>
+        <p>Adicione a primeira empresa para começar a integrar dados.</p>
+      </div>
+    } @else {
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>E-mail</th>
+              <th>Chave</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (e of empresas(); track e.id) {
+              <tr>
+                <td><strong>{{ e.nome }}</strong></td>
+                <td>{{ e.email }}</td>
+                <td class="chave-cell">{{ e.chave }}</td>
+                <td>
+                  @if (e.ativo) {
+                    <span class="badge status-ok">Ativa</span>
+                  } @else {
+                    <span class="badge status-falta">Inativa</span>
+                  }
+                </td>
+                <td>
+                  <div class="acoes">
+                    <button class="btn btn-outline btn-sm" (click)="abrirEditar(e)" title="Editar">
+                      <lucide-icon name="edit-2" [size]="14"></lucide-icon>
+                      Editar
+                    </button>
+                    <button class="btn btn-outline btn-sm" (click)="toggleAtivo(e)"
+                      [title]="e.ativo ? 'Desativar' : 'Ativar'">
+                      <lucide-icon [name]="e.ativo ? 'ban' : 'check-circle'" [size]="14"></lucide-icon>
+                      {{ e.ativo ? 'Desativar' : 'Ativar' }}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>
+
+@if (showModal()) {
+  <app-modal-empresa-config
+    [mode]="modalMode()"
+    [empresa]="selected()"
+    (close)="fecharModal()"
+    (save)="aoSalvar()"
+  ></app-modal-empresa-config>
+}

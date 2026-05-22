@@ -45,7 +45,7 @@ app.use((req, res, next) => {
   }
 
   // Lista de prefixos das nossas rotas locais (excluem o /api inicial no teste de string)
-  const localPrefixes = ['/api/auth', '/api/comments', '/api/marcacoes', '/api/employee', '/api/employees', '/api/health', '/api/audit-logs'];
+  const localPrefixes = ['/api/auth', '/api/comments', '/api/marcacoes', '/api/employee', '/api/employees', '/api/health', '/api/audit-logs', '/api/empresas-config'];
   const isLocal = localPrefixes.some(prefix => req.url.startsWith(prefix));
   
   if (isLocal) {
@@ -102,6 +102,27 @@ async function initializeDatabase() {
     } catch (e) {
       if (!e.message?.includes('Duplicate column name')) throw e;
     }
+
+    // Criar tabela de configuração de empresas da API
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS empresas_config (
+        id        INT AUTO_INCREMENT PRIMARY KEY,
+        nome      VARCHAR(100) NOT NULL,
+        email     VARCHAR(100) NOT NULL,
+        senha     VARCHAR(100) NOT NULL,
+        chave     VARCHAR(100) NOT NULL,
+        ativo     TINYINT(1) NOT NULL DEFAULT 1,
+        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_chave (chave)
+      )
+    `);
+    console.log('Tabela empresas_config verificada/criada com sucesso');
+
+    // Migração: inserir empresa inicial DNP / São João
+    await pool.query(
+      `INSERT IGNORE INTO empresas_config (nome, email, senha, chave) VALUES (?, ?, ?, ?)`,
+      ['DNP / São João', 'daniele.almeida@grupodnp.com.br', '2508468', '987c2db7-2311-4380-9770-babe1b4c4dcc']
+    );
 
     // Criar tabela de comentários se não existir
     await pool.query(`
@@ -1064,6 +1085,117 @@ app.post('/api/marcacoes/desconsiderar/batch', async (req, res) => {
 // Rota de health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'API funcionando corretamente' });
+});
+
+// ── Empresas Config ────────────────────────────────────────────────────────
+
+// GET /api/empresas-config — lista todas (omite senha)
+app.get('/api/empresas-config', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, nome, email, chave, ativo, criado_em FROM empresas_config ORDER BY nome ASC'
+    );
+    res.json({ success: true, empresas: rows });
+  } catch (e) {
+    console.error('Erro ao listar empresas:', e);
+    res.status(500).json({ success: false, error: 'Erro ao listar empresas' });
+  }
+});
+
+// GET /api/empresas-config/tokens — obtém tokens para todas as empresas ativas
+app.get('/api/empresas-config/tokens', async (req, res) => {
+  try {
+    const [companies] = await pool.query(
+      'SELECT id, nome, email, senha, chave FROM empresas_config WHERE ativo = 1'
+    );
+    const tokens = await Promise.all(companies.map(async c => {
+      try {
+        const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/StartSession', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chaveEmpresa: c.chave, usuario: c.email, senha: c.senha })
+        });
+        const data = await r.json();
+        return { id: c.id, nome: c.nome, token: data.d ?? null, erro: null };
+      } catch (e) {
+        return { id: c.id, nome: c.nome, token: null, erro: e.message };
+      }
+    }));
+    res.json({ success: true, tokens });
+  } catch (e) {
+    console.error('Erro ao obter tokens:', e);
+    res.status(500).json({ success: false, error: 'Erro ao obter tokens das empresas' });
+  }
+});
+
+// POST /api/empresas-config — cria nova empresa
+app.post('/api/empresas-config', async (req, res) => {
+  const { nome, email, senha, chave } = req.body;
+  if (!nome || !email || !senha || !chave) {
+    return res.status(400).json({ success: false, error: 'Nome, email, senha e chave são obrigatórios' });
+  }
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO empresas_config (nome, email, senha, chave) VALUES (?, ?, ?, ?)',
+      [nome, email, senha, chave]
+    );
+    const [rows] = await pool.query(
+      'SELECT id, nome, email, chave, ativo, criado_em FROM empresas_config WHERE id = ?',
+      [result.insertId]
+    );
+    res.json({ success: true, empresa: rows[0], message: 'Empresa criada com sucesso' });
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ success: false, error: 'Chave da empresa já cadastrada' });
+    }
+    console.error('Erro ao criar empresa:', e);
+    res.status(500).json({ success: false, error: 'Erro ao criar empresa' });
+  }
+});
+
+// PUT /api/empresas-config/:id — atualiza empresa (senha vazia = não altera)
+app.put('/api/empresas-config/:id', async (req, res) => {
+  const { id } = req.params;
+  const { nome, email, senha, chave, ativo } = req.body;
+  if (!nome || !email || !chave) {
+    return res.status(400).json({ success: false, error: 'Nome, email e chave são obrigatórios' });
+  }
+  try {
+    if (senha && senha.trim()) {
+      await pool.query(
+        'UPDATE empresas_config SET nome=?, email=?, senha=?, chave=?, ativo=? WHERE id=?',
+        [nome, email, senha, chave, ativo !== undefined ? ativo : 1, id]
+      );
+    } else {
+      await pool.query(
+        'UPDATE empresas_config SET nome=?, email=?, chave=?, ativo=? WHERE id=?',
+        [nome, email, chave, ativo !== undefined ? ativo : 1, id]
+      );
+    }
+    const [rows] = await pool.query(
+      'SELECT id, nome, email, chave, ativo, criado_em FROM empresas_config WHERE id=?',
+      [id]
+    );
+    res.json({ success: true, empresa: rows[0], message: 'Empresa atualizada com sucesso' });
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ success: false, error: 'Chave da empresa já cadastrada' });
+    }
+    console.error('Erro ao atualizar empresa:', e);
+    res.status(500).json({ success: false, error: 'Erro ao atualizar empresa' });
+  }
+});
+
+// DELETE /api/empresas-config/:id — soft-delete (ativo = 0)
+app.delete('/api/empresas-config/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('UPDATE empresas_config SET ativo = 0 WHERE id = ?', [id]);
+    res.json({ success: true, message: 'Empresa desativada com sucesso' });
+  } catch (e) {
+    console.error('Erro ao desativar empresa:', e);
+    res.status(500).json({ success: false, error: 'Erro ao desativar empresa' });
+  }
 });
 
 // Inicializar servidor

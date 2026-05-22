@@ -63,6 +63,9 @@ import {
   CalendarOff,
   UserX,
   Utensils,
+  Building2,
+  Plug,
+  LoaderCircle,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -133,6 +136,9 @@ export const appConfig: ApplicationConfig = {
       CalendarOff,
       UserX,
       Utensils,
+      Building2,
+      Plug,
+      LoaderCircle,
     }))
   ]
 };

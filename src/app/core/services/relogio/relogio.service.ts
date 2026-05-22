@@ -14,9 +14,7 @@ export class RelogioService {
   private apiSessionService = inject(ApiSessionService);
 
   private apiUrl = environment.apiUrlListaRelogios;
-  private readonly token = this.apiSessionService.token();
 
-  // Todos os relogios da empresa
   private relogios = signal<Relogio[]>([]);
   readonly _relogios = computed(() => this.relogios());
 
@@ -24,88 +22,67 @@ export class RelogioService {
   readonly _loadingRelogios = computed(() => this.loadingRelogios());
 
   constructor() {
-    this.loggerService.info("RelogioService", "Componente inicializado");
-
+    this.loggerService.info('RelogioService', 'Componente inicializado');
     this.updateRelogios();
   }
 
-  async updateRelogios(): Promise<Relogio[]> { // Renomeei para updateRelogios para manter padrão
-    this.loggerService.info("RelogioService", "Buscando relógios na API");
+  async updateRelogios(): Promise<Relogio[]> {
+    this.loggerService.info('RelogioService', 'Buscando relógios na API');
     this.loadingRelogios.set(true);
-
     try {
       const response = await this.getRelogiosFromApi();
-
-      this.loggerService.info("RelogioService", `Retornados ${response.length} relógios`);
-
+      this.loggerService.info('RelogioService', `Retornados ${response.length} relógios`);
       this.relogios.set(response);
-
       return response;
-
     } catch (error) {
-      this.loggerService.error("RelogioService", "Erro ao buscar relógios \n" + error);
+      this.loggerService.error('RelogioService', 'Erro ao buscar relógios: ' + error);
       this.relogios.set([]);
       return [];
-
     } finally {
       this.loadingRelogios.set(false);
     }
   }
 
   private async getRelogiosFromApi(): Promise<Relogio[]> {
-
-    this.loggerService.info("RelogioService", "Buscando relogios na api");
-
-    const dataInicio = DateHelper.getDataInicioRequisicaoRelogio();
-    const dataFim = DateHelper.getDataFimRequisicaoRelogio();
-
-    const body = {
-      datainicio: dataInicio,
-      datafim: dataFim,
-      status: '4',
-      tokenAcesso: this.token
-    }
-
-    const response = await fetch(this.apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-      throw new Error(`Erro na requisição: ${response.status} - ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    const listaBruta: any[] = data.d || [];
-
-    return listaBruta.map(r => Relogio.fromJson(r));
-  }
-
-  getRelogiosFromMarcacoesDia(marcacoesDia: MarcacaoDia[]): Relogio[] {
-    this.loggerService.info("RelogioService", "Buscando informacoes de relogios das marcacoes");
-
-    if (marcacoesDia.length === 0) {
+    const tokens = this.apiSessionService.getAllTokens();
+    if (tokens.length === 0) {
+      this.loggerService.warn('RelogioService', 'Nenhum token disponível para buscar relógios');
       return [];
     }
 
-    this.loadingRelogios.set(true);
+    const dataInicio = DateHelper.getDataInicioRequisicaoRelogio();
+    const dataFim    = DateHelper.getDataFimRequisicaoRelogio();
 
-    const numSerieSet = new Set<string>();
+    const results = await Promise.all(tokens.map(async token => {
+      try {
+        const response = await fetch(this.apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ datainicio: dataInicio, datafim: dataFim, status: '4', tokenAcesso: token })
+        });
+        if (!response.ok) return [];
+        const data = await response.json();
+        return (data.d || []).map((r: any) => Relogio.fromJson(r));
+      } catch {
+        return [];
+      }
+    }));
 
-    marcacoesDia.forEach(m => {
-      this.getRelogiosFromMarcacao(m).forEach(numSerie => numSerieSet.add(numSerie));
+    // Deduplicar por numSerie normalizado
+    const vistos = new Set<string>();
+    return results.flat().filter(r => {
+      const k = this.normalizeNumSerie(r.numSerie);
+      return vistos.has(k) ? false : (vistos.add(k), true);
     });
+  }
 
-    const relogios = Array.from(numSerieSet).map(numSerie =>
-      this.getRelogioFromNumSerie(numSerie)
-    );
-
+  getRelogiosFromMarcacoesDia(marcacoesDia: MarcacaoDia[]): Relogio[] {
+    if (marcacoesDia.length === 0) return [];
+    this.loadingRelogios.set(true);
+    const numSerieSet = new Set<string>();
+    marcacoesDia.forEach(m => this.getRelogiosFromMarcacao(m).forEach(ns => numSerieSet.add(ns)));
+    const relogios = Array.from(numSerieSet).map(ns => this.getRelogioFromNumSerie(ns));
     this.loadingRelogios.set(false);
-
     return relogios;
   }
 
@@ -114,30 +91,16 @@ export class RelogioService {
   }
 
   getRelogioFromNumSerie(numSerie: string): Relogio {
-    const relogios = this._relogios();
     const buscaLimpa = this.normalizeNumSerie(numSerie);
-
-    const relogioEncontrado = relogios.find(r =>
-      this.normalizeNumSerie(r.numSerie) === buscaLimpa
-    );
-
-    if (!relogioEncontrado) {
-      return new Relogio({
-        type: 'Nao encontrado',
-        id: 'Nao encontrado',
-        dataCriacao: 'Nao encontrado',
-        descricao: 'Nao encontrado',
-        numSerie: 'Nao encontrado',
-        status: 0,
-      });
-    }
-
-    return relogioEncontrado;
+    const encontrado = this._relogios().find(r => this.normalizeNumSerie(r.numSerie) === buscaLimpa);
+    return encontrado ?? new Relogio({
+      type: 'Nao encontrado', id: 'Nao encontrado', dataCriacao: 'Nao encontrado',
+      descricao: 'Nao encontrado', numSerie: 'Nao encontrado', status: 0,
+    });
   }
 
   public normalizeNumSerie(numSerie: string | undefined | null): string {
     if (!numSerie) return '';
     return numSerie.replace(/\./g, '').replace(/^0+/, '');
   }
-
 }

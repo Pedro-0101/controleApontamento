@@ -30,54 +30,60 @@ export class MarcacaoApiService {
   private readonly MAX_SAMPLES = 10;
 
   /**
-   * Cenário 1: Todas as marcações da empresa no período
+   * Chama todos os tokens em paralelo e mescla os resultados.
+   * Garante que dados de todas as empresas sejam retornados.
+   */
+  private async callAllTokens(
+    baseParams: Omit<SelecionaMarcacoesParams, 'tokenAcesso'>
+  ): Promise<Marcacao[]> {
+    const tokens = this.apiSessionService.getAllTokens();
+    if (tokens.length === 0) {
+      this.logger.warn('MarcacaoApiService', 'Nenhum token disponível');
+      return [];
+    }
+    const results = await Promise.all(
+      tokens.map(token => this.callSelecionaMarcacoes({ ...baseParams, tokenAcesso: token }))
+    );
+    return results.flat();
+  }
+
+  /**
+   * Cenário 1: Todas as marcações de todas as empresas no período
    */
   async getAllMarcacoes(dataInicio: string, dataFim: string): Promise<Marcacao[]> {
     this.logger.info('MarcacaoApiService', `Buscando marcações de ${dataInicio} até ${dataFim}`);
-
-    const params: SelecionaMarcacoesParams = {
+    return this.callAllTokens({
       dataInicio: `${dataInicio} 00:00:00`,
-      dataFim: `${dataFim} 23:59:59`,
-      tokenAcesso: this.apiSessionService.tokenSession()
-    };
-
-    return this.callSelecionaMarcacoes(params);
+      dataFim:    `${dataFim} 23:59:59`
+    });
   }
 
   /**
-   * Cenário 2: Marcações por relógio no período
+   * Cenário 2: Marcações por relógio no período (todas as empresas)
    */
   async getMarcacoesByRelogio(numSerieRelogio: string, dataInicio: string, dataFim: string): Promise<Marcacao[]> {
-    this.logger.info('MarcacaoApiService', `Getting marcacoes for clock ${numSerieRelogio}`);
-
-    const params: SelecionaMarcacoesParams = {
+    this.logger.info('MarcacaoApiService', `Buscando marcações do relógio ${numSerieRelogio}`);
+    return this.callAllTokens({
       numSerieRelogio,
       dataInicio: `${dataInicio} 00:00:00`,
-      dataFim: `${dataFim} 23:59:59`,
-      tokenAcesso: this.apiSessionService.tokenSession()
-    };
-
-    return this.callSelecionaMarcacoes(params);
+      dataFim:    `${dataFim} 23:59:59`
+    });
   }
 
   /**
-   * Cenário 3: Marcações por funcionário no período
+   * Cenário 3: Marcações por funcionário no período (todas as empresas)
    */
   async getMarcacoesByEmployee(matricula: string, dataInicio: string, dataFim: string): Promise<Marcacao[]> {
-    this.logger.info('MarcacaoApiService', `Getting marcacoes for employee ${matricula}`);
-
-    const params: SelecionaMarcacoesParams = {
+    this.logger.info('MarcacaoApiService', `Buscando marcações do funcionário ${matricula}`);
+    return this.callAllTokens({
       matriculaFuncionario: matricula,
       dataInicio: `${dataInicio} 00:00:00`,
-      dataFim: `${dataFim} 23:59:59`,
-      tokenAcesso: this.apiSessionService.tokenSession()
-    };
-
-    return this.callSelecionaMarcacoes(params);
+      dataFim:    `${dataFim} 23:59:59`
+    });
   }
 
   /**
-   * Cenário 4: Marcações por funcionário e relógio no período
+   * Cenário 4: Marcações por funcionário e relógio no período (todas as empresas)
    */
   async getMarcacoesByEmployeeAndClock(
     matricula: string,
@@ -85,17 +91,13 @@ export class MarcacaoApiService {
     dataInicio: string,
     dataFim: string
   ): Promise<Marcacao[]> {
-    this.logger.info('MarcacaoApiService', `Getting marcacoes for employee ${matricula} and clock ${numSerieRelogio}`);
-
-    const params: SelecionaMarcacoesParams = {
+    this.logger.info('MarcacaoApiService', `Buscando marcações do funcionário ${matricula} no relógio ${numSerieRelogio}`);
+    return this.callAllTokens({
       matriculaFuncionario: matricula,
       numSerieRelogio,
       dataInicio: `${dataInicio} 00:00:00`,
-      dataFim: `${dataFim} 23:59:59`,
-      tokenAcesso: this.apiSessionService.tokenSession()
-    };
-
-    return this.callSelecionaMarcacoes(params);
+      dataFim:    `${dataFim} 23:59:59`
+    });
   }
 
   /**
