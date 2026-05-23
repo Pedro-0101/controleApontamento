@@ -529,7 +529,7 @@ app.get('/api/employee/:matricula/history', async (req, res) => {
 const EMPLOYEE_SELECT = `
   SELECT q.id, q.matricula,
          q.empresa_id, COALESCE(e.nome, q.empresa, '') AS empresa,
-         q.local_id,   COALESCE(l.nome, q.local,   '') AS local,
+         q.local_id,   COALESCE(l.nome, q.\`local\`, '') AS \`local\`,
          q.nome, q.cargo, q.ativo, q.trabalha_sabado, q.data_admissao, q.data_fim_experiencia
   FROM qrcod_2023 q
   LEFT JOIN empresas e ON q.empresa_id = e.id

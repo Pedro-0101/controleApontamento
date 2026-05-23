@@ -44,12 +44,16 @@ export class ModalColaborador implements OnInit {
   locais   = signal<LocalModel[]>([]);
 
   async ngOnInit() {
-    const [empresas, locais] = await Promise.all([
-      this.empresaService.listar(),
-      this.localService.listar(),
-    ]);
-    this.empresas.set(empresas);
-    this.locais.set(locais);
+    try {
+      const [empresas, locais] = await Promise.all([
+        this.empresaService.listar(),
+        this.localService.listar(),
+      ]);
+      this.empresas.set(empresas);
+      this.locais.set(locais);
+    } catch (error) {
+      console.error('Erro ao carregar empresas/locais:', error);
+    }
 
     if (this.mode() === 'edit' && this.employee()) {
       const emp = this.employee()!;

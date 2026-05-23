@@ -64,6 +64,8 @@ import {
   UserX,
   Utensils,
   Building2,
+  Building,
+  MapPin,
   Plug,
   LoaderCircle,
 } from 'lucide-angular';
@@ -137,6 +139,8 @@ export const appConfig: ApplicationConfig = {
       UserX,
       Utensils,
       Building2,
+      Building,
+      MapPin,
       Plug,
       LoaderCircle,
     }))
