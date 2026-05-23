@@ -45,7 +45,7 @@ app.use((req, res, next) => {
   }
 
   // Lista de prefixos das nossas rotas locais (excluem o /api inicial no teste de string)
-  const localPrefixes = ['/api/auth', '/api/comments', '/api/marcacoes', '/api/employee', '/api/employees', '/api/health', '/api/audit-logs', '/api/empresas-config'];
+  const localPrefixes = ['/api/auth', '/api/comments', '/api/marcacoes', '/api/employee', '/api/employees', '/api/health', '/api/audit-logs', '/api/empresas-config', '/api/empresas', '/api/locais'];
   const isLocal = localPrefixes.some(prefix => req.url.startsWith(prefix));
   
   if (isLocal) {
@@ -123,6 +123,77 @@ async function initializeDatabase() {
       `INSERT IGNORE INTO empresas_config (nome, email, senha, chave) VALUES (?, ?, ?, ?)`,
       ['DNP / São João', 'daniele.almeida@grupodnp.com.br', '2508468', '987c2db7-2311-4380-9770-babe1b4c4dcc']
     );
+
+    // Criar tabela de empresas (para vincular funcionários)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS empresas (
+        id        INT AUTO_INCREMENT PRIMARY KEY,
+        nome      VARCHAR(255) NOT NULL,
+        ativo     TINYINT(1) NOT NULL DEFAULT 1,
+        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_empresas_nome (nome)
+      )
+    `);
+    console.log('Tabela empresas verificada/criada com sucesso');
+
+    // Criar tabela de locais
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS locais (
+        id        INT AUTO_INCREMENT PRIMARY KEY,
+        nome      VARCHAR(255) NOT NULL,
+        ativo     TINYINT(1) NOT NULL DEFAULT 1,
+        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_locais_nome (nome)
+      )
+    `);
+    console.log('Tabela locais verificada/criada com sucesso');
+
+    // Adicionar coluna empresa_id em qrcod_2023
+    try {
+      await pool.query('ALTER TABLE qrcod_2023 ADD COLUMN empresa_id INT NULL');
+      console.log('Coluna empresa_id adicionada à tabela qrcod_2023');
+    } catch (e) {
+      if (!e.message?.includes('Duplicate column name')) throw e;
+    }
+
+    // Adicionar coluna local_id em qrcod_2023
+    try {
+      await pool.query('ALTER TABLE qrcod_2023 ADD COLUMN local_id INT NULL');
+      console.log('Coluna local_id adicionada à tabela qrcod_2023');
+    } catch (e) {
+      if (!e.message?.includes('Duplicate column name')) throw e;
+    }
+
+    // Migrar empresas distintas da coluna varchar para a tabela empresas
+    await pool.query(`
+      INSERT IGNORE INTO empresas (nome)
+      SELECT DISTINCT empresa FROM qrcod_2023
+      WHERE empresa IS NOT NULL AND empresa != ''
+    `);
+
+    // Migrar locais distintos da coluna varchar para a tabela locais
+    await pool.query(`
+      INSERT IGNORE INTO locais (nome)
+      SELECT DISTINCT local FROM qrcod_2023
+      WHERE local IS NOT NULL AND local != ''
+    `);
+
+    // Preencher empresa_id onde ainda não está definido
+    await pool.query(`
+      UPDATE qrcod_2023 q
+      JOIN empresas e ON q.empresa = e.nome
+      SET q.empresa_id = e.id
+      WHERE q.empresa_id IS NULL AND q.empresa IS NOT NULL AND q.empresa != ''
+    `);
+
+    // Preencher local_id onde ainda não está definido
+    await pool.query(`
+      UPDATE qrcod_2023 q
+      JOIN locais l ON q.local = l.nome
+      SET q.local_id = l.id
+      WHERE q.local_id IS NULL AND q.local IS NOT NULL AND q.local != ''
+    `);
+    console.log('Migração de empresa_id e local_id concluída');
 
     // Criar tabela de comentários se não existir
     await pool.query(`
@@ -454,13 +525,24 @@ app.get('/api/employee/:matricula/history', async (req, res) => {
   }
 });
 
+// Query helper para funcionários com JOIN de empresas e locais
+const EMPLOYEE_SELECT = `
+  SELECT q.id, q.matricula,
+         q.empresa_id, COALESCE(e.nome, q.empresa, '') AS empresa,
+         q.local_id,   COALESCE(l.nome, q.local,   '') AS local,
+         q.nome, q.cargo, q.ativo, q.trabalha_sabado, q.data_admissao, q.data_fim_experiencia
+  FROM qrcod_2023 q
+  LEFT JOIN empresas e ON q.empresa_id = e.id
+  LEFT JOIN locais   l ON q.local_id   = l.id
+`;
+
 // Rota para buscar nome do funcionário por matrícula
 app.get('/api/employee/:matricula', async (req, res) => {
   const { matricula } = req.params;
-  
+
   try {
     const [rows] = await pool.query(
-      'SELECT id, matricula, empresa, nome, local, cargo, trabalha_sabado, data_admissao, data_fim_experiencia FROM qrcod_2023 WHERE matricula = ?',
+      `${EMPLOYEE_SELECT} WHERE q.matricula = ?`,
       [matricula]
     );
 
@@ -499,7 +581,7 @@ app.post('/api/employees/batch', async (req, res) => {
   try {
     const placeholders = matriculas.map(() => '?').join(',');
     const [rows] = await pool.query(
-      `SELECT id, matricula, empresa, nome, local, cargo, trabalha_sabado, data_admissao, data_fim_experiencia FROM qrcod_2023 WHERE matricula IN (${placeholders})`,
+      `${EMPLOYEE_SELECT} WHERE q.matricula IN (${placeholders})`,
       matriculas
     );
 
@@ -538,9 +620,7 @@ app.post('/api/employees/batch', async (req, res) => {
 // Rota para buscar todos os funcionários (ativos e inativos)
 app.get('/api/employees', async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT id, matricula, empresa, nome, local, cargo, ativo, trabalha_sabado, data_admissao, data_fim_experiencia FROM qrcod_2023 ORDER BY nome ASC'
-    );
+    const [rows] = await pool.query(`${EMPLOYEE_SELECT} ORDER BY q.nome ASC`);
 
     res.json({
       success: true,
@@ -558,7 +638,7 @@ app.get('/api/employees', async (req, res) => {
 
 // Rota para criar novo funcionário
 app.post('/api/employees', async (req, res) => {
-  const { matricula, empresa, nome, local, cargo, ativo, trabalha_sabado, data_admissao } = req.body;
+  const { matricula, empresa_id, local_id, nome, cargo, ativo, trabalha_sabado, data_admissao, data_fim_experiencia } = req.body;
 
   if (!matricula || !nome) {
     return res.status(400).json({
@@ -568,14 +648,26 @@ app.post('/api/employees', async (req, res) => {
   }
 
   try {
+    // Buscar nomes para preencher colunas varchar (compatibilidade)
+    let empresaNome = '';
+    let localNome   = '';
+    if (empresa_id) {
+      const [[emp]] = await pool.query('SELECT nome FROM empresas WHERE id = ?', [empresa_id]);
+      empresaNome = emp?.nome || '';
+    }
+    if (local_id) {
+      const [[loc]] = await pool.query('SELECT nome FROM locais WHERE id = ?', [local_id]);
+      localNome = loc?.nome || '';
+    }
+
     const [result] = await pool.query(
-      'INSERT INTO qrcod_2023 (matricula, empresa, nome, local, cargo, ativo, trabalha_sabado, data_admissao, data_fim_experiencia) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [matricula, empresa || '', nome, local || '', cargo || '', ativo !== undefined ? ativo : 1, trabalha_sabado !== undefined ? trabalha_sabado : 1, data_admissao || null, data_fim_experiencia || null]
+      'INSERT INTO qrcod_2023 (matricula, empresa_id, empresa, local_id, local, nome, cargo, ativo, trabalha_sabado, data_admissao, data_fim_experiencia) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [matricula, empresa_id || null, empresaNome, local_id || null, localNome, nome, cargo || '', ativo !== undefined ? ativo : 1, trabalha_sabado !== undefined ? trabalha_sabado : 1, data_admissao || null, data_fim_experiencia || null]
     );
 
     // Buscar o funcionário criado para retornar
     const [rows] = await pool.query(
-      'SELECT id, matricula, empresa, nome, local, cargo, ativo, trabalha_sabado, data_admissao, data_fim_experiencia FROM qrcod_2023 WHERE id = ?',
+      `${EMPLOYEE_SELECT} WHERE q.id = ?`,
       [result.insertId]
     );
 
@@ -602,7 +694,7 @@ app.post('/api/employees', async (req, res) => {
 // Rota para atualizar funcionário
 app.put('/api/employees/:id', async (req, res) => {
   const { id } = req.params;
-  const { matricula, empresa, nome, local, cargo, ativo, trabalha_sabado, data_admissao, data_fim_experiencia } = req.body;
+  const { matricula, empresa_id, local_id, nome, cargo, ativo, trabalha_sabado, data_admissao, data_fim_experiencia } = req.body;
 
   if (!matricula || !nome) {
     return res.status(400).json({
@@ -612,14 +704,26 @@ app.put('/api/employees/:id', async (req, res) => {
   }
 
   try {
+    // Buscar nomes para preencher colunas varchar (compatibilidade)
+    let empresaNome = '';
+    let localNome   = '';
+    if (empresa_id) {
+      const [[emp]] = await pool.query('SELECT nome FROM empresas WHERE id = ?', [empresa_id]);
+      empresaNome = emp?.nome || '';
+    }
+    if (local_id) {
+      const [[loc]] = await pool.query('SELECT nome FROM locais WHERE id = ?', [local_id]);
+      localNome = loc?.nome || '';
+    }
+
     await pool.query(
-      'UPDATE qrcod_2023 SET matricula = ?, empresa = ?, nome = ?, local = ?, cargo = ?, ativo = ?, trabalha_sabado = ?, data_admissao = ?, data_fim_experiencia = ? WHERE id = ?',
-      [matricula, empresa || '', nome, local || '', cargo || '', ativo !== undefined ? ativo : 1, trabalha_sabado !== undefined ? trabalha_sabado : 1, data_admissao || null, data_fim_experiencia || null, id]
+      'UPDATE qrcod_2023 SET matricula=?, empresa_id=?, empresa=?, local_id=?, local=?, nome=?, cargo=?, ativo=?, trabalha_sabado=?, data_admissao=?, data_fim_experiencia=? WHERE id=?',
+      [matricula, empresa_id || null, empresaNome, local_id || null, localNome, nome, cargo || '', ativo !== undefined ? ativo : 1, trabalha_sabado !== undefined ? trabalha_sabado : 1, data_admissao || null, data_fim_experiencia || null, id]
     );
 
     // Buscar o funcionário atualizado
     const [rows] = await pool.query(
-      'SELECT id, matricula, empresa, nome, local, cargo, ativo, trabalha_sabado, data_admissao, data_fim_experiencia FROM qrcod_2023 WHERE id = ?',
+      `${EMPLOYEE_SELECT} WHERE q.id = ?`,
       [id]
     );
 
@@ -745,9 +849,7 @@ app.delete('/api/marcacoes/manual/:id', async (req, res) => {
 // Rota para buscar todos os funcionários ativos (ativo=1)
 app.get('/api/employees/active', async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT id, matricula, empresa, nome, local, cargo, ativo, trabalha_sabado, data_admissao, data_fim_experiencia FROM qrcod_2023 WHERE ativo = 1'
-    );
+    const [rows] = await pool.query(`${EMPLOYEE_SELECT} WHERE q.ativo = 1`);
 
     res.json({
       success: true,
@@ -1082,6 +1184,120 @@ app.post('/api/marcacoes/desconsiderar/batch', async (req, res) => {
   }
 });
 
+// ── Empresas (funcionários) ────────────────────────────────────────────────
+
+app.get('/api/empresas', async (req, res) => {
+  const all = req.query.all === 'true';
+  try {
+    const [rows] = await pool.query(
+      all
+        ? 'SELECT id, nome, ativo FROM empresas ORDER BY nome ASC'
+        : 'SELECT id, nome, ativo FROM empresas WHERE ativo = 1 ORDER BY nome ASC'
+    );
+    res.json({ success: true, empresas: rows });
+  } catch (e) {
+    console.error('Erro ao listar empresas:', e);
+    res.status(500).json({ success: false, error: 'Erro ao listar empresas' });
+  }
+});
+
+app.post('/api/empresas', async (req, res) => {
+  const { nome } = req.body;
+  if (!nome?.trim()) return res.status(400).json({ success: false, error: 'Nome é obrigatório' });
+  try {
+    const [result] = await pool.query('INSERT INTO empresas (nome) VALUES (?)', [nome.trim()]);
+    const [rows] = await pool.query('SELECT id, nome, ativo FROM empresas WHERE id = ?', [result.insertId]);
+    res.json({ success: true, empresa: rows[0], message: 'Empresa criada com sucesso' });
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ success: false, error: 'Empresa já cadastrada' });
+    console.error('Erro ao criar empresa:', e);
+    res.status(500).json({ success: false, error: 'Erro ao criar empresa' });
+  }
+});
+
+app.put('/api/empresas/:id', async (req, res) => {
+  const { id } = req.params;
+  const { nome, ativo } = req.body;
+  if (!nome?.trim()) return res.status(400).json({ success: false, error: 'Nome é obrigatório' });
+  try {
+    await pool.query('UPDATE empresas SET nome = ?, ativo = ? WHERE id = ?', [nome.trim(), ativo !== undefined ? ativo : 1, id]);
+    const [rows] = await pool.query('SELECT id, nome, ativo FROM empresas WHERE id = ?', [id]);
+    res.json({ success: true, empresa: rows[0], message: 'Empresa atualizada com sucesso' });
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ success: false, error: 'Empresa já cadastrada' });
+    console.error('Erro ao atualizar empresa:', e);
+    res.status(500).json({ success: false, error: 'Erro ao atualizar empresa' });
+  }
+});
+
+app.delete('/api/empresas/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('UPDATE empresas SET ativo = 0 WHERE id = ?', [id]);
+    res.json({ success: true, message: 'Empresa desativada com sucesso' });
+  } catch (e) {
+    console.error('Erro ao desativar empresa:', e);
+    res.status(500).json({ success: false, error: 'Erro ao desativar empresa' });
+  }
+});
+
+// ── Locais ─────────────────────────────────────────────────────────────────
+
+app.get('/api/locais', async (req, res) => {
+  const all = req.query.all === 'true';
+  try {
+    const [rows] = await pool.query(
+      all
+        ? 'SELECT id, nome, ativo FROM locais ORDER BY nome ASC'
+        : 'SELECT id, nome, ativo FROM locais WHERE ativo = 1 ORDER BY nome ASC'
+    );
+    res.json({ success: true, locais: rows });
+  } catch (e) {
+    console.error('Erro ao listar locais:', e);
+    res.status(500).json({ success: false, error: 'Erro ao listar locais' });
+  }
+});
+
+app.post('/api/locais', async (req, res) => {
+  const { nome } = req.body;
+  if (!nome?.trim()) return res.status(400).json({ success: false, error: 'Nome é obrigatório' });
+  try {
+    const [result] = await pool.query('INSERT INTO locais (nome) VALUES (?)', [nome.trim()]);
+    const [rows] = await pool.query('SELECT id, nome, ativo FROM locais WHERE id = ?', [result.insertId]);
+    res.json({ success: true, local: rows[0], message: 'Local criado com sucesso' });
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ success: false, error: 'Local já cadastrado' });
+    console.error('Erro ao criar local:', e);
+    res.status(500).json({ success: false, error: 'Erro ao criar local' });
+  }
+});
+
+app.put('/api/locais/:id', async (req, res) => {
+  const { id } = req.params;
+  const { nome, ativo } = req.body;
+  if (!nome?.trim()) return res.status(400).json({ success: false, error: 'Nome é obrigatório' });
+  try {
+    await pool.query('UPDATE locais SET nome = ?, ativo = ? WHERE id = ?', [nome.trim(), ativo !== undefined ? ativo : 1, id]);
+    const [rows] = await pool.query('SELECT id, nome, ativo FROM locais WHERE id = ?', [id]);
+    res.json({ success: true, local: rows[0], message: 'Local atualizado com sucesso' });
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ success: false, error: 'Local já cadastrado' });
+    console.error('Erro ao atualizar local:', e);
+    res.status(500).json({ success: false, error: 'Erro ao atualizar local' });
+  }
+});
+
+app.delete('/api/locais/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('UPDATE locais SET ativo = 0 WHERE id = ?', [id]);
+    res.json({ success: true, message: 'Local desativado com sucesso' });
+  } catch (e) {
+    console.error('Erro ao desativar local:', e);
+    res.status(500).json({ success: false, error: 'Erro ao desativar local' });
+  }
+});
+
 // Rota de health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'API funcionando corretamente' });
@@ -1116,7 +1332,18 @@ app.get('/api/empresas-config/tokens', async (req, res) => {
           body: JSON.stringify({ chaveEmpresa: c.chave, usuario: c.email, senha: c.senha })
         });
         const data = await r.json();
-        return { id: c.id, nome: c.nome, token: data.d ?? null, erro: null };
+        const raw = data.d ?? null;
+        // A API retorna mensagens de erro em português quando a empresa está inativa.
+        // Verificamos por palavras-chave específicas em vez de formato, para não
+        // classificar tokens longos ou com espaços como erro.
+        const ERROS_API = ['desativada', 'contate o suporte', 'não encontrada', 'inválido', 'inválida', 'expirado'];
+        const isErro = raw && ERROS_API.some(k => raw.toLowerCase().includes(k));
+        return {
+          id: c.id,
+          nome: c.nome,
+          token: isErro ? null : raw,
+          erro: isErro ? raw : null
+        };
       } catch (e) {
         return { id: c.id, nome: c.nome, token: null, erro: e.message };
       }

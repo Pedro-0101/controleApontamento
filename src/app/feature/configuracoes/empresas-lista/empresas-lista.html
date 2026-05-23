@@ -1,0 +1,106 @@
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1>Empresas</h1>
+      <p>Gerencie as empresas vinculadas aos colaboradores</p>
+    </div>
+    <button class="btn btn-primary" (click)="abrirCriar()">
+      <lucide-icon name="plus" [size]="16"></lucide-icon>
+      Nova Empresa
+    </button>
+  </div>
+
+  <div class="results-card">
+    @if (isLoading()) {
+      <div class="loading-container">
+        <div class="spinner"></div>
+        <p>Carregando empresas...</p>
+      </div>
+    } @else if (empresas().length === 0) {
+      <div class="empty-state">
+        <lucide-icon name="building" [size]="48"></lucide-icon>
+        <h3>Nenhuma empresa cadastrada</h3>
+        <p>Adicione empresas para vinculá-las aos colaboradores.</p>
+      </div>
+    } @else {
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (e of empresas(); track e.id) {
+              <tr>
+                <td><strong>{{ e.nome }}</strong></td>
+                <td>
+                  @if (e.ativo) {
+                    <span class="badge status-ok">Ativa</span>
+                  } @else {
+                    <span class="badge status-falta">Inativa</span>
+                  }
+                </td>
+                <td>
+                  <div class="acoes">
+                    <button class="btn btn-outline btn-sm" (click)="abrirEditar(e)" title="Editar">
+                      <lucide-icon name="edit-2" [size]="14"></lucide-icon>
+                      Editar
+                    </button>
+                    <button class="btn btn-outline btn-sm" (click)="toggleAtivo(e)"
+                      [title]="e.ativo ? 'Desativar' : 'Ativar'">
+                      <lucide-icon [name]="e.ativo ? 'ban' : 'check-circle'" [size]="14"></lucide-icon>
+                      {{ e.ativo ? 'Desativar' : 'Ativar' }}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>
+
+@if (showModal()) {
+  <div class="modal-overlay" (click)="fecharModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>{{ modalMode() === 'create' ? 'Nova Empresa' : 'Editar Empresa' }}</h3>
+        <button class="btn-close" (click)="fecharModal()">
+          <lucide-icon name="x" [size]="20"></lucide-icon>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="nomeEmpresa">Nome *</label>
+          <input
+            type="text"
+            id="nomeEmpresa"
+            [(ngModel)]="nomeInput"
+            class="input-text"
+            placeholder="Nome da empresa"
+            (keydown.enter)="handleSave()"
+            autofocus
+          >
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" (click)="fecharModal()" [disabled]="isSaving()">
+          Cancelar
+        </button>
+        <button class="btn btn-primary" (click)="handleSave()" [disabled]="isSaving()">
+          @if (isSaving()) {
+            <div class="btn-spinner"></div>
+          } @else {
+            <lucide-icon name="save" [size]="16"></lucide-icon>
+          }
+          {{ modalMode() === 'create' ? 'Criar' : 'Salvar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

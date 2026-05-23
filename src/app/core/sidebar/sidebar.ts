@@ -66,5 +66,15 @@ export class Sidebar {
       route: '/configuracoes/empresas',
       icon: 'building-2'
     },
+    {
+      label: 'Empresas',
+      route: '/configuracoes/empresas-lista',
+      icon: 'building'
+    },
+    {
+      label: 'Locais',
+      route: '/configuracoes/locais',
+      icon: 'map-pin'
+    },
   ];
 }
