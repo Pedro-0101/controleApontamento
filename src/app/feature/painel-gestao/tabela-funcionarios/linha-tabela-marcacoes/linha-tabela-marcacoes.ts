@@ -53,6 +53,16 @@ export class LinhaTabelaMarcacoes {
     return `${h}:${m}`;
   }
 
+  getEmpresaColor(empresa: string | undefined | null): string {
+    if (!empresa) return '#9ca3af';
+    let hash = 0;
+    for (let i = 0; i < empresa.length; i++) {
+      hash = empresa.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 60%, 42%)`;
+  }
+
   isAlmocoIrregular(): boolean {
     const ativas = this.marcacao().marcacoes.filter(m => !m.desconsiderado);
     if (ativas.length !== 4) return false;

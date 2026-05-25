@@ -36,13 +36,18 @@ export class MarcacaoApiService {
   private async callAllTokens(
     baseParams: Omit<SelecionaMarcacoesParams, 'tokenAcesso'>
   ): Promise<Marcacao[]> {
-    const tokens = this.apiSessionService.getAllTokens();
-    if (tokens.length === 0) {
+    const companies = this.apiSessionService.getCompanies().filter(c => c.token);
+    if (companies.length === 0) {
       this.logger.warn('MarcacaoApiService', 'Nenhum token disponível');
       return [];
     }
     const results = await Promise.all(
-      tokens.map(token => this.callSelecionaMarcacoes({ ...baseParams, tokenAcesso: token }))
+      companies.map(async company => {
+        const marcacoes = await this.callSelecionaMarcacoes({ ...baseParams, tokenAcesso: company.token });
+        marcacoes.forEach(m => m.apiEmpresaNome = company.nome);
+        this.logger.info('MarcacaoApiService', `${company.nome}: ${marcacoes.length} marcação(ões) retornada(s)`);
+        return marcacoes;
+      })
     );
     return results.flat();
   }
@@ -106,38 +111,31 @@ export class MarcacaoApiService {
   private async callSelecionaMarcacoes(params: SelecionaMarcacoesParams): Promise<Marcacao[]> {
     const startTime = performance.now();
     try {
-      this.logger.warn('MarcacaoApiService', 'Calling API with params:', params);
       const response = await firstValueFrom(
         this.http.post<any>(this.API_URL, params, {
           headers: { 'Content-Type': 'application/json' }
         })
           .pipe(
             catchError((error) => {
-              this.logger.error('MarcacaoApiService', 'Error calling SelecionaMarcacoes:', error);
+              this.logger.error('MarcacaoApiService', 'Erro na chamada SelecionaMarcacoes:', error);
               return of([]);
             })
           )
       );
 
-      this.logger.warn('MarcacaoApiService', 'API Raw Response:', response);
-
       const endTime = performance.now();
       this.updateObservability(endTime - startTime);
 
-      // Try different common .NET SOAP/WCF response paths
       const data = response?.d?.results || response?.d || response;
-      this.logger.warn('MarcacaoApiService', 'Extracted Data:', data);
 
       if (!data || !Array.isArray(data)) {
-        this.logger.error('MarcacaoApiService', 'Invalid response format - expected array:', data);
         return [];
       }
 
-      // Transform API response to Marcacao objects
       return data.map((item: any) => this.transformToMarcacao(item));
     } catch (error) {
-      this.updateObservability(3000, true); // Assume 3s timeout or error
-      this.logger.error('MarcacaoApiService', 'Error calling SelecionaMarcacoes:', error);
+      this.updateObservability(3000, true);
+      this.logger.error('MarcacaoApiService', 'Erro ao chamar SelecionaMarcacoes:', error);
       throw error;
     }
   }

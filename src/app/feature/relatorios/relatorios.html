@@ -56,6 +56,16 @@
         />
       </div>
 
+      <div class="form-group">
+        <label>Local (opcional)</label>
+        <app-multi-select-dropdown
+          [options]="locationOptions()"
+          [placeholder]="'Selecione os locais...'"
+          [searchPlaceholder]="'Buscar locais...'"
+          (selectionChange)="onLocationSelectionChange($event)"
+        />
+      </div>
+
       <!-- Employee Filter -->
       <div class="form-group">
         <label>Funcionário (opcional)</label>

@@ -20,27 +20,32 @@ export class Login {
   private router = inject(Router);
   private toastService = inject(ToastService);
 
-  // Signal reativo que atualiza automaticamente quando o token chega
-  public sessionToken = this.startSessionService.token;
+  protected isLoading  = signal(false);
+  protected loadingMsg = signal('Verificando sessão...');
 
   constructor() {
-    this.loggerService.info("LoginComponent", "Componente inicializado");
+    this.loggerService.info('LoginComponent', 'Componente inicializado');
   }
 
   async ngOnInit() {
-    // Tenta logar automaticamente se já houver sessão ativa
-    this.loggerService.info("Login component", "Tentando login automático");
+    this.isLoading.set(true);
+    this.loadingMsg.set('Verificando sessão...');
     if (await this.authService.login()) {
       this.router.navigate(['/painel-pontos']);
+    } else {
+      this.isLoading.set(false);
     }
   }
 
   async onSubmit(accessCode: string) {
-    this.loggerService.info("Login component", "Enviando código de acesso");
+    if (!accessCode.trim()) return;
+    this.isLoading.set(true);
+    this.loadingMsg.set('Iniciando sessão...');
     if (await this.authService.login(accessCode)) {
       this.router.navigate(['/painel-pontos']);
     } else {
-      this.toastService.error("Código de acesso inválido");
+      this.toastService.error('Código de acesso inválido');
+      this.isLoading.set(false);
     }
   }
 }

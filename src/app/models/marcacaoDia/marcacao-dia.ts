@@ -43,6 +43,11 @@ export class MarcacaoDia implements MarcacaoDia {
     evento_categoria?: 'PERIODO' | 'FIXO';
     trabalhaSabado?: boolean;
 
+    /** Empresa da API de origem — derivada das marcações individuais */
+    get apiEmpresaNome(): string | undefined {
+        return this.marcacoes.find(m => m.apiEmpresaNome)?.apiEmpresaNome;
+    }
+
     constructor(
         id: number,
         cpf: string,

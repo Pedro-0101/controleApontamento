@@ -3,7 +3,12 @@
   <input type="checkbox" class="row-checkbox" [checked]="isSelected()" (change)="toggleSelect.emit()">
 </td>
 <td class="col-matricula" (click)="abrirDetalhes()">{{ marcacao().matricula }}</td>
-<td class="col-empresa" (click)="abrirDetalhes()">{{ marcacao().empresa | titleCaseCustom }}</td>
+<td class="col-empresa" (click)="abrirDetalhes()">
+  <span class="empresa-cell">
+    <span class="empresa-dot" [style.background]="getEmpresaColor(marcacao().apiEmpresaNome)" [title]="marcacao().apiEmpresaNome ?? marcacao().empresa ?? ''"></span>
+    {{ marcacao().empresa | titleCaseCustom }}
+  </span>
+</td>
 <td class="col-cargo" (click)="abrirDetalhes()">{{ marcacao().cargo | titleCaseCustom }}</td>
 <td class="col-local" (click)="abrirDetalhes()">{{ marcacao().local | titleCaseCustom }}</td>
 <td class="col-nome" (click)="abrirDetalhes()">{{ marcacao().nome | titleCaseCustom }}</td>

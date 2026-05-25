@@ -44,6 +44,7 @@ export class Marcacao {
   tipoRegistro!: number;
   trabalhadorId!: number;
   desconsiderado: boolean = false;
+  apiEmpresaNome?: string; // empresa da API de origem (preenchido em MarcacaoApiService)
 
   constructor(data: Partial<Marcacao>) {
     Object.assign(this, data);

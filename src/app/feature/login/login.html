@@ -5,28 +5,42 @@
       <h2>Controle de Apontamento</h2>
     </div>
 
-    <form class="login-form" (submit)="onSubmit(accessCodeInput.value); $event.preventDefault()">
-      <div class="form-field">
-        <label for="inputAccessCode">Código de Acesso</label>
-        <div class="input-container">
-          <input 
-            type="password" 
-            id="inputAccessCode" 
-            name="inputAccessCode" 
-            placeholder="Digite seu código"
-            #accessCodeInput
-            required
-          >
+    @if (isLoading()) {
+      <!-- Skeleton de carregamento da sessão -->
+      <div class="login-loading">
+        <div class="loading-spinner"></div>
+        <p class="loading-msg">{{ loadingMsg() }}</p>
+        <div class="loading-bars">
+          <div class="sk-bar" style="width: 100%;"></div>
+          <div class="sk-bar" style="width: 75%; animation-delay: 0.15s;"></div>
+          <div class="sk-bar" style="width: 88%; animation-delay: 0.3s;"></div>
         </div>
       </div>
+    } @else {
+      <form class="login-form" (submit)="onSubmit(accessCodeInput.value); $event.preventDefault()">
+        <div class="form-field">
+          <label for="inputAccessCode">Código de Acesso</label>
+          <div class="input-container">
+            <input
+              type="password"
+              id="inputAccessCode"
+              name="inputAccessCode"
+              placeholder="Digite seu código"
+              #accessCodeInput
+              required
+              autofocus
+            >
+          </div>
+        </div>
 
-      <button type="submit" class="login-button">
-        Entrar no Sistema
-      </button>
-    </form>
-    
-    <div class="login-info">
-      <p>Gerenciamento de Jornada de Trabalho</p>
-    </div>
+        <button type="submit" class="login-button">
+          Entrar no Sistema
+        </button>
+      </form>
+
+      <div class="login-info">
+        <p>Gerenciamento de Jornada de Trabalho</p>
+      </div>
+    }
   </div>
 </div>

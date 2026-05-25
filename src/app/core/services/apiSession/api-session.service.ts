@@ -2,6 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { LoggerService } from '../logger/logger.service';
+import { ToastService } from '../toast/toast.service';
 import { environment } from '../../../../environments/environment';
 
 export interface CompanyToken {
@@ -16,6 +17,7 @@ export interface CompanyToken {
 })
 export class ApiSessionService {
   private logger = inject(LoggerService);
+  private toastService = inject(ToastService);
 
   private companyTokens = signal<CompanyToken[]>([]);
 
@@ -58,6 +60,16 @@ export class ApiSessionService {
         this.companyTokens.set(response.tokens);
         const validos = response.tokens.filter(c => c.token).length;
         this.logger.info('ApiSessionService', `${validos}/${response.tokens.length} tokens obtidos`);
+
+        const desativadas = response.tokens.filter(c => c.erro);
+        if (desativadas.length > 0) {
+          const nomes = desativadas.map(c => c.nome).join(', ');
+          this.toastService.warning(
+            `As seguintes empresas estão desativadas na API: ${nomes}`,
+            10000
+          );
+          this.logger.warn('ApiSessionService', `Empresas desativadas: ${nomes}`);
+        }
 
         if (validos > 0) {
           this.startOrResetBackgroundRefresh();
