@@ -15,6 +15,8 @@ import { MarcacaoService } from '../../core/services/marcacao/marcacao.service';
 import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-select-dropdown';
 import { ToastService } from '../../core/services/toast/toast.service';
 import { TitleCaseCustomPipe } from '../../shared/pipes/title-case-custom.pipe';
+import { AdmUnitService } from '../../core/services/admUnits/adm-unit.service';
+import { AdmUnit } from '../../models/admUnit/adm-unit';
 
 type TipoRelatorio = 'espelho' | 'vr';
 
@@ -45,17 +47,20 @@ export class Relatorios {
   private relogioService = inject(RelogioService);
   private marcacaoService = inject(MarcacaoService);
   private toastService = inject(ToastService);
+  private admUnitService = inject(AdmUnitService);
 
   // Form data
   dataInicio = signal('');
   dataFim = signal('');
   selectedEmployees = signal<string[]>([]);
   selectedCompanies = signal<string[]>([]);
+  selectedLocations = signal<string[]>([]);
   selectedClock = signal('');
 
   // Options
   employees = signal<Employee[]>([]);
   companies = signal<string[]>([]);
+  locations = signal<AdmUnit[]>([]);
   relogios = signal<Relogio[]>([]);
 
   // Report data
@@ -81,13 +86,20 @@ export class Relatorios {
   async loadInitialData() {
     try {
       this.isLoading.set(true);
-      const [emps, clocks] = await Promise.all([
+      const [emps, clocks, locs] = await Promise.all([
         this.employeeService.getAllEmployees(),
-        this.relogioService.updateRelogios()
+        this.relogioService.updateRelogios(),
+        this.admUnitService.getUnits()
       ]);
+      
       const activeEmps = emps.filter(e => e.ativo === 1);
       this.employees.set(activeEmps);
       this.relogios.set(clocks);
+      this.locations.set(locs);
+
+      // Extract unique locations directly from employees to ensure matching values
+      const distinctLocations = [...new Set(activeEmps.map(e => e.local).filter(l => !!l))].sort();
+      this.locations.set(locs.filter(l => distinctLocations.includes(l.descricao))); // keep locations that exist in employees
 
       const distinctCompanies = [...new Set(activeEmps.map(e => e.empresa).filter(c => !!c))].sort();
       this.companies.set(distinctCompanies);
@@ -98,11 +110,25 @@ export class Relatorios {
     }
   }
 
-  // Filtered employees based on selected companies
+  // Filtered employees based on selected companies and locations
   filteredEmployees = computed(() => {
-    const selected = this.selectedCompanies();
-    if (selected.length === 0) return this.employees();
-    return this.employees().filter((e: Employee) => selected.includes(e.empresa));
+    const selectedComp = this.selectedCompanies();
+    const selectedLoc = this.selectedLocations();
+    let emps = this.employees();
+    
+    if (selectedComp.length > 0) {
+      emps = emps.filter((e: Employee) => selectedComp.includes(e.empresa));
+    }
+    
+    if (selectedLoc.length > 0) {
+      const normalizedLocs = selectedLoc.map(l => l.trim().toUpperCase());
+      emps = emps.filter((e: Employee) => {
+        const empLocal = (e.local || '').trim().toUpperCase();
+        return normalizedLocs.includes(empLocal);
+      });
+    }
+    
+    return emps;
   });
 
   // Mock list of "Employees" to reuse multi-select for companies
@@ -113,6 +139,20 @@ export class Relatorios {
       matricula: c,
       empresa: c,
       local: '',
+      cargo: '',
+      ativo: 1
+    } as Employee));
+  });
+
+  // Mock list of "Employees" to reuse multi-select for locations
+  locationOptions = computed(() => {
+    const uniqueLocs = [...new Set(this.employees().map(e => (e.local || '').trim().toUpperCase()).filter(l => !!l))].sort();
+    return uniqueLocs.map(l => ({
+      id: 0,
+      nome: l,
+      matricula: l,
+      empresa: '',
+      local: l,
       cargo: '',
       ativo: 1
     } as Employee));
@@ -178,28 +218,22 @@ export class Relatorios {
 
       // Determine which scenario to use
       if (this.selectedEmployees().length > 0 && this.selectedClock()) {
-        // Scenario 4: Employees + Clock (multiple employees)
-        const promises = this.selectedEmployees().map(matricula =>
-          this.marcacaoApiService.getMarcacoesByEmployeeAndClock(
-            matricula,
-            this.selectedClock(),
-            dataInicioDDMMYYYY,
-            dataFimDDMMYYYY
-          )
+        // Scenario 4: Employees + Clock — busca por relógio e filtra por funcionários no cliente
+        const allByClock = await this.marcacaoApiService.getMarcacoesByRelogio(
+          this.selectedClock(),
+          dataInicioDDMMYYYY,
+          dataFimDDMMYYYY
         );
-        const results = await Promise.all(promises);
-        result = results.flat();
+        const selectedSet = new Set(this.selectedEmployees());
+        result = allByClock.filter(m => selectedSet.has(m.matriculaFuncionario));
       } else if (this.selectedEmployees().length > 0) {
-        // Scenario 3: Employees only (multiple employees)
-        const promises = this.selectedEmployees().map(matricula =>
-          this.marcacaoApiService.getMarcacoesByEmployee(
-            matricula,
-            dataInicioDDMMYYYY,
-            dataFimDDMMYYYY
-          )
+        // Scenario 3: Employees only — busca tudo e filtra por funcionários no cliente
+        const allMarcacoes = await this.marcacaoApiService.getAllMarcacoes(
+          dataInicioDDMMYYYY,
+          dataFimDDMMYYYY
         );
-        const results = await Promise.all(promises);
-        result = results.flat();
+        const selectedSet = new Set(this.selectedEmployees());
+        result = allMarcacoes.filter(m => selectedSet.has(m.matriculaFuncionario));
       } else if (this.selectedClock()) {
         // Scenario 2: Clock only
         result = await this.marcacaoApiService.getMarcacoesByRelogio(
@@ -248,6 +282,7 @@ export class Relatorios {
   limparFiltros() {
     this.selectedEmployees.set([]);
     this.selectedCompanies.set([]);
+    this.selectedLocations.set([]);
     this.selectedClock.set('');
     this.setDefaultDates();
     this.marcacoes.set([]);
@@ -263,6 +298,13 @@ export class Relatorios {
 
   onCompanySelectionChange(selected: string[]) {
     this.selectedCompanies.set(selected);
+    // Clear employees that are no longer in the filtered list
+    const filteredMatriculas = this.filteredEmployees().map(e => e.matricula);
+    this.selectedEmployees.update(current => current.filter(m => filteredMatriculas.includes(m)));
+  }
+
+  onLocationSelectionChange(selected: string[]) {
+    this.selectedLocations.set(selected);
     // Clear employees that are no longer in the filtered list
     const filteredMatriculas = this.filteredEmployees().map(e => e.matricula);
     this.selectedEmployees.update(current => current.filter(m => filteredMatriculas.includes(m)));

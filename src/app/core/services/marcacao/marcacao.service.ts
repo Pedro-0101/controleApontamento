@@ -708,6 +708,11 @@ export class MarcacaoService {
       });
     }
 
+    // Garantir que as marcações dentro de cada dia estejam em ordem cronológica
+    filtradas.forEach(md => {
+      md.marcacoes.sort((a, b) => a.dataMarcacao.getTime() - b.dataMarcacao.getTime());
+    });
+
     // Final sort: Date ASC, then Name ASC
     return filtradas.sort((a, b) => {
       const dateA = DateHelper.toIsoDate(a.data);
