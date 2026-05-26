@@ -54,7 +54,7 @@ export class FiltrosTabelaMarcacoes {
         this.statusSelecionados.set(pruned);
         this.marcacaoService.filtrarMarcacoesPorStatus(pruned);
       }
-    }, { allowSignalWrites: true });
+    });
 
     effect(() => {
       if (this._isLoadingMarcacoesFiltroPainel()) return;
@@ -67,7 +67,7 @@ export class FiltrosTabelaMarcacoes {
         this.empresasSelecionadas.set(pruned);
         this.marcacaoService.filtrarMarcacoesPorEmpresa(pruned);
       }
-    }, { allowSignalWrites: true });
+    });
 
     effect(() => {
       if (this._isLoadingMarcacoesFiltroPainel()) return;
@@ -80,7 +80,7 @@ export class FiltrosTabelaMarcacoes {
         this.locaisSelecionados.set(pruned);
         this.marcacaoService.filtrarMarcacoesPorLocal(pruned);
       }
-    }, { allowSignalWrites: true });
+    });
 
     effect(() => {
       if (this._isLoadingMarcacoesFiltroPainel()) return;
@@ -93,7 +93,7 @@ export class FiltrosTabelaMarcacoes {
         this.relogiosSelecionados.set(pruned);
         this.marcacaoService.filtrarMarcacoesPorRelogio(pruned);
       }
-    }, { allowSignalWrites: true });
+    });
 
     // URL sync: serializa filtros ativos na query string
     effect(() => {
