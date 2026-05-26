@@ -1,4 +1,6 @@
 <div class="eventos-container">
+
+  <!-- ── Page header ──────────────────────────────────────────── -->
   <div class="page-header">
     <div class="header-content">
       <h1>Gerenciamento de Eventos</h1>
@@ -10,6 +12,7 @@
     </button>
   </div>
 
+  <!-- ── Add / Edit form ──────────────────────────────────────── -->
   @if (showForm()) {
     <div class="form-card">
       <div class="form-header">
@@ -18,7 +21,7 @@
           <lucide-icon name="x" [size]="20"></lucide-icon>
         </button>
       </div>
-      
+
       <div class="form-grid">
         @if (!editingId()) {
           <div class="form-item">
@@ -41,7 +44,7 @@
             [disabled]="!!editingId()"
           ></app-multi-select-dropdown>
         </div>
-        
+
         <div class="form-item">
           <label>Tipo de Evento</label>
           <select [(ngModel)]="formData.tipoEvento" class="form-input">
@@ -61,187 +64,479 @@
           <label>Data Fim</label>
           <input type="date" [(ngModel)]="formData.dataFim" class="form-input">
         </div>
+
+        <div class="form-item form-item-full">
+          <label>Detalhes / Observação</label>
+          <textarea
+            [(ngModel)]="formData.detalhes"
+            class="form-input form-textarea"
+            placeholder="Ex.: Aprovado pelo gestor. CID: A00. Documento entregue em 20/05."
+            rows="3"
+          ></textarea>
+        </div>
       </div>
 
       <div class="form-actions">
         <button class="btn btn-outline" (click)="showForm.set(false)">Cancelar</button>
         <button class="btn btn-primary" (click)="saveEvent()" [disabled]="isSaving()">
-          @if (isSaving()) {
-            <div class="btn-spinner"></div>
-          }
+          @if (isSaving()) { <div class="btn-spinner"></div> }
           {{ editingId() ? 'Atualizar Evento' : 'Salvar Evento' }}
         </button>
       </div>
     </div>
   }
 
+  <!-- ── Filters ───────────────────────────────────────────────── -->
+  <div class="filters-card">
+    <div class="filter-actions">
+      <h3>Filtros</h3>
+      <div class="btn-group">
+        <button class="btn" [class.btn-primary]="viewMode() === 'table'" (click)="viewMode.set('table')">Tabela</button>
+        <button class="btn" [class.btn-primary]="viewMode() === 'gantt'"  (click)="viewMode.set('gantt')">Gantt</button>
+      </div>
+    </div>
 
-
-  <div class="filters-card" style="margin-bottom: 2rem;">
     <div class="filter-grid">
       <div class="form-group">
-        <label>Pesquisar Funcionário</label>
-        <div class="search-input-wrapper">
-          <lucide-icon name="search" [size]="16" style="position: absolute; left: 10px; color: var(--color-gray-400); z-index: 1; top: 50%; transform: translateY(-50%);"></lucide-icon>
-          <input 
-            type="text" 
-            placeholder="Nome ou matrícula..." 
-            [ngModel]="searchTerm()" 
-            (ngModelChange)="searchTerm.set($event); onFilterChange()"
-            class="input-text"
-            style="padding-left: 36px;"
-          >
-        </div>
-      </div>
-      
-      <div class="form-group">
         <label>Empresa</label>
-        <div class="search-input-wrapper">
-          <lucide-icon name="building" [size]="16" style="position: absolute; left: 10px; color: var(--color-gray-400); z-index: 1; top: 50%; transform: translateY(-50%);"></lucide-icon>
-          <input 
-            type="text" 
-            placeholder="Filtrar por empresa..." 
-            [ngModel]="filterEmpresa()" 
-            (ngModelChange)="filterEmpresa.set($event); onFilterChange()"
-            class="input-text"
-            style="padding-left: 36px;"
-          >
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>Data Início</label>
-        <input 
-          type="date" 
-          [ngModel]="filterDataInicio()" 
-          (ngModelChange)="filterDataInicio.set($event); onFilterChange()"
-          class="input-text"
-        >
-      </div>
-
-      <div class="form-group">
-        <label>Data Fim</label>
-        <input 
-          type="date" 
-          [ngModel]="filterDataFim()" 
-          (ngModelChange)="filterDataFim.set($event); onFilterChange()"
-          class="input-text"
-        >
+        <app-multi-select-dropdown
+          [options]="companyOptions()"
+          placeholder="Todas"
+          (selectionChange)="onCompanySelectionChange($event)"
+        ></app-multi-select-dropdown>
       </div>
 
       <div class="form-group">
         <label>Tipo de Evento</label>
-        <select 
-          [ngModel]="filterEventType()" 
+        <select
+          [ngModel]="filterEventType()"
           (ngModelChange)="filterEventType.set($event); onFilterChange()"
           class="input-select"
         >
-          <option value="">Todos os Tipos</option>
+          <option value="">Todos</option>
           @for (status of statusPeriodo; track status) {
             <option [value]="status">{{ status }}</option>
           }
         </select>
       </div>
+
+      <div class="form-group">
+        <label>Data Início</label>
+        <input type="date"
+          [ngModel]="filterDataInicio()"
+          (ngModelChange)="filterDataInicio.set($event); onFilterChange()"
+          class="input-text">
+      </div>
+
+      <div class="form-group">
+        <label>Data Fim</label>
+        <input type="date"
+          [ngModel]="filterDataFim()"
+          (ngModelChange)="filterDataFim.set($event); onFilterChange()"
+          class="input-text">
+      </div>
     </div>
   </div>
 
-  <div class="table-card">
-    <div class="table-responsive">
-      <table class="eventos-table">
-        <thead>
-          <tr>
-            <th (click)="onSort('nome_funcionario')" class="sortable">
-              Funcionário
-              @if(sortColumn() === 'nome_funcionario') { <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
-            </th>
-            <th (click)="onSort('empresa')" class="sortable">
-              Empresa
-              @if(sortColumn() === 'empresa') { <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
-            </th>
-            <th (click)="onSort('tipo_evento')" class="sortable">
-              Evento
-              @if(sortColumn() === 'tipo_evento') { <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
-            </th>
-            <th (click)="onSort('data_inicio')" class="sortable">
-              Início
-              @if(sortColumn() === 'data_inicio') { <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
-            </th>
-            <th (click)="onSort('data_fim')" class="sortable">
-              Fim
-              @if(sortColumn() === 'data_fim') { <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
-            </th>
-            <th (click)="onSort('criado_por')" class="sortable">
-              Lançado por
-              @if(sortColumn() === 'criado_por') { <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
-            </th>
-            <th>Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (event of paginatedEvents(); track event.id) {
+  <!-- ══════════════════════════════════════════════════════════
+       TABLE VIEW
+  ═══════════════════════════════════════════════════════════ -->
+  @if (viewMode() === 'table') {
+    <div class="table-card">
+      <div class="table-responsive">
+        <table class="eventos-table">
+          <thead>
             <tr>
-              <td>
-                <div class="emp-info">
-                  <span class="emp-name">{{ event.nome_funcionario }}</span>
-                  <span class="emp-mat">#{{ event.matricula_funcionario }}</span>
-                </div>
-              </td>
-              <td>{{ event.empresa || 'N/A' }}</td>
-              <td>
-                <span class="badge badge-event">{{ event.tipo_evento }}</span>
-              </td>
-              <td>{{ formatData(event.data_inicio) }}</td>
-              <td>{{ formatData(event.data_fim) }}</td>
-              <td>{{ event.criado_por }}</td>
-              <td class="col-actions">
-                <button class="btn-icon" (click)="editEvent(event)" title="Editar">
-                  <lucide-icon name="edit-3" [size]="18"></lucide-icon>
-                </button>
-                <button class="btn-icon btn-danger" (click)="deleteEvent(event.id)" title="Excluir">
-                  <lucide-icon name="trash-2" [size]="18"></lucide-icon>
-                </button>
-              </td>
+              <th (click)="onSort('nome_funcionario')" class="sortable">
+                Funcionário
+                @if (sortColumn() === 'nome_funcionario') {
+                  <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                }
+              </th>
+              <th (click)="onSort('empresa')" class="sortable">
+                Empresa
+                @if (sortColumn() === 'empresa') {
+                  <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                }
+              </th>
+              <th (click)="onSort('tipo_evento')" class="sortable">
+                Evento
+                @if (sortColumn() === 'tipo_evento') {
+                  <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                }
+              </th>
+              <th (click)="onSort('data_inicio')" class="sortable">
+                Início
+                @if (sortColumn() === 'data_inicio') {
+                  <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                }
+              </th>
+              <th (click)="onSort('data_fim')" class="sortable">
+                Fim
+                @if (sortColumn() === 'data_fim') {
+                  <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                }
+              </th>
+              <th (click)="onSort('criado_por')" class="sortable">
+                Lançado por
+                @if (sortColumn() === 'criado_por') {
+                  <span class="sort-icon">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
+                }
+              </th>
+              <th>Detalhes</th>
+              <th>Ações</th>
             </tr>
-          } @empty {
-            <tr>
-              <td colspan="7" class="empty-state">
-                <div class="empty-content">
-                  <lucide-icon name="calendar" [size]="48"></lucide-icon>
-                  <p>Nenhum evento de período cadastrado.</p>
-                </div>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-
-    @if (totalPages() > 1) {
-      <div class="pagination-container">
-        <span class="pagination-info">Mostrando página {{ currentPage() }} de {{ totalPages() }} (Total: {{ filteredEventsList().length }})</span>
-        <div class="pagination-controls">
-          <button class="btn-icon" [disabled]="currentPage() === 1" (click)="previousPage()">
-            <lucide-icon name="chevron-left" [size]="18"></lucide-icon>
-          </button>
-
-          @for (page of pagesArray(); track $index) {
-            @if (page === '...') {
-              <span class="pagination-ellipsis">...</span>
-            } @else {
-              <button 
-                class="btn-page" 
-                [class.active]="page === currentPage()"
-                (click)="goToPage(page)">
-                {{ page }}
-              </button>
+          </thead>
+          <tbody>
+            @for (event of paginatedEvents(); track event.id) {
+              <tr>
+                <td>
+                  <div class="emp-info">
+                    <span class="emp-name">{{ event.nome_funcionario }}</span>
+                    <span class="emp-mat">#{{ event.matricula_funcionario }}</span>
+                  </div>
+                </td>
+                <td>{{ event.empresa || 'N/A' }}</td>
+                <td><span class="badge badge-event">{{ event.tipo_evento }}</span></td>
+                <td>{{ formatData(event.data_inicio) }}</td>
+                <td>{{ formatData(event.data_fim) }}</td>
+                <td>{{ event.criado_por }}</td>
+                <td class="col-detalhes" [title]="event.detalhes || ''">{{ event.detalhes || '—' }}</td>
+                <td class="col-actions">
+                  <button class="btn-icon" (click)="editEvent(event)" title="Editar">
+                    <lucide-icon name="edit-3" [size]="18"></lucide-icon>
+                  </button>
+                  <button class="btn-icon btn-danger" (click)="deleteEvent(event.id)" title="Excluir">
+                    <lucide-icon name="trash-2" [size]="18"></lucide-icon>
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="8" class="empty-state">
+                  <div class="empty-content">
+                    <lucide-icon name="calendar" [size]="48"></lucide-icon>
+                    <p>Nenhum evento cadastrado.</p>
+                  </div>
+                </td>
+              </tr>
             }
-          }
+          </tbody>
+        </table>
+      </div>
 
-          <button class="btn-icon" [disabled]="currentPage() === totalPages()" (click)="nextPage()">
-            <lucide-icon name="chevron-right" [size]="18"></lucide-icon>
-          </button>
+      @if (totalPages() > 1) {
+        <div class="pagination-container">
+          <span class="pagination-info">
+            Página {{ currentPage() }} de {{ totalPages() }} (Total: {{ filteredEventsList().length }})
+          </span>
+          <div class="pagination-controls">
+            <button class="btn-icon" [disabled]="currentPage() === 1" (click)="previousPage()">
+              <lucide-icon name="chevron-left" [size]="18"></lucide-icon>
+            </button>
+            @for (page of pagesArray(); track $index) {
+              @if (page === '...') {
+                <span class="pagination-ellipsis">...</span>
+              } @else {
+                <button class="btn-page" [class.active]="page === currentPage()" (click)="goToPage(page)">
+                  {{ page }}
+                </button>
+              }
+            }
+            <button class="btn-icon" [disabled]="currentPage() === totalPages()" (click)="nextPage()">
+              <lucide-icon name="chevron-right" [size]="18"></lucide-icon>
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ══════════════════════════════════════════════════════════
+       GANTT VIEW
+  ═══════════════════════════════════════════════════════════ -->
+  @if (viewMode() === 'gantt') {
+
+    <!-- ── Summary cards (above diagram) ──────────────────────── -->
+    <div class="g-summary">
+      <!-- Total ausentes hoje -->
+      <div class="g-stat-card">
+        <div class="g-stat-card-icon" style="background:#fff7ed;">
+          <lucide-icon name="users" [size]="18" style="color:#f97316;"></lucide-icon>
+        </div>
+        <div class="g-stat-card-body">
+          <div class="g-stat-card-label">Ausentes hoje</div>
+          <div class="g-stat-card-value">{{ ganttStats().total }}</div>
         </div>
       </div>
-    }
-  </div>
+
+      <!-- One card per event type -->
+      @for (et of eventTypeList; track et.id) {
+        @if ((ganttStats().counts[et.id] || 0) > 0) {
+          <div class="g-stat-card">
+            <div class="g-stat-card-icon" [style.background]="'var(--' + et.cls + '-fill)'">
+              <lucide-icon name="calendar" [size]="16" [style.color]="'var(--' + et.cls + '-bd)'"></lucide-icon>
+            </div>
+            <div class="g-stat-card-body">
+              <div class="g-stat-card-label">{{ et.label }}</div>
+              <div class="g-stat-card-value" [style.color]="'var(--' + et.cls + '-ink)'">
+                {{ ganttStats().counts[et.id] || 0 }}
+              </div>
+            </div>
+          </div>
+        }
+      }
+
+      <!-- Total funcionários com eventos no mês -->
+      <div class="g-stat-card">
+        <div class="g-stat-card-icon" style="background:#f0fdf4;">
+          <lucide-icon name="activity" [size]="18" style="color:#16a34a;"></lucide-icon>
+        </div>
+        <div class="g-stat-card-body">
+          <div class="g-stat-card-label">Com eventos no mês</div>
+          <div class="g-stat-card-value" style="color:#16a34a;">{{ ganttRows().length }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Gantt diagram ──────────────────────────────────────── -->
+    <div class="gantt-section">
+
+      <!-- Type chips + month nav + Today button -->
+      <div class="g-chips">
+        @for (et of eventTypeList; track et.id) {
+          <div
+            class="g-chip"
+            [class.active]="activeTypes().has(et.id)"
+            (click)="toggleType(et.id)"
+            [title]="et.label"
+          >
+            <span class="g-chip-dot" [style.background]="getBdColor(et.id)"></span>
+            {{ et.label }}
+          </div>
+        }
+
+        <div style="display:flex;align-items:center;gap:4px;margin-left:auto;flex-shrink:0;">
+          <button class="btn-icon" (click)="prevMonth()" title="Mês anterior">
+            <lucide-icon name="chevron-left" [size]="16"></lucide-icon>
+          </button>
+          <span style="font-size:.8rem;font-weight:600;white-space:nowrap;min-width:130px;text-align:center;color:var(--color-gray-700);">
+            {{ ganttMonthLabel() | titlecase }}
+          </span>
+          <button class="btn-icon" (click)="nextMonth()" title="Próximo mês">
+            <lucide-icon name="chevron-right" [size]="16"></lucide-icon>
+          </button>
+        </div>
+
+        @if (!isCurrentMonth()) {
+          <button class="g-today-btn" (click)="goToCurrentMonth()">
+            <lucide-icon name="map-pin" [size]="13"></lucide-icon>
+            Mês atual
+          </button>
+        } @else {
+          <button class="g-today-btn" (click)="scrollToToday()">
+            <lucide-icon name="map-pin" [size]="13"></lucide-icon>
+            Hoje
+          </button>
+        }
+      </div>
+
+      <!-- Search bar -->
+      <div class="g-search-bar">
+        <lucide-icon name="search" [size]="15" class="g-search-icon"></lucide-icon>
+        <input
+          class="g-search-input"
+          type="text"
+          placeholder="Buscar funcionário..."
+          [ngModel]="searchTerm()"
+          (ngModelChange)="searchTerm.set($event)"
+        >
+        @if (searchTerm()) {
+          <button class="g-search-clear" (click)="searchTerm.set('')">
+            <lucide-icon name="x" [size]="13"></lucide-icon>
+          </button>
+        }
+      </div>
+
+      <!-- Scroll area -->
+      <div class="g-scroll" #ganttScroll>
+        <div
+          class="g-inner"
+          [style.min-width]="'calc(260px + ' + (ganttDays().length * dayWidth) + 'px)'"
+        >
+
+          <!-- Sticky header -->
+          <div class="g-head">
+            <div class="g-head-corner">Funcionário</div>
+            <div class="g-head-right">
+              <!-- Month label strip — one segment per month in the visible range -->
+              <div class="g-months" [style.width]="(ganttDays().length * dayWidth) + 'px'">
+                @for (strip of ganttMonthStrips(); track strip.label) {
+                  <div class="g-month-lbl" [style.width]="strip.widthPx + 'px'">
+                    {{ strip.label | titlecase }}
+                  </div>
+                }
+              </div>
+              <!-- Day cells -->
+              <div class="g-days">
+                @for (day of ganttDays(); let i = $index; track i) {
+                  <div
+                    class="g-day"
+                    [class.weekend]="isWeekend(day)"
+                    [class.today]="isTodayDate(day)"
+                    [class.col-hover]="hoverCol() === i"
+                    [style.width]="dayWidth + 'px'"
+                    (mouseenter)="onCellEnter(i)"
+                    (mouseleave)="onCellLeave()"
+                  >
+                    <span class="g-dow">{{ getDayOfWeek(day) }}</span>
+                    <span class="g-dom">{{ day.getDate() }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+
+          <!-- Names column -->
+          <div class="g-names-col">
+            @for (row of ganttRows(); track $index) {
+              <div
+                class="g-name-cell"
+                [class.row-hover]="hoverRow() === row.emp.matricula"
+                (mouseenter)="onRowEnter(row.emp.matricula)"
+                (mouseleave)="onRowLeave()"
+                (click)="onPersonClick(row.emp.matricula)"
+              >
+                <div class="g-avatar" [class]="'av-' + row.avatarColor">{{ row.initials }}</div>
+                <div class="g-name-meta">
+                  <b>{{ row.emp.nome }}</b>
+                  <span>{{ row.emp.cargo }}{{ row.emp.empresa ? ' · ' + row.emp.empresa : '' }}</span>
+                </div>
+              </div>
+            } @empty {
+              <div class="g-empty">
+                <lucide-icon name="calendar" [size]="40"></lucide-icon>
+                <span>Nenhum funcionário com eventos no período.</span>
+              </div>
+            }
+          </div>
+
+          <!-- Rows area -->
+          <div class="g-rows-col">
+
+            @for (row of ganttRows(); track $index) {
+              <div
+                class="g-row"
+                [class.row-hover]="hoverRow() === row.emp.matricula"
+                [class.locked]="popover()?.event?.matricula_funcionario === row.emp.matricula"
+                (mouseenter)="onRowEnter(row.emp.matricula)"
+                (mouseleave)="onRowLeave()"
+              >
+                @for (day of ganttDays(); let i = $index; track i) {
+                  <div
+                    class="g-cell"
+                    [class.weekend]="isWeekend(day)"
+                    [class.col-hover]="hoverCol() === i"
+                    [style.width]="dayWidth + 'px'"
+                    (mouseenter)="onCellEnter(i)"
+                    (mouseleave)="onCellLeave()"
+                  ></div>
+                }
+
+                @for (bar of row.bars; track bar.eventId) {
+                  <div
+                    class="g-bar {{ bar.cls }}"
+                    [class.active]="popover()?.event?.id === bar.eventId"
+                    [style.left]="bar.left + 'px'"
+                    [style.width]="bar.width + 'px'"
+                    [style.border-radius]="getBarBorderRadius(bar)"
+                    [title]="bar.label + ' — ' + formatData(bar.raw.data_inicio) + ' → ' + formatData(bar.raw.data_fim)"
+                    (click)="onBarClick(bar, $event)"
+                  >
+                    <span class="g-bar-dot"></span>
+                    <span style="overflow:hidden;text-overflow:ellipsis;">{{ bar.label }}</span>
+                    @if (bar.showDuration) {
+                      <span class="g-bar-dur">{{ bar.durationDays }}d</span>
+                    }
+                  </div>
+                }
+              </div>
+            }
+
+            @if (todayLineLeft() !== null) {
+              <div class="g-today-line" [style.left]="todayLineLeft() + 'px'"></div>
+            }
+            @if (hoverColLineLeft() !== null) {
+              <div class="g-col-line" [style.left]="hoverColLineLeft() + 'px'"></div>
+            }
+
+          </div><!-- /g-rows-col -->
+
+        </div><!-- /g-inner -->
+
+      </div><!-- /g-scroll -->
+    </div><!-- /gantt-section -->
+
+  }<!-- /gantt view -->
+
+  <!-- ── Gantt popover (fora de qualquer overflow container) ──── -->
+  @if (popover(); as pop) {
+    <div
+      class="g-popover"
+      [style.left]="pop.x + 'px'"
+      [style.top]="pop.y + 'px'"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="pop-head">
+        <span class="pop-badge {{ EVENT_TYPES[pop.event.tipo_evento]?.cls ?? 'afastado' }}">
+          <span style="width:6px;height:6px;border-radius:50%;display:inline-block;"
+                [style.background]="getBdColor(pop.event.tipo_evento)">
+          </span>
+          {{ EVENT_TYPES[pop.event.tipo_evento]?.label ?? pop.event.tipo_evento }}
+        </span>
+        <button class="pop-close" (click)="closePopover()">
+          <lucide-icon name="x" [size]="14"></lucide-icon>
+        </button>
+      </div>
+
+      <h4 class="pop-title">{{ pop.event.nome_funcionario }}</h4>
+
+      <div class="pop-row">
+        <b>Período</b>
+        <span>{{ formatData(pop.event.data_inicio) }} → {{ formatData(pop.event.data_fim) }}</span>
+      </div>
+      <div class="pop-row">
+        <b>Duração</b>
+        <span>{{ getDuration(pop.event.data_inicio, pop.event.data_fim) }} dias</span>
+      </div>
+      <div class="pop-row">
+        <b>Empresa</b>
+        <span>{{ pop.event.empresa || '—' }}</span>
+      </div>
+      @if (pop.event.criado_por) {
+        <div class="pop-row">
+          <b>Lançado por</b>
+          <span>{{ pop.event.criado_por }}</span>
+        </div>
+      }
+      @if (pop.event.detalhes) {
+        <div class="pop-row pop-row-detalhes">
+          <b>Detalhes</b>
+          <span>{{ pop.event.detalhes }}</span>
+        </div>
+      }
+
+      <div class="pop-foot">
+        <button class="btn btn-outline" style="flex:1;justify-content:center;font-size:.78rem;gap:5px;"
+          (click)="editEvent(pop.event); closePopover()">
+          <lucide-icon name="edit-3" [size]="13"></lucide-icon> Editar
+        </button>
+        <button class="btn" style="flex:1;justify-content:center;font-size:.78rem;gap:5px;color:#dc2626;background:transparent;border-color:transparent;"
+          (click)="deleteEvent(pop.event.id)">
+          <lucide-icon name="trash-2" [size]="13"></lucide-icon> Remover
+        </button>
+      </div>
+    </div>
+  }
+
 </div>

@@ -796,9 +796,9 @@ export class MarcacaoService {
     }
   }
 
-  async saveEvent(matricula: string, dataInicio: string, dataFim: string, tipoEvento: string, categoria: 'PERIODO' | 'FIXO' = 'PERIODO'): Promise<void> {
+  async saveEvent(matricula: string, dataInicio: string, dataFim: string, tipoEvento: string, categoria: 'PERIODO' | 'FIXO' = 'PERIODO', detalhes?: string): Promise<void> {
     const criadoPor = this.authService._userName() || 'Sistema';
-    const body = { matricula, dataInicio, dataFim, tipoEvento, criadoPor, categoria };
+    const body = { matricula, dataInicio, dataFim, tipoEvento, criadoPor, categoria, detalhes: detalhes || '' };
 
     try {
       await firstValueFrom(
@@ -1151,9 +1151,9 @@ export class MarcacaoService {
     }
   }
 
-  async updateEvent(id: number, dataInicio: string, dataFim: string, tipoEvento: string): Promise<void> {
+  async updateEvent(id: number, dataInicio: string, dataFim: string, tipoEvento: string, detalhes?: string): Promise<void> {
     const criadoPor = this.authService._userName() || 'Sistema';
-    const body = { dataInicio, dataFim, tipoEvento, criadoPor };
+    const body = { dataInicio, dataFim, tipoEvento, criadoPor, detalhes: detalhes || '' };
 
     try {
       await firstValueFrom(
