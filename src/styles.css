@@ -274,7 +274,7 @@ tbody tr.clickable-row:hover {
   display: inline-flex;
   align-items: center;
   padding: 4px 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
   font-weight: 700;
   text-transform: uppercase;
@@ -283,19 +283,19 @@ tbody tr.clickable-row:hover {
 
 .hora-pill {
   display: inline-block;
-  background-color: #f8f9fa;
+  background-color: var(--color-gray-100);
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.8rem;
   margin: 2px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--color-gray-200);
   transition: all 0.15s;
 }
 
 .hora-pill.manual {
-  background-color: #fff3cd;
-  border-color: #ffeeba;
-  color: #856404;
+  background-color: var(--color-warning-bg);
+  border-color: var(--color-warning);
+  color: var(--color-warning-text);
   font-weight: 600;
 }
 
@@ -305,50 +305,85 @@ tbody tr.clickable-row:hover {
 }
 
 .status-ok {
-  background-color: #d1e7dd;
-  color: #0f5132;
+  background-color: var(--color-success-bg);
+  color: var(--color-success-text);
 }
 
 .status-falta {
-  background-color: #f8d7da;
-  color: #842029;
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
 }
 
 .status-pendente {
-  background-color: #fff3cd;
-  color: #856404;
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-text);
 }
 
 .status-incompleto {
-  background-color: #fff3cd;
-  color: #856404;
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-text);
 }
 
 .status-atraso {
-  background-color: #f8d7da;
-  color: #842029;
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
 }
 
 .status-ferias,
 .status-férias {
-  background-color: #cfe2ff;
-  color: #084298;
+  background-color: var(--color-info-bg);
+  color: var(--color-info-text);
 }
 
 .status-folga {
-  background-color: #e2e3e5;
-  color: #41464b;
+  background-color: var(--color-gray-200);
+  color: var(--color-gray-700);
 }
 
 .status-atestado,
 .status-afastado {
-  background-color: #e0cffc;
-  color: #6610f2;
+  background-color: #ede9fe;
+  color: #5b21b6;
 }
 
 .status-bh {
-  background-color: #d2f4ea;
-  color: #055160;
+  background-color: #ccfbf1;
+  color: #0f766e;
+}
+
+.status-corrigido {
+  background-color: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.status-falta-confirmada {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
+.status-atraso-confirmado {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-text);
+}
+
+.status-bh-do-atraso {
+  background-color: #ccfbf1;
+  color: #0f766e;
+}
+
+.status-suspensao {
+  background-color: #ede9fe;
+  color: #5b21b6;
+}
+
+.status-em-andamento {
+  background-color: var(--color-info-bg);
+  color: var(--color-info-text);
+}
+
+.status-outro {
+  background-color: var(--color-gray-100);
+  color: var(--color-gray-600);
 }
 
 
@@ -456,7 +491,7 @@ tbody tr.clickable-row:hover {
   display: inline-flex;
   align-items: center;
   padding: 4px 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
   font-weight: 500;
 }

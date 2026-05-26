@@ -34,10 +34,15 @@
 
 /* ── Card color variants ────────────────────────────────── */
 
-.card-presenca     { border-left-color: #16a34a; }
-.card-atraso       { border-left-color: #d97706; }
-.card-afastamento  { border-left-color: #2563eb; }
+.card-presenca       { border-left-color: #16a34a; }
+.card-atraso         { border-left-color: #d97706; }
+.card-afastamento    { border-left-color: #2563eb; }
 .card-inconsistencia { border-left-color: #dc2626; }
+
+.card-presenca:hover      { background-color: #f0fdf4; }
+.card-atraso:hover        { background-color: #fffbeb; }
+.card-afastamento:hover   { background-color: #eff6ff; }
+.card-inconsistencia:hover { background-color: #fff1f2; }
 
 /* ── Card header ────────────────────────────────────────── */
 
@@ -83,20 +88,20 @@
 }
 
 .card-number {
-  font-size: 2.2rem;
+  font-size: 2rem;
   font-weight: 700;
   color: #111827;
 }
 
 .card-total {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 500;
   color: #9ca3af;
 }
 
 .card-subtitle {
-  font-size: 0.78rem;
-  color: #9ca3af;
+  font-size: 0.82rem;
+  color: #6b7280;
 }
 
 /* ── Responsive ─────────────────────────────────────────── */

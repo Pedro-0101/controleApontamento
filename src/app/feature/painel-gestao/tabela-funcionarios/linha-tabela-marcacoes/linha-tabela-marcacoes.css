@@ -35,15 +35,15 @@
 }
 
 .input-comentario:hover {
-    background-color: #f8f9fa;
-    border-color: #dee2e6;
+    background-color: var(--color-gray-50);
+    border-color: var(--color-gray-200);
 }
 
 .input-comentario:focus {
     background-color: white;
-    border-color: #80bdff;
+    border-color: var(--color-primary);
     outline: none;
-    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    box-shadow: 0 0 0 0.2rem rgba(249, 115, 22, 0.15);
 }
 
 .comentario-cell {
@@ -57,7 +57,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    color: #0d6efd;
+    color: var(--color-primary);
     font-weight: 600;
     font-size: 0.85rem;
 }
@@ -68,19 +68,19 @@
 }
 
 .almoco-irregular {
-  background-color: #f8d7da;
-  color: #842029;
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
 }
 
 .row-checkbox {
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: #2563eb;
+  accent-color: var(--color-primary);
 }
 
 :host(.row-selected) td {
-  background-color: #eff6ff;
+  background-color: #fff7ed;
 }
 
 .horas-linha {

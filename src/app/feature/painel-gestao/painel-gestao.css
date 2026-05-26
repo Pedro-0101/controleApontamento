@@ -83,12 +83,12 @@
 .nav-btn-calendar {
   border-left: 1px solid #e5e7eb;
   margin-left: 2px;
-  color: #6366f1;
+  color: var(--color-primary);
 }
 
 .nav-btn-calendar:hover {
-  background-color: #eef2ff;
-  color: #4f46e5;
+  background-color: #fff7ed;
+  color: var(--color-primary-hover);
 }
 
 .hidden-date-input {
@@ -128,8 +128,8 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  background-color: #dbeafe;
-  color: #2563eb;
+  background-color: #fff7ed;
+  color: var(--color-primary);
 }
 
 /* Refresh Button */

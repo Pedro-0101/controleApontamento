@@ -1,6 +1,5 @@
 :host {
   display: block;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 /* Container Principal (o "Card" branco) */
@@ -73,10 +72,10 @@ label {
 
 /* Botão Primary (Exportar) */
 .btn-primary {
-  background-color: #2563eb; /* Azul padrão */
+  background-color: var(--color-primary);
   color: white;
 }
 
 .btn-primary:hover {
-  background-color: #1d4ed8;
+  background-color: var(--color-primary-hover);
 }
