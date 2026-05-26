@@ -1,18 +1,21 @@
 <aside class="sidebar">
   <div class="sidebar-header">
     <div class="logo">
-      <lucide-icon name="clipboard-check" [size]="32"></lucide-icon>
+      <lucide-icon name="clipboard-check" [size]="28"></lucide-icon>
       <span class="logo-text">Controle</span>
     </div>
+    <button class="collapse-btn" (click)="toggleCollapse()" [title]="isCollapsed() ? 'Expandir menu' : 'Recolher menu'">
+      <lucide-icon [name]="isCollapsed() ? 'chevron-right' : 'chevron-left'" [size]="16"></lucide-icon>
+    </button>
   </div>
 
   <nav class="sidebar-nav">
     <div class="nav-section">
       <span class="nav-section-title">NAVEGAÇÃO</span>
       @for (item of menuItems; track item.route) {
-        <a [routerLink]="item.route" routerLinkActive="active" class="nav-item">
+        <a [routerLink]="item.route" routerLinkActive="active" class="nav-item" [attr.data-tooltip]="item.label">
           <lucide-icon [name]="item.icon" [size]="20"></lucide-icon>
-          <span>{{ item.label }}</span>
+          <span class="nav-label">{{ item.label }}</span>
         </a>
       }
     </div>
@@ -24,12 +27,12 @@
         <div class="user-dropdown">
           <button (click)="logout()" class="dropdown-item logout">
             <lucide-icon name="log-out" [size]="16"></lucide-icon>
-            <span>Sair do Sistema</span>
+            <span class="nav-label">Sair do Sistema</span>
           </button>
         </div>
       }
-      
-      <div class="user-info" (click)="toggleMenu()" [class.active]="isMenuOpen()">
+
+      <div class="user-info" (click)="toggleMenu()" [class.active]="isMenuOpen()" [attr.data-tooltip]="userName() || 'Usuário'">
         <div class="user-avatar">
           <lucide-icon name="user" [size]="18"></lucide-icon>
         </div>

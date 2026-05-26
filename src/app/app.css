@@ -5,9 +5,14 @@
 }
 
 .main-content {
-  margin-left: 240px; /* Width of sidebar */
+  margin-left: 240px;
   min-height: 100vh;
   background: #f9fafb;
+  transition: margin-left 0.25s ease;
+}
+
+app-sidebar.collapsed + .main-content {
+  margin-left: 64px;
 }
 
 /* Ensure router outlet content fills the space */
