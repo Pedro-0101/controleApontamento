@@ -443,6 +443,40 @@
 }
 .g-search-clear:hover { color: var(--g-ink); }
 
+/* ── Skeleton ─────────────────────────────────────────────────── */
+@keyframes sk-shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+.sk-box {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e4e4e4 50%, #f0f0f0 75%);
+  background-size: 1200px 100%;
+  animation: sk-shimmer 1.6s infinite linear;
+}
+.g-sk-row {
+  display: flex;
+  height: 44px;
+  border-bottom: 1px solid var(--color-gray-200);
+  background: white;
+}
+.g-sk-name-cell {
+  width: 260px;
+  min-width: 260px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-right: 1px solid var(--color-gray-200);
+}
+.g-sk-bar-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  overflow: hidden;
+}
+.sk-bar { height: 22px; border-radius: 6px; }
+
 /* ── Scroll container ─────────────────────────────────────────── */
 .g-scroll {
   flex: 1;

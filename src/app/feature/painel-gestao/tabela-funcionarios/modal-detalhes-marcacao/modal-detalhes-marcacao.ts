@@ -137,9 +137,10 @@ export class ModalDetalhesMarcacaoComponent {
     this.isSaving.set(true);
     try {
       const isoDate = DateHelper.toIsoDate(this.record().data);
-      
+      const hora = this.novoPontoHora();
+
       let eventDate = isoDate;
-      const [hours] = this.novoPontoHora().split(':').map(Number);
+      const [hours] = hora.split(':').map(Number);
       if (hours < 5) {
         const parts = isoDate.split('-');
         const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
@@ -150,10 +151,28 @@ export class ModalDetalhesMarcacaoComponent {
         eventDate = `${year}-${month}-${day}`;
       }
 
-      await this.marcacaoService.saveManualMarcacao(this.record().matricula, isoDate, this.novoPontoHora());
+      // Simula o status resultante após adicionar o ponto, antes de salvar no servidor.
+      // Só marca como "Corrigido" se o dia não ficar como "Atraso" após o novo ponto.
+      const [h, m] = hora.split(':').map(Number);
+      const newPunchDate = new Date(isoDate + 'T00:00:00');
+      newPunchDate.setHours(h, m, 0, 0);
+      const simulatedPunches = [...this.record().marcacoes, new Marcacao({ dataMarcacao: newPunchDate })];
+      const simulatedDia = new MarcacaoDia(
+        this.record().id,
+        this.record().cpf,
+        this.record().matricula,
+        this.record().nome,
+        this.record().data,
+        simulatedPunches,
+        this.record().empresa,
+        this.record().trabalhaSabado ?? true
+      );
+      const statusAposPonto = simulatedDia.getStatus();
+
+      await this.marcacaoService.saveManualMarcacao(this.record().matricula, isoDate, hora);
       this.novoPontoHora.set('');
-      
-      if (this.record().evento !== 'Corrigido') {
+
+      if (this.record().evento !== 'Corrigido' && statusAposPonto !== 'Atraso') {
         await this.marcacaoService.saveEvent(
           this.record().matricula,
           eventDate,

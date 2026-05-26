@@ -193,6 +193,16 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewInit {
   readonly EVENT_TYPES   = EVENT_TYPES;
   readonly eventTypeList = Object.values(EVENT_TYPES);
 
+  readonly skeletonGanttRows = [
+    { i: 0, w: 180, ml: 0   },
+    { i: 1, w: 120, ml: 36  },
+    { i: 2, w: 200, ml: 72  },
+    { i: 3, w:  90, ml: 0   },
+    { i: 4, w: 150, ml: 36  },
+    { i: 5, w:  80, ml: 108 },
+    { i: 6, w: 160, ml: 0   },
+  ];
+
   // ── Enriched / filtered events ────────────────────────────────
   enrichedEvents = computed(() => {
     const emps = this.allEmployeesList();
