@@ -68,6 +68,7 @@ import {
   MapPin,
   Plug,
   LoaderCircle,
+  Check,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -143,6 +144,7 @@ export const appConfig: ApplicationConfig = {
       MapPin,
       Plug,
       LoaderCircle,
+      Check,
     }))
   ]
 };
