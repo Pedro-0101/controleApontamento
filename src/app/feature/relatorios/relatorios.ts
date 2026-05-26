@@ -789,7 +789,7 @@ export class Relatorios {
       startY: 43,
       body: statusRows.map(([label, val]) => [label, String(val)]),
       theme: 'plain',
-      styles: { fontSize: 9, cellPadding: [2, 4] },
+      styles: { fontSize: 9, cellPadding: [1.5, 3] },
       columnStyles: {
         0: { cellWidth: 120 },
         1: { cellWidth: 30, halign: 'right', fontStyle: 'bold' }
@@ -805,28 +805,20 @@ export class Relatorios {
       }
     });
 
-    // Pendências highlight block
-    const summaryY = (doc as any).lastAutoTable.finalY + 8;
-    const pendBg: [number, number, number]   = totalPend > 0 ? [254, 226, 226] : [209, 250, 229];
-    const pendText: [number, number, number] = totalPend > 0 ? [153, 27,  27]  : [6, 95, 70];
-
-    doc.setFillColor(pendBg[0], pendBg[1], pendBg[2]);
-    doc.roundedRect(14, summaryY, 110, 15, 2, 2, 'F');
+    // Pendências linha de resumo simples (sem bloco colorido)
+    const summaryY = (doc as any).lastAutoTable.finalY + 6;
+    const pendColor: [number, number, number] = totalPend > 0 ? [153, 27, 27] : [6, 95, 70];
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.setTextColor(pendText[0], pendText[1], pendText[2]);
-    doc.text(`Pendencias: ${totalPend}`, 19, summaryY + 6);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    const detalhe = `${c.falta} falta(s)  •  ${c.atraso} atraso(s)  •  ${c.incompleto} incompleto(s)`;
-    doc.text(detalhe, 19, summaryY + 12);
+    doc.setTextColor(pendColor[0], pendColor[1], pendColor[2]);
+    const detalhe = `Pendencias: ${totalPend}  (${c.falta} falta(s), ${c.atraso} atraso(s), ${c.incompleto} incompleto(s))`;
+    doc.text(detalhe, 14, summaryY);
     doc.setTextColor(0, 0, 0);
 
     if (totalPend === 0) return;
 
-    const listY = summaryY + 24;
+    const listY = summaryY + 10;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.text('Funcionarios com Pendencias', 14, listY);
@@ -847,9 +839,9 @@ export class Relatorios {
       startY: listY + 4,
       head: [['Nome', 'Matricula', 'Empresa', 'Pendencias']],
       body: pendRows,
-      theme: 'striped',
-      styles: { fontSize: 8, cellPadding: 3 },
-      headStyles: { fillColor: COR_LARANJA, textColor: [255, 255, 255], fontStyle: 'bold' },
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: [1.5, 3] },
+      headStyles: { fillColor: [80, 80, 80], textColor: [255, 255, 255], fontStyle: 'bold' },
       columnStyles: {
         0: { cellWidth: 70 },
         1: { cellWidth: 22 },
@@ -901,9 +893,8 @@ export class Relatorios {
       head: [['Data', 'Dia', 'Marcacoes', 'Horas', 'Status']],
       body: tableBody,
       theme: 'grid',
-      styles: { fontSize: 8, cellPadding: [3, 4] },
-      headStyles: { fillColor: COR_LARANJA, textColor: [255, 255, 255], fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [255, 251, 245] },
+      styles: { fontSize: 8, cellPadding: [1.5, 3] },
+      headStyles: { fillColor: [80, 80, 80], textColor: [255, 255, 255], fontStyle: 'bold' },
       columnStyles: {
         0: { cellWidth: 22 },
         1: { cellWidth: 18 },
@@ -913,16 +904,14 @@ export class Relatorios {
       },
       didParseCell: (data: any) => {
         if (data.section !== 'body') return;
-        // Capture effective row fill for didDrawCell (column 0 is parsed first)
+        // Capture row fill (always white now, used by didDrawCell strikethrough)
         if (data.column.index === 0 && rowsMeta[data.row.index]) {
-          const fc = data.cell.styles.fillColor;
-          rowsMeta[data.row.index].fillColor = Array.isArray(fc) ? fc as [number, number, number] : [255, 255, 255];
+          rowsMeta[data.row.index].fillColor = [255, 255, 255];
         }
-        // Color-code Status column
+        // Status column: only color the text, no background fill
         if (data.column.index === 4) {
           const cor = this.pdfStatusColor(data.cell.raw);
           if (cor) {
-            data.cell.styles.fillColor = cor.bg;
             data.cell.styles.textColor = cor.text;
             data.cell.styles.fontStyle = 'bold';
           }
