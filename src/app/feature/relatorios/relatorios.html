@@ -24,11 +24,11 @@
       <!-- Date Range -->
       <div class="form-group">
         <label for="dataInicio">Data Início *</label>
-        <input 
-          type="date" 
+        <input
+          type="date"
           id="dataInicio"
           name="dataInicio"
-          [(ngModel)]="dataInicio"
+          [ngModel]="dataInicio()" (ngModelChange)="dataInicio.set($event)"
           class="input-text"
           [max]="dataFim()"
         >
@@ -36,11 +36,11 @@
 
       <div class="form-group">
         <label for="dataFim">Data Fim *</label>
-        <input 
-          type="date" 
+        <input
+          type="date"
           id="dataFim"
           name="dataFim"
-          [(ngModel)]="dataFim"
+          [ngModel]="dataFim()" (ngModelChange)="dataFim.set($event)"
           class="input-text"
           [min]="dataInicio()"
         >

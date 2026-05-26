@@ -65,8 +65,7 @@
 
 .page-container {
   padding: var(--spacing-xl);
-  max-width: 1400px;
-  margin: 0 auto;
+  max-width: 100%;
 }
 
 .page-header {
