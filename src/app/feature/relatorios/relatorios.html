@@ -95,6 +95,19 @@
       }
     </div>
 
+    <!-- PDF Options -->
+    @if (tipoRelatorio() === 'espelho') {
+      <div class="pdf-options">
+        <label class="checkbox-label">
+          <input
+            type="checkbox"
+            [ngModel]="incluirResumoNoPDF()" (ngModelChange)="incluirResumoNoPDF.set($event)"
+          >
+          Incluir resumo no início do PDF
+        </label>
+      </div>
+    }
+
     <!-- Action Buttons -->
     <div class="filter-actions">
       <button 

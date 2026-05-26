@@ -36,6 +36,29 @@
   color: #9ca3af;
 }
 
+/* ── Opções de PDF ─────────────────────────────────── */
+
+.pdf-options {
+  margin-top: 14px;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #374151;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
 /* ── Resultados VR ─────────────────────────────────── */
 
 .vr-nao-aptos { color: #dc2626; font-weight: 700; }

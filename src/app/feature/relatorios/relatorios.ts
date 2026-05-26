@@ -87,6 +87,11 @@ export class Relatorios {
   currentPage = signal(1);
   itemsPerPage = signal(25);
 
+  incluirResumoNoPDF = signal(true);
+
+  // Period saved at generation time (used by PDF export)
+  periodoGerado = '';
+
   async ngOnInit() {
     await this.loadInitialData();
     this.setDefaultDates();
@@ -212,6 +217,9 @@ export class Relatorios {
     this.isLoading.set(true);
     this.currentPage.set(1);
 
+    // Save period now so PDF export always shows the dates used for this report
+    this.periodoGerado = `${this.formatDateToDDMMYYYY(this.dataInicio())} a ${this.formatDateToDDMMYYYY(this.dataFim())}`;
+
     try {
       const dataInicioDDMMYYYY = this.formatDateToDDMMYYYY(this.dataInicio());
 
@@ -299,6 +307,7 @@ export class Relatorios {
     this.resultadosVR.set([]);
     this.hasGenerated.set(false);
     this.currentPage.set(1);
+    this.periodoGerado = '';
   }
 
   onEmployeeSelectionChange(selected: string[]) {
@@ -508,10 +517,7 @@ export class Relatorios {
       doc.setFontSize(16);
       doc.text('Relatório — Não Aptos para VR', 14, 15);
       doc.setFontSize(10);
-      doc.text(
-        `Período: ${this.formatDateToDDMMYYYY(this.dataInicio())} a ${this.formatDateToDDMMYYYY(this.dataFim())}`,
-        14, 23
-      );
+      doc.text(`Período: ${this.periodoGerado}`, 14, 23);
       doc.text(
         `Gerado em: ${new Date().toLocaleString('pt-BR')} — ${this.resultadosVR().length} funcionário(s) não apto(s)`,
         14, 29
@@ -590,15 +596,17 @@ export class Relatorios {
       const autoTable = (await import('jspdf-autotable')).default;
       const doc = new jsPDF();
 
-      const periodo = `${this.formatDateToDDMMYYYY(this.dataInicio())} a ${this.formatDateToDDMMYYYY(this.dataFim())}`;
+      const periodo = this.periodoGerado;
       const geradoEm = new Date().toLocaleString('pt-BR');
       const funcionarios = this.buildFuncionariosParaPDF();
 
-      this.pdfPaginaResumo(doc, autoTable, funcionarios, periodo, geradoEm);
+      if (this.incluirResumoNoPDF()) {
+        this.pdfPaginaResumo(doc, autoTable, funcionarios, periodo, geradoEm);
+      }
 
-      for (const func of funcionarios) {
-        doc.addPage();
-        this.pdfPaginaFuncionario(doc, autoTable, func, periodo);
+      for (let i = 0; i < funcionarios.length; i++) {
+        if (i > 0 || this.incluirResumoNoPDF()) doc.addPage();
+        this.pdfPaginaFuncionario(doc, autoTable, funcionarios[i], periodo);
       }
 
       doc.save(`relatorio-marcacoes-${Date.now()}.pdf`);
@@ -706,7 +714,7 @@ export class Relatorios {
 
     return Object.values(agrupado)
       .sort((a, b) => a.nome.localeCompare(b.nome))
-      .map(f => ({ ...f, dias: [...f.dias].sort((a, b) => a.data.localeCompare(b.data)) }));
+      .map(f => ({ ...f, dias: [...f.dias].sort((a, b) => DateHelper.toIsoDate(a.data).localeCompare(DateHelper.toIsoDate(b.data))) }));
   }
 
   private pdfContarStatus(dias: MarcacaoDia[]) {
