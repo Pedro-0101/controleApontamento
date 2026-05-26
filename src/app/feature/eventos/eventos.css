@@ -1,6 +1,6 @@
 /* ─── Eventos page ─────────────────────────────────────────────── */
 .eventos-container {
-  padding: 1.5rem;
+  padding: 1.5rem 1.5rem 2.5rem;
   /* sem max-width — ocupa toda a área interna */
   display: flex;
   flex-direction: column;
