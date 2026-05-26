@@ -12,11 +12,12 @@ import { ToastService } from '../../core/services/toast/toast.service';
 import { ButtonComponent } from '../../shared/button/button';
 import { TitleCaseCustomPipe } from '../../shared/pipes/title-case-custom.pipe';
 import { ModalPerfilColaborador } from '../../shared/modal-perfil-colaborador/modal-perfil-colaborador';
+import { ModalPreviewQrcode } from '../../shared/modal-preview-qrcode/modal-preview-qrcode';
 
 @Component({
   selector: 'app-colaboradores',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, ModalColaborador, Pagination, SearchFilter, MultiSelectDropdown, ButtonComponent, TitleCaseCustomPipe, ModalPerfilColaborador],
+  imports: [CommonModule, LucideAngularModule, ModalColaborador, Pagination, SearchFilter, MultiSelectDropdown, ButtonComponent, TitleCaseCustomPipe, ModalPerfilColaborador, ModalPreviewQrcode],
   templateUrl: './colaboradores.html',
   styleUrl: './colaboradores.css'
 })
@@ -39,6 +40,7 @@ export class Colaboradores implements OnInit {
   selectedEmployeeIds = signal<number[]>([]);
   selectedCompanies = signal<string[]>([]);
   perfilEmployee = signal<Employee | null>(null);
+  previewEmployees = signal<Employee[]>([]);
 
   distinctCompanies = computed(() => {
     const emps = this.allEmployees();
@@ -224,30 +226,19 @@ export class Colaboradores implements OnInit {
     }
   }
 
-  async generateCard(employee: Employee) {
-    try {
-      await this.qrcodeService.generateCardPDF(employee);
-    } catch (error) {
-      console.error('Erro ao gerar cartão:', error);
-      this.toastService.error('Erro ao gerar cartão do colaborador.');
-    }
+  generateCard(employee: Employee) {
+    this.previewEmployees.set([employee]);
   }
 
-  async batchGenerateCards() {
+  batchGenerateCards() {
     const ids = this.selectedEmployeeIds();
     if (ids.length === 0) return;
+    const selected = this.allEmployees().filter(emp => ids.includes(emp.id));
+    this.previewEmployees.set(selected);
+  }
 
-    this.isLoading.set(true);
-    try {
-      const selectedEmployees = this.allEmployees().filter(emp => ids.includes(emp.id));
-      await this.qrcodeService.generateBatchCardsPDF(selectedEmployees);
-      this.toastService.success(`${selectedEmployees.length} cartões gerados com sucesso!`);
-    } catch (error) {
-      console.error('Erro ao gerar cartões em lote:', error);
-      this.toastService.error('Erro ao gerar cartões selecionados.');
-    } finally {
-      this.isLoading.set(false);
-    }
+  closePreview() {
+    this.previewEmployees.set([]);
   }
 
   openPerfil(employee: Employee) {

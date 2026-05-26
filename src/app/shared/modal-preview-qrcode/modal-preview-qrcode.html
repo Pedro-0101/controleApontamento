@@ -1,0 +1,61 @@
+<div class="preview-overlay" (click)="close.emit()">
+  <div class="preview-modal" (click)="$event.stopPropagation()">
+
+    <div class="preview-header">
+      <div class="header-title">
+        <lucide-icon name="printer" [size]="20"></lucide-icon>
+        <span>{{ title }}</span>
+      </div>
+      <button class="btn-fechar" (click)="close.emit()">
+        <lucide-icon name="x" [size]="20"></lucide-icon>
+      </button>
+    </div>
+
+    <div class="preview-body">
+      @if (isLoading()) {
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Gerando prévia...</p>
+        </div>
+      } @else {
+        <div class="cards-grid" [class.single]="cards().length === 1">
+          @for (card of cards(); track card.employee.id) {
+            <div class="card-preview">
+              <div class="card-border">
+                <img class="card-logo" [src]="card.logoPath" alt="logo" (error)="$any($event.target).style.visibility='hidden'">
+                <img class="card-qr" [src]="card.qrDataUrl" alt="QR Code">
+                <div class="card-info">
+                  <p class="card-name">{{ card.employee.nome | titleCaseCustom }}</p>
+                  <p class="card-matricula">Matrícula: {{ card.employee.matricula }}</p>
+                  <p class="card-company">{{ card.employee.empresa | titleCaseCustom }}</p>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="preview-footer">
+      <button class="btn-secondary" (click)="close.emit()">
+        Fechar
+      </button>
+      <div class="footer-actions">
+        <button class="btn-outline" (click)="print()" [disabled]="isLoading()">
+          <lucide-icon name="printer" [size]="16"></lucide-icon>
+          Imprimir
+        </button>
+        <button class="btn-primary" (click)="download()" [disabled]="isLoading() || isDownloading()">
+          @if (isDownloading()) {
+            <div class="btn-spinner"></div>
+            Baixando...
+          } @else {
+            <lucide-icon name="download" [size]="16"></lucide-icon>
+            Baixar PDF
+          }
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>

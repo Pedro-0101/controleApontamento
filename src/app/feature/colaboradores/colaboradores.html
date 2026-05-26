@@ -138,4 +138,11 @@
       (close)="closePerfil()"
     ></app-modal-perfil-colaborador>
   }
+
+  @if (previewEmployees().length > 0) {
+    <app-modal-preview-qrcode
+      [employees]="previewEmployees()"
+      (close)="closePreview()"
+    ></app-modal-preview-qrcode>
+  }
 </div>
