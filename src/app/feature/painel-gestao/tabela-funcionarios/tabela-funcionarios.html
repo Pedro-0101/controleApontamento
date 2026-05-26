@@ -22,6 +22,19 @@
         </select>
       </div>
 
+      <button
+        class="btn-intervalo-lote"
+        (click)="abrirModalIntervaloPadrao()"
+        [disabled]="candidatosIntervaloPadrao().length === 0"
+        [title]="candidatosIntervaloPadrao().length === 0 ? 'Nenhum funcionário elegível nos filtros atuais' : ''"
+      >
+        <lucide-icon name="clock" [size]="16"></lucide-icon>
+        Intervalo Padrão
+        @if (candidatosIntervaloPadrao().length > 0) {
+          <span class="btn-badge-lote">{{ candidatosIntervaloPadrao().length }}</span>
+        }
+      </button>
+
       <button class="btn-export" (click)="abrirModalExportacao()">
         <lucide-icon name="download" [size]="18"></lucide-icon>
         Exportar
@@ -228,5 +241,90 @@
     <button class="bulk-clear-btn" (click)="clearSelection()">
       Limpar seleção
     </button>
+  </div>
+}
+
+<!-- Modal: Intervalo Padrão em Lote -->
+@if (showIntervaloPadraoModal()) {
+  <div class="ip-overlay" (click)="fecharModalIntervaloPadrao()">
+    <div class="ip-modal" (click)="$event.stopPropagation()">
+
+      <!-- Header -->
+      <div class="ip-header">
+        <div>
+          <h3 class="ip-title">Intervalo Padrão em Lote</h3>
+          <p class="ip-subtitle">
+            {{ candidatosIntervaloPadrao().length }} funcionário(s) com entrada antes 08:00 e saída após 16:00
+          </p>
+        </div>
+        <button class="ip-close" (click)="fecharModalIntervaloPadrao()">
+          <lucide-icon name="x" [size]="18"></lucide-icon>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="ip-body">
+
+        <!-- Select All -->
+        <label class="ip-select-all">
+          <input
+            type="checkbox"
+            [checked]="intervaloPadraoSelecionados().size === candidatosIntervaloPadrao().length && candidatosIntervaloPadrao().length > 0"
+            (change)="toggleAllIntervaloPadrao($any($event.target).checked)"
+          >
+          <span>Selecionar todos ({{ candidatosIntervaloPadrao().length }})</span>
+        </label>
+
+        <div class="ip-divider"></div>
+
+        <!-- Employee list -->
+        <div class="ip-list">
+          @for (dia of candidatosIntervaloPadrao(); track itemKey(dia)) {
+            <label class="ip-item" [class.ip-item-checked]="intervaloPadraoSelecionados().has(itemKey(dia))">
+              <input
+                type="checkbox"
+                [checked]="intervaloPadraoSelecionados().has(itemKey(dia))"
+                (change)="toggleIntervaloPadraoItem(itemKey(dia))"
+              >
+              <div class="ip-item-info">
+                <span class="ip-item-nome">{{ dia.nome }}</span>
+                <span class="ip-item-meta">
+                  {{ dia.empresa || 'Sem empresa' }}
+                  <span class="ip-item-dot">·</span>
+                  {{ formatDataBr(dia.data) }}
+                </span>
+              </div>
+              <div class="ip-item-punches">
+                @for (m of dia.marcacoes; track m.id) {
+                  <span class="ip-punch">{{ formatHoraMarcacao(m.dataMarcacao) }}</span>
+                }
+              </div>
+            </label>
+          }
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="ip-footer">
+        <span class="ip-sel-count">
+          {{ intervaloPadraoSelecionados().size }} de {{ candidatosIntervaloPadrao().length }} selecionado(s)
+        </span>
+        <button class="ip-btn-cancel" (click)="fecharModalIntervaloPadrao()">Cancelar</button>
+        <button
+          class="ip-btn-confirm"
+          [disabled]="intervaloPadraoSelecionados().size === 0 || isApplyingIntervaloPadrao()"
+          (click)="confirmarIntervaloPadrao()"
+        >
+          @if (isApplyingIntervaloPadrao()) {
+            <span class="ip-spinner"></span>
+            Lançando...
+          } @else {
+            <lucide-icon name="check" [size]="15"></lucide-icon>
+            Lançar para {{ intervaloPadraoSelecionados().size }}
+          }
+        </button>
+      </div>
+
+    </div>
   </div>
 }

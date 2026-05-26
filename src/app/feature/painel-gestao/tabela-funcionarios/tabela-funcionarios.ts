@@ -246,6 +246,76 @@ export class TabelaFuncionarios {
     }
   }
 
+  // ── Intervalo Padrão em Lote ─────────────────────────────────────────────
+
+  /** Dias filtrados com exatamente 2 pontos: um antes das 08:00 e um após 16:00. */
+  readonly candidatosIntervaloPadrao = computed((): MarcacaoDia[] =>
+    this._filteredMarcacoes().filter(dia => {
+      const ativos = dia.marcacoes.filter(m => !m.desconsiderado);
+      if (ativos.length !== 2) return false;
+      const hasBefore8 = ativos.some(m => m.dataMarcacao.getHours() < 8);
+      const hasAfter16 = ativos.some(m => m.dataMarcacao.getHours() >= 16);
+      return hasBefore8 && hasAfter16;
+    })
+  );
+
+  readonly showIntervaloPadraoModal    = signal(false);
+  readonly intervaloPadraoSelecionados = signal<Set<string>>(new Set());
+  readonly isApplyingIntervaloPadrao   = signal(false);
+
+  abrirModalIntervaloPadrao(): void {
+    const keys = new Set(this.candidatosIntervaloPadrao().map(d => this.itemKey(d)));
+    this.intervaloPadraoSelecionados.set(keys);
+    this.showIntervaloPadraoModal.set(true);
+  }
+
+  fecharModalIntervaloPadrao(): void {
+    this.showIntervaloPadraoModal.set(false);
+  }
+
+  toggleIntervaloPadraoItem(key: string): void {
+    const next = new Set(this.intervaloPadraoSelecionados());
+    next.has(key) ? next.delete(key) : next.add(key);
+    this.intervaloPadraoSelecionados.set(next);
+  }
+
+  toggleAllIntervaloPadrao(checked: boolean): void {
+    this.intervaloPadraoSelecionados.set(
+      checked
+        ? new Set(this.candidatosIntervaloPadrao().map(d => this.itemKey(d)))
+        : new Set()
+    );
+  }
+
+  formatDataBr(iso: string): string {
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  formatHoraMarcacao(date: Date): string {
+    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+  }
+
+  async confirmarIntervaloPadrao(): Promise<void> {
+    const selecionados = this.intervaloPadraoSelecionados();
+    const paraProcessar = this.candidatosIntervaloPadrao().filter(d => selecionados.has(this.itemKey(d)));
+    if (paraProcessar.length === 0) return;
+
+    this.isApplyingIntervaloPadrao.set(true);
+    try {
+      for (const dia of paraProcessar) {
+        await this.marcacaoService.saveStandardInterval(dia.matricula, DateHelper.toIsoDate(dia.data));
+      }
+      this.toastService.success(`Intervalo padrão lançado para ${paraProcessar.length} funcionário(s)!`);
+      this.showIntervaloPadraoModal.set(false);
+      await this.marcacaoService.backgroundRefreshMarcacoes();
+    } catch (error) {
+      this.toastService.error('Erro ao lançar intervalo padrão em lote.');
+    } finally {
+      this.isApplyingIntervaloPadrao.set(false);
+    }
+  }
+
   constructor() {}
 
   ngOnInit() {
