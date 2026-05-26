@@ -32,11 +32,11 @@
   pointer-events: none;
 }
 
-:host.collapsed .nav-section { padding: 0 8px; }
+:host.collapsed .nav-section { padding: 0; }
 
 :host.collapsed .nav-item {
   justify-content: center;
-  padding: 10px;
+  padding: 10px 0;
 }
 
 :host.collapsed .user-info { justify-content: center; padding: 8px; }
