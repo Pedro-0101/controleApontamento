@@ -101,8 +101,9 @@ export class MarcacaoDia implements MarcacaoDia {
             if (numMarcacoes % 2 !== 0) {
                 isIncompleto = true;
             } else if (diaSemana === 6) {
-                if (!((numMarcacoes === 2 && horasTrabalhadas >= 4 && horasTrabalhadas <= 6) ||
-                    (numMarcacoes === 4 && horasTrabalhadas >= 4))) {
+                const validPunchCount = numMarcacoes === 2 || numMarcacoes === 4;
+                const overMax = numMarcacoes === 2 && horasTrabalhadas > 6;
+                if (!validPunchCount || overMax) {
                     isIncompleto = true;
                 }
             } else if (diaSemana !== 0) { // Dias de semana
@@ -129,10 +130,12 @@ export class MarcacaoDia implements MarcacaoDia {
         if (isIncompleto) return "Incompleto";
 
         if (numMarcacoes > 0) {
-            if (diaSemana === 6 || diaSemana === 0) {
+            if (diaSemana === 0) {
                 return "Ok";
+            } else if (diaSemana === 6) {
+                return minutosTrabalhados >= (4 * 60 - 5) ? "Ok" : "Atraso";
             } else {
-                return horasTrabalhadas >= 8 ? "Ok" : "Atraso";
+                return minutosTrabalhados >= (8 * 60 - 5) ? "Ok" : "Atraso";
             }
         }
 
