@@ -78,6 +78,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewInit {
 
   selectedCompanies = signal<string[]>([]);
   companies         = signal<string[]>([]);
+  locais            = signal<string[]>([]);
 
   companyOptions = computed(() =>
     this.companies().map(c => ({
@@ -102,6 +103,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewInit {
   // ── Search / filter ──────────────────────────────────────────
   searchTerm       = signal('');
   filterEventType  = signal('');
+  filterLocal      = signal('');
   filterDataInicio = signal('');
   filterDataFim    = signal('');
 
@@ -188,7 +190,8 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewInit {
   selectedPerson = signal<string | null>(null);
 
   // Active type chips (all on by default)
-  activeTypes = signal<Set<string>>(new Set(Object.keys(EVENT_TYPES)));
+  activeTypes   = signal<Set<string>>(new Set(Object.keys(EVENT_TYPES)));
+  activeLocais  = signal<Set<string>>(new Set());
 
   readonly EVENT_TYPES   = EVENT_TYPES;
   readonly eventTypeList = Object.values(EVENT_TYPES);
@@ -216,6 +219,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewInit {
     let result = this.enrichedEvents();
     const term    = this.searchTerm().toLowerCase().trim();
     const type    = this.filterEventType();
+    const local   = this.filterLocal();
     const dataIni = this.filterDataInicio();
     const dataFim = this.filterDataFim();
 
@@ -226,6 +230,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewInit {
       );
     }
     if (type) result = result.filter(e => e.tipo_evento === type);
+    if (local) result = result.filter(e => e.empObj?.local === local);
     if (dataIni || dataFim) {
       result = result.filter(e => {
         const ei = e.data_inicio, ef = e.data_fim;
@@ -280,6 +285,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewInit {
     const rangeEnd   = this.ganttEndDate();
     const w          = this.dayWidth;
     const activeSet  = this.activeTypes();
+    const activeLoc  = this.activeLocais();
 
     const rangeStartStr = this.toDateStr(rangeStart);
     const rangeEndStr   = this.toDateStr(rangeEnd);
@@ -288,6 +294,7 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewInit {
     const compSel = this.selectedCompanies();
     let emps = this.allEmployeesList();
     if (compSel.length > 0) emps = emps.filter(e => compSel.includes(e.empresa));
+    if (activeLoc.size > 0) emps = emps.filter(e => activeLoc.has(e.local));
     const term = this.searchTerm().toLowerCase().trim();
     if (term) emps = emps.filter(e => e.nome.toLowerCase().includes(term));
 
@@ -419,8 +426,12 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewInit {
     try {
       const emps = await this.employeeService.getAllActiveEmployees();
       this.allEmployeesList.set(emps);
-      const distinct = [...new Set(emps.map((e: Employee) => e.empresa).filter(Boolean))].sort() as string[];
-      this.companies.set(distinct);
+      const distinctComp = [...new Set(emps.map((e: Employee) => e.empresa).filter(Boolean))].sort() as string[];
+      this.companies.set(distinctComp);
+
+      const distinctLoc = [...new Set(emps.map((e: Employee) => e.local).filter(Boolean))].sort() as string[];
+      this.locais.set(distinctLoc);
+      this.activeLocais.set(new Set(distinctLoc));
     } catch (e) {
       console.error('Erro ao buscar funcionários:', e);
     }
@@ -457,6 +468,14 @@ export class EventosComponent implements OnInit, OnDestroy, AfterViewInit {
     this.activeTypes.update(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  toggleLocal(local: string) {
+    this.activeLocais.update(prev => {
+      const next = new Set(prev);
+      if (next.has(local)) next.delete(local); else next.add(local);
       return next;
     });
   }

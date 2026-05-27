@@ -103,7 +103,7 @@
 
 .filter-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 1.25rem;
 }
 
@@ -377,6 +377,14 @@
   background: var(--color-gray-800);
   color: white;
   border-color: var(--color-gray-800);
+}
+
+.g-separator {
+  width: 1px;
+  height: 24px;
+  background: var(--g-line-strong);
+  margin: 0 8px;
+  flex-shrink: 0;
 }
 
 .g-chip-dot { width: 7px; height: 7px; border-radius: 2px; }

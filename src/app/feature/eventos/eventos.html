@@ -121,6 +121,20 @@
       </div>
 
       <div class="form-group">
+        <label>Local</label>
+        <select
+          [ngModel]="filterLocal()"
+          (ngModelChange)="filterLocal.set($event); onFilterChange()"
+          class="input-select"
+        >
+          <option value="">Todos</option>
+          @for (local of locais(); track local) {
+            <option [value]="local">{{ local }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="form-group">
         <label>Data Início</label>
         <input type="date"
           [ngModel]="filterDataInicio()"
@@ -355,6 +369,19 @@
           >
             <span class="g-chip-dot" [style.background]="getBdColor(et.id)"></span>
             {{ et.label }}
+          </div>
+        }
+
+        <div class="g-separator"></div>
+
+        @for (local of locais(); track local) {
+          <div
+            class="g-chip"
+            [class.active]="activeLocais().has(local)"
+            (click)="toggleLocal(local)"
+            [title]="local"
+          >
+            {{ local }}
           </div>
         }
 
