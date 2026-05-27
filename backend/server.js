@@ -231,6 +231,7 @@ async function initializeDatabase() {
         data_inicio DATE NOT NULL,
         data_fim DATE NOT NULL,
         tipo_evento VARCHAR(50) NOT NULL,
+        detalhes TEXT NULL,
         categoria ENUM('PERIODO', 'FIXO') DEFAULT 'PERIODO',
         criado_por VARCHAR(100),
         criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -238,6 +239,14 @@ async function initializeDatabase() {
         INDEX idx_categoria (categoria)
       )
     `);
+
+    // Adicionar coluna detalhes em evento_funcionario se não existir
+    try {
+      await pool.query('ALTER TABLE evento_funcionario ADD COLUMN detalhes TEXT NULL AFTER tipo_evento');
+      console.log('Coluna detalhes adicionada à tabela evento_funcionario');
+    } catch (e) {
+      if (!e.message?.includes('Duplicate column name')) throw e;
+    }
     console.log('Tabela evento_funcionario verificada/criada com sucesso');
 
     // Criar tabela de marcações desconsideradas se não existir
@@ -488,7 +497,7 @@ app.get('/api/employee/:matricula/history', async (req, res) => {
 
     // Buscar eventos nos últimos 7 dias
     const [eventos] = await pool.query(
-      `SELECT id, DATE_FORMAT(data_inicio, '%Y-%m-%d') as data_inicio, DATE_FORMAT(data_fim, '%Y-%m-%d') as data_fim, tipo_evento, criado_por
+      `SELECT id, DATE_FORMAT(data_inicio, '%Y-%m-%d') as data_inicio, DATE_FORMAT(data_fim, '%Y-%m-%d') as data_fim, tipo_evento, detalhes, criado_por
        FROM evento_funcionario
        WHERE matricula_funcionario = ?
        AND (
@@ -983,7 +992,7 @@ app.get('/api/audit-logs', async (req, res) => {
 
 // Rota para salvar um novo evento (afastamento, férias, etc)
 app.post('/api/employees/events', async (req, res) => {
-  const { matricula, dataInicio, dataFim, tipoEvento, criadoPor, categoria } = req.body;
+  const { matricula, dataInicio, dataFim, tipoEvento, criadoPor, categoria, detalhes } = req.body;
 
   if (!matricula || !dataInicio || !dataFim || !tipoEvento) {
     return res.status(400).json({ success: false, error: 'Matrícula, data início/fim e tipo de evento são obrigatórios' });
@@ -991,11 +1000,11 @@ app.post('/api/employees/events', async (req, res) => {
 
   try {
     const [result] = await pool.query(`
-      INSERT INTO evento_funcionario (matricula_funcionario, data_inicio, data_fim, tipo_evento, criado_por, categoria)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [matricula, dataInicio, dataFim, tipoEvento, criadoPor, categoria || 'PERIODO']);
+      INSERT INTO evento_funcionario (matricula_funcionario, data_inicio, data_fim, tipo_evento, criado_por, categoria, detalhes)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [matricula, dataInicio, dataFim, tipoEvento, criadoPor, categoria || 'PERIODO', detalhes || '']);
 
-    await createAuditLog(criadoPor, 'CREATE', 'evento_funcionario', result.insertId, null, { matricula, dataInicio, dataFim, tipoEvento, categoria });
+    await createAuditLog(criadoPor, 'CREATE', 'evento_funcionario', result.insertId, null, { matricula, dataInicio, dataFim, tipoEvento, categoria, detalhes });
 
     res.json({ success: true, message: 'Evento salvo com sucesso' });
   } catch (error) {
@@ -1015,6 +1024,7 @@ app.get('/api/employees/events/all', async (req, res) => {
         DATE_FORMAT(e.data_inicio, '%Y-%m-%d') as data_inicio, 
         DATE_FORMAT(e.data_fim, '%Y-%m-%d') as data_fim, 
         e.tipo_evento, 
+        e.detalhes,
         e.categoria,
         e.criado_por, 
         DATE_FORMAT(e.criado_em, '%Y-%m-%d %H:%i:%s') as criado_em
@@ -1033,19 +1043,19 @@ app.get('/api/employees/events/all', async (req, res) => {
 // Rota para atualizar um evento
 app.put('/api/employees/events/:id', async (req, res) => {
   const { id } = req.params;
-  const { dataInicio, dataFim, tipoEvento, criadoPor } = req.body;
+  const { dataInicio, dataFim, tipoEvento, criadoPor, detalhes } = req.body;
 
   try {
     const [oldRows] = await pool.query('SELECT * FROM evento_funcionario WHERE id = ?', [id]);
     
     await pool.query(`
       UPDATE evento_funcionario 
-      SET data_inicio = ?, data_fim = ?, tipo_evento = ?
+      SET data_inicio = ?, data_fim = ?, tipo_evento = ?, detalhes = ?
       WHERE id = ?
-    `, [dataInicio, dataFim, tipoEvento, id]);
+    `, [dataInicio, dataFim, tipoEvento, detalhes || '', id]);
 
     if (oldRows.length > 0) {
-      await createAuditLog(criadoPor, 'UPDATE', 'evento_funcionario', id, oldRows[0], { dataInicio, dataFim, tipoEvento });
+      await createAuditLog(criadoPor, 'UPDATE', 'evento_funcionario', id, oldRows[0], { dataInicio, dataFim, tipoEvento, detalhes });
     }
 
     res.json({ success: true, message: 'Evento atualizado com sucesso' });
@@ -1099,6 +1109,7 @@ app.post('/api/employees/events/batch', async (req, res) => {
         DATE_FORMAT(data_inicio, '%Y-%m-%d') as data_inicio, 
         DATE_FORMAT(data_fim, '%Y-%m-%d') as data_fim, 
         tipo_evento, 
+        detalhes,
         categoria,
         criado_por, 
         criado_em
