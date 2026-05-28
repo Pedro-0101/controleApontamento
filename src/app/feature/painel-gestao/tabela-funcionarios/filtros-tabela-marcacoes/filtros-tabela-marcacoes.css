@@ -2,78 +2,86 @@
   display: block;
 }
 
-/* Container Principal (o "Card" branco) */
+/* Container Principal */
 .filter-container {
-  background-color: #fff;
-  border: 1px solid #e5e7eb; /* Borda cinza suave */
-  border-radius: 8px;
-  padding: 16px 24px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 12px;
   display: flex;
-  align-items: flex-end; /* Alinha os inputs e botões pela base */
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  gap: 10px;
+  box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
 }
 
 /* Grupo dos Inputs (lado esquerdo) */
 .filters {
   display: flex;
-  gap: 24px;
-  flex-grow: 1;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  flex: 1;
 }
 
 .filter-item {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-width: 200px; /* Largura mínima para os selects não ficarem muito pequenos */
+  gap: 5px;
+  min-width: 160px;
 }
 
 /* Estilo das Labels */
 label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #4b5563; /* Cinza escuro */
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--color-text-3);
+  letter-spacing: 0.01em;
 }
-
 
 /* Grupo dos Botões (lado direito) */
 .actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
+  align-items: flex-end;
 }
 
 /* Estilos Gerais de Botão */
 .btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 16px;
-  height: 40px; /* Mesma altura dos inputs */
-  border-radius: 6px;
+  gap: 7px;
+  padding: 0 12px;
+  height: 36px;
+  border-radius: 8px;
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: 13px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
   border: 1px solid transparent;
+  font-family: var(--font-family);
+  white-space: nowrap;
 }
 
 /* Botão Outline (Limpar Filtros) */
 .btn-outline {
-  background-color: transparent;
-  border-color: #d1d5db;
-  color: #374151;
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-3);
 }
 
 .btn-outline:hover {
-  background-color: #f3f4f6;
-  border-color: #9ca3af;
+  background-color: var(--color-surface-2);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-1);
 }
 
 /* Botão Primary (Exportar) */
 .btn-primary {
   background-color: var(--color-primary);
   color: white;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.18) inset;
 }
 
 .btn-primary:hover {

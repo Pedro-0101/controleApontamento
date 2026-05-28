@@ -1,0 +1,12 @@
+- main [ref=e3]:
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - img [ref=e9]
+      - heading "Controle de Apontamento" [level=2] [ref=e13]
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]: Código de Acesso
+        - textbox "Código de Acesso" [active] [ref=e18]:
+          - /placeholder: Digite seu código
+      - button "Entrar no Sistema" [ref=e19] [cursor=pointer]
+    - paragraph [ref=e21]: Gerenciamento de Jornada de Trabalho

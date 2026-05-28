@@ -4,7 +4,7 @@
   <div class="card card-presenca" (click)="onPresencaClick()" title="Exibir apenas funcionários com ponto registrado">
     <div class="card-header">
       <div class="card-icon">
-        <lucide-icon name="user-check" [size]="20"></lucide-icon>
+        <lucide-icon name="user-check" [size]="14"></lucide-icon>
       </div>
       <span class="card-title">Presença</span>
     </div>
@@ -13,13 +13,20 @@
       <span class="card-total"> / {{ _totalFuncionarios() }}</span>
     </div>
     <div class="card-subtitle">Colaboradores com ponto</div>
+    @if (_totalFuncionarios() > 0) {
+      <div class="mini-bar">
+        @for (item of getMiniBarItems(_totalPresentes(), _totalFuncionarios()); track $index) {
+          <span [class.fill]="item"></span>
+        }
+      </div>
+    }
   </div>
 
   <!-- Card 2: Atrasos -->
   <div class="card card-atraso" (click)="onAtrasoClick()" title="Exibir funcionários com entrada após 07:00">
     <div class="card-header">
       <div class="card-icon">
-        <lucide-icon name="clock" [size]="20"></lucide-icon>
+        <lucide-icon name="clock" [size]="14"></lucide-icon>
       </div>
       <span class="card-title">Atrasos</span>
     </div>
@@ -33,7 +40,7 @@
   <div class="card card-afastamento" (click)="onAfastamentoClick()" title="Exibir funcionários em férias, atestado ou afastamento">
     <div class="card-header">
       <div class="card-icon">
-        <lucide-icon name="calendar-off" [size]="20"></lucide-icon>
+        <lucide-icon name="calendar-off" [size]="14"></lucide-icon>
       </div>
       <span class="card-title">Afastamentos / Férias</span>
     </div>
@@ -47,7 +54,7 @@
   <div class="card card-inconsistencia" (click)="onInconsistenciasClick()" title="Exibir marcações com inconsistências que requerem ação">
     <div class="card-header">
       <div class="card-icon">
-        <lucide-icon name="alert-triangle" [size]="20"></lucide-icon>
+        <lucide-icon name="alert-triangle" [size]="14"></lucide-icon>
       </div>
       <span class="card-title">Inconsistências</span>
     </div>

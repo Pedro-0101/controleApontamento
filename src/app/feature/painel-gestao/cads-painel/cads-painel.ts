@@ -43,4 +43,10 @@ export class CadsPainel {
   onInconsistenciasClick(): void {
     this.cardClicked.emit({ statuses: this.INCONSISTENCIA_STATUSES, especiais: [] });
   }
+
+  /** Returns an array of 10 booleans for the mini progress bar (true = filled) */
+  getMiniBarItems(value: number, total: number): boolean[] {
+    const filled = total > 0 ? Math.round((value / total) * 10) : 0;
+    return Array.from({ length: 10 }, (_, i) => i < filled);
+  }
 }

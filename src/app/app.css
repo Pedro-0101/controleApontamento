@@ -1,14 +1,14 @@
 :host {
   display: block;
   min-height: 100vh;
-  background: #f9fafb;
+  background: var(--color-bg);
 }
 
 .main-content {
   margin-left: 240px;
   min-height: 100vh;
-  background: #f9fafb;
-  transition: margin-left 0.25s ease;
+  background: var(--color-bg);
+  transition: margin-left 0.25s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 app-sidebar.collapsed + .main-content {

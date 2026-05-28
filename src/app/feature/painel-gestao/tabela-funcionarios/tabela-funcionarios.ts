@@ -115,6 +115,16 @@ export class TabelaFuncionarios {
 
   readonly _totalItems = computed(() => this._filteredMarcacoes().length);
 
+  getPaginationStart(): number {
+    const total = this._totalItems();
+    if (total === 0) return 0;
+    return (this.currentPage() - 1) * this.itemsPerPage() + 1;
+  }
+
+  getPaginationEnd(): number {
+    return Math.min(this._totalItems(), this.currentPage() * this.itemsPerPage());
+  }
+
   // Skeleton rows for loading state
   readonly skeletonRows = Array.from({ length: 10 }, (_, i) => i);
 

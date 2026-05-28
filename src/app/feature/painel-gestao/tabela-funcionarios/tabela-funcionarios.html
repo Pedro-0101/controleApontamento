@@ -1,45 +1,40 @@
 <div class="table-container">
 
   <!-- Search and controls -->
-  <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-xl); background: white; border-bottom: 1px solid var(--color-gray-200);">
-    <div style="position: relative; flex: 1; max-width: 400px;">
+  <div class="table-toolbar">
+    <div class="search-wrapper">
+      <lucide-icon name="search" [size]="14"></lucide-icon>
       <input
         type="text"
-        placeholder="Pesquisar por nome, matrícula ou empresa..."
+        placeholder="Buscar por nome, matrícula ou empresa..."
         (input)="onSearch($event)"
-        class="input-text"
-        style="width: 100%; padding-left: 40px;"
+        class="input-text search-input"
       >
     </div>
 
-    <div style="display: flex; align-items: center; gap: var(--spacing-lg);">
-      <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
-        <label style="margin: 0; font-size: var(--font-size-sm); color: var(--color-gray-600);">Itens por página:</label>
-        <select (change)="onItemsPerPageChange($event)" class="input-select" style="min-width: 80px;">
-          @for (option of itemsPerPageOptions; track option) {
-            <option [value]="option" [selected]="option === itemsPerPage()">{{ option }}</option>
-          }
-        </select>
-      </div>
+    <select (change)="onItemsPerPageChange($event)" class="per-page-select">
+      @for (option of itemsPerPageOptions; track option) {
+        <option [value]="option" [selected]="option === itemsPerPage()">{{ option }} por página</option>
+      }
+    </select>
 
-      <button
-        class="btn-intervalo-lote"
-        (click)="abrirModalIntervaloPadrao()"
-        [disabled]="candidatosIntervaloPadrao().length === 0"
-        [title]="candidatosIntervaloPadrao().length === 0 ? 'Nenhum funcionário elegível nos filtros atuais' : ''"
-      >
-        <lucide-icon name="clock" [size]="16"></lucide-icon>
-        Intervalo Padrão
-        @if (candidatosIntervaloPadrao().length > 0) {
-          <span class="btn-badge-lote">{{ candidatosIntervaloPadrao().length }}</span>
-        }
-      </button>
+    <button
+      class="btn-intervalo-lote"
+      (click)="abrirModalIntervaloPadrao()"
+      [disabled]="candidatosIntervaloPadrao().length === 0"
+      [title]="candidatosIntervaloPadrao().length === 0 ? 'Nenhum funcionário elegível nos filtros atuais' : ''"
+    >
+      <lucide-icon name="clock" [size]="14"></lucide-icon>
+      Intervalo Padrão
+      @if (candidatosIntervaloPadrao().length > 0) {
+        <span class="btn-badge-lote">{{ candidatosIntervaloPadrao().length }}</span>
+      }
+    </button>
 
-      <button class="btn-export" (click)="abrirModalExportacao()">
-        <lucide-icon name="download" [size]="18"></lucide-icon>
-        Exportar
-      </button>
-    </div>
+    <button class="btn-export" (click)="abrirModalExportacao()">
+      <lucide-icon name="download" [size]="14"></lucide-icon>
+      Exportar
+    </button>
   </div>
 
   @if (exibindoModalExportacao()) {
@@ -200,13 +195,19 @@
       </table>
     </div>
 
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-xl); background: white; border-top: 1px solid var(--color-gray-200);">
-      <span style="color: var(--color-gray-500); font-size: var(--font-size-sm);">
-        Página {{ currentPage() }} de {{ _totalPages() }} (Total: {{ _totalItems() }} itens)
+    <div class="pagination-container">
+      <span class="pagination-info">
+        Mostrando <strong>{{ getPaginationStart() }}–{{ getPaginationEnd() }}</strong> de <strong>{{ _totalItems() }}</strong> registros
       </span>
-      <div style="display: flex; gap: var(--spacing-sm);">
-        <button (click)="prevPage()" [disabled]="currentPage() === 1" class="btn btn-outline" style="min-width: 100px;">Anterior</button>
-        <button (click)="nextPage()" [disabled]="currentPage() === _totalPages()" class="btn btn-outline" style="min-width: 100px;">Próximo</button>
+      <div class="pagination-controls">
+        <button (click)="prevPage()" [disabled]="currentPage() === 1" class="page-btn">
+          <lucide-icon name="chevron-left" [size]="13"></lucide-icon>
+          Anterior
+        </button>
+        <button (click)="nextPage()" [disabled]="currentPage() === _totalPages()" class="page-btn">
+          Próximo
+          <lucide-icon name="chevron-right" [size]="13"></lucide-icon>
+        </button>
       </div>
     </div>
   }
