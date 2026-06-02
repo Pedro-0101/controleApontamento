@@ -27,6 +27,8 @@ export const EVENT_TYPES: Record<string, EventTypeMeta> = {
   Suspensao: { id: 'Suspensao', label: 'Suspensão',                     cls: 'suspensao', bdVar: '--suspensao-bd' },
   Feriado:   { id: 'Feriado',   label: 'Feriado',                       cls: 'feriado',   bdVar: '--feriado-bd'   },
   BH:        { id: 'BH',        label: 'Banco de Horas',                cls: 'bh',        bdVar: '--bh-bd'        },
+  'Licença Maternidade/ Paternidade': { id: 'Licença Maternidade/ Paternidade', label: 'Licença Maternidade/ Paternidade', cls: 'licencamatpat', bdVar: '--licencamatpat-bd' },
+  'Licença Nojo':                   { id: 'Licença Nojo',                      label: 'Licença Nojo',                   cls: 'licencanojo',   bdVar: '--licencanojo-bd'   },
 };
 
 export interface GanttBar {

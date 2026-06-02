@@ -24,7 +24,7 @@
 
       <div class="form-grid">
         @if (!editingId()) {
-          <div class="form-item">
+          <div class="form-item form-item-wide">
             <label>Local / Empresa</label>
             <app-multi-select-dropdown
               [options]="companyOptions()"
@@ -34,7 +34,7 @@
           </div>
         }
 
-        <div class="form-item">
+        <div class="form-item form-item-wide">
           <label>Colaborador(es)</label>
           <app-multi-select-dropdown
             [options]="filteredEmployees()"

@@ -976,7 +976,7 @@ export class MarcacaoService {
   }
 
   static getPeriodEvents(): string[] {
-    return ['Ferias', 'Atestado', 'Afastado', 'Suspensao', 'Feriado', 'BH'];
+    return ['Ferias', 'Atestado', 'Afastado', 'Suspensao', 'Feriado', 'BH', 'Licença Maternidade/ Paternidade', 'Licença Nojo'];
   }
 
   filtrarMarcacoesPorEmpresa(empresas: string[]): void {

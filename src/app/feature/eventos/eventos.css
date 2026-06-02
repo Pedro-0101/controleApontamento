@@ -74,6 +74,7 @@
 .form-input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(249,115,22,.12); }
 
 .form-item-full { grid-column: 1 / -1; }
+.form-item-wide { grid-column: span 2; }
 .form-textarea { resize: vertical; min-height: 72px; }
 
 .form-actions {
@@ -328,6 +329,8 @@
   --suspensao-fill: #fce7f3;                 --suspensao-bd: #db2777;              --suspensao-ink: #831843;
   --feriado-fill: var(--color-success-bg);   --feriado-bd: var(--color-success);   --feriado-ink: var(--color-success-text);
   --bh-fill: #ede9fe;                        --bh-bd: #7c3aed;                     --bh-ink: #4c1d95;
+  --licencamatpat-fill: #fae8ff;             --licencamatpat-bd: #d946ef;          --licencamatpat-ink: #701a75;
+  --licencanojo-fill: #f1f5f9;               --licencanojo-bd: #475569;            --licencanojo-ink: #0f172a;
 }
 
 /* Outer wrapper */
@@ -782,6 +785,8 @@
 .g-bar.suspensao { background: var(--suspensao-fill); border-color: rgba(219,39,119,.4);  color: var(--suspensao-ink); }
 .g-bar.feriado   { background: var(--feriado-fill);   border-color: rgba(16,185,129,.4);  color: var(--feriado-ink); }
 .g-bar.bh        { background: var(--bh-fill);        border-color: rgba(2,132,199,.4);   color: var(--bh-ink); }
+.g-bar.licencamatpat { background: var(--licencamatpat-fill); border-color: rgba(217,70,239,.4); color: var(--licencamatpat-ink); }
+.g-bar.licencanojo   { background: var(--licencanojo-fill);   border-color: rgba(71,85,105,.4);  color: var(--licencanojo-ink); }
 
 .g-bar.ferias    .g-bar-dot { background: var(--ferias-bd); }
 .g-bar.atestado  .g-bar-dot { background: var(--atestado-bd); }
@@ -789,6 +794,8 @@
 .g-bar.suspensao .g-bar-dot { background: var(--suspensao-bd); }
 .g-bar.feriado   .g-bar-dot { background: var(--feriado-bd); }
 .g-bar.bh        .g-bar-dot { background: var(--bh-bd); }
+.g-bar.licencamatpat .g-bar-dot { background: var(--licencamatpat-bd); }
+.g-bar.licencanojo   .g-bar-dot { background: var(--licencanojo-bd); }
 
 /* ── Popover ──────────────────────────────────────────────────── */
 .g-popover {
@@ -826,6 +833,8 @@
 .pop-badge.suspensao { background: var(--suspensao-fill); color: var(--suspensao-ink); }
 .pop-badge.feriado   { background: var(--feriado-fill);   color: var(--feriado-ink); }
 .pop-badge.bh        { background: var(--bh-fill);        color: var(--bh-ink); }
+.pop-badge.licencamatpat { background: var(--licencamatpat-fill); color: var(--licencamatpat-ink); }
+.pop-badge.licencanojo   { background: var(--licencanojo-fill);   color: var(--licencanojo-ink); }
 
 .pop-close {
   margin-left: auto;
