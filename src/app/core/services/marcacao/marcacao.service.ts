@@ -114,7 +114,7 @@ export class MarcacaoService {
 
   // ── Cards de métricas operacionais ────────────────────────────────────────
 
-  private readonly AFASTAMENTO_EVENTOS = ['Ferias', 'Atestado', 'Afastado', 'Suspensao', 'Folga', 'Feriado'];
+  private readonly AFASTAMENTO_EVENTOS = ['Ferias', 'Atestado', 'Afastado', 'Suspensao', 'Folga', 'Feriado', 'Licença Maternidade/ Paternidade', 'Licença Nojo'];
 
   readonly _totalFuncionarios = computed(() => this.marcacoesFiltradas().length);
 
@@ -362,7 +362,7 @@ export class MarcacaoService {
     const matriculasUnicas = [...new Set(marcacoes.map(m => m.matriculaFuncionario))];
 
     // 2. Buscar nomes em lote (1 chamada HTTP ao invés de N)
-    const employeeDataMap = new Map<string, { nome: string, empresa: string, trabalha_sabado: number, local: string, cargo: string }>();
+    const employeeDataMap = new Map<string, { nome: string, empresa: string, trabalha_sabado: number, local: string, cargo: string, data_admissao?: string, data_fim_experiencia?: string }>();
     try {
       const employeesBatch = await this.employeeService.getEmployeeNamesBatch(matriculasUnicas);
       employeesBatch.forEach(item => employeeDataMap.set(item.matricula, {
@@ -370,7 +370,9 @@ export class MarcacaoService {
         empresa: item.empresa,
         trabalha_sabado: item.trabalha_sabado,
         local: item.local ?? '',
-        cargo: item.cargo ?? ''
+        cargo: item.cargo ?? '',
+        data_admissao: item.data_admissao,
+        data_fim_experiencia: item.data_fim_experiencia
       }));
     } catch (error) {
       this.loggerService.error('MarcacaoService', 'Erro ao buscar dados dos funcionários em lote', error);
@@ -442,6 +444,18 @@ export class MarcacaoService {
         marcacoesDia = marcacoesDia.filter(m => ativosSet.has(String(m.matricula).trim()));
       }
 
+      // FILTRAR POR ADMISSÃO: Remover marcações de funcionários que bateram ponto ANTES da admissão
+      const employeesMap = new Map(funcionariosAtivos.map(f => [String(f.matricula).trim(), f]));
+      marcacoesDia = marcacoesDia.filter(m => {
+        const emp = employeesMap.get(String(m.matricula).trim());
+        if (emp && emp.data_admissao) {
+          const isoData = DateHelper.toIsoDate(m.data);
+          const isoAdmissao = DateHelper.toIsoDate(emp.data_admissao);
+          return isoData >= isoAdmissao;
+        }
+        return true;
+      });
+
       // Gerar lista de datas no intervalo
       const dates: string[] = [];
       const currentDate = DateHelper.fromStringDate(dataInicio);
@@ -463,6 +477,13 @@ export class MarcacaoService {
       // Iterar por cada data e cada funcionário ativo
       for (const dateStr of dates) {
         for (const funcionario of funcionariosAtivos) {
+          // FILTRAR POR ADMISSÃO: Se a data do loop for anterior à admissão, pula a criação do dia vazio
+          if (funcionario.data_admissao) {
+            const isoDateStr = DateHelper.toIsoDate(dateStr);
+            const isoAdmissao = DateHelper.toIsoDate(funcionario.data_admissao);
+            if (isoDateStr < isoAdmissao) continue;
+          }
+
           const matriculaLimpa = String(funcionario.matricula).trim();
           const key = `${matriculaLimpa}:${dateStr}`;
 

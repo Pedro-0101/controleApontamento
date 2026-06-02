@@ -83,6 +83,14 @@ export class Relatorios {
   maxPontosManualVR = signal(0);
   resultadosVR = signal<VRResultado[]>([]);
 
+  readonly resultadosVRExperiencia = computed(() => 
+    this.resultadosVR().filter(r => r.motivos.some(m => m.tipo === 'menos_90_dias'))
+  );
+
+  readonly resultadosVRPendencias = computed(() => 
+    this.resultadosVR().filter(r => !r.motivos.some(m => m.tipo === 'menos_90_dias'))
+  );
+
   // Pagination
   currentPage = signal(1);
   itemsPerPage = signal(25);
@@ -423,7 +431,7 @@ export class Relatorios {
       }
 
       for (const dia of dias) {
-        const status = dia.getStatus();
+        const status = this.getStatusRelatorio(dia, matricula);
         const ddmm = dia.getDataFormatada().substring(0, 5);
 
         // Regra 2: falta
@@ -482,13 +490,17 @@ export class Relatorios {
   }
 
   private vrRows() {
-    return this.resultadosVR().map(r => ({
-      Matricula: r.matricula,
-      Nome: r.nome,
-      Empresa: r.empresa,
-      Cargo: r.cargo,
-      Motivos: r.motivos.map(m => m.descricao).join('; ')
-    }));
+    return this.resultadosVR().map(r => {
+      const isExp = r.motivos.some(m => m.tipo === 'menos_90_dias');
+      return {
+        Matricula: r.matricula,
+        Nome: r.nome,
+        Empresa: r.empresa,
+        Cargo: r.cargo,
+        Status: isExp ? 'Periodo de Experiencia' : 'Com Pendencias',
+        Motivos: isExp ? 'Periodo de Experiencia' : r.motivos.map(m => m.descricao).join('; ')
+      };
+    });
   }
 
   exportarVRCSV(): void {
@@ -523,27 +535,61 @@ export class Relatorios {
         14, 29
       );
 
-      const body = this.resultadosVR().map(r => [
-        this.toTitleCase(r.nome),
-        r.matricula,
-        this.toTitleCase(r.empresa),
-        r.motivos.map(m => m.descricao).join('\n')
-      ]);
+      let currentY = 35;
 
-      autoTable(doc, {
-        startY: 35,
-        head: [['Nome', 'Matrícula', 'Empresa', 'Motivos']],
-        body,
-        theme: 'grid',
-        styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak' },
-        headStyles: { fillColor: [220, 38, 38] },
-        columnStyles: {
-          0: { cellWidth: 55 },
-          1: { cellWidth: 22 },
-          2: { cellWidth: 35 },
-          3: { cellWidth: 'auto' }
-        }
-      });
+      // Seção 1: Experiência
+      const exp = this.resultadosVRExperiencia();
+      if (exp.length > 0) {
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Funcionarios em Periodo de Experiencia', 14, currentY);
+        currentY += 5;
+
+        const bodyExp = exp.map(r => [
+          this.toTitleCase(r.nome),
+          r.matricula,
+          this.toTitleCase(r.empresa),
+          'Periodo de Experiencia'
+        ]);
+
+        autoTable(doc, {
+          startY: currentY,
+          head: [['Nome', 'Matrícula', 'Empresa', 'Status']],
+          body: bodyExp,
+          theme: 'grid',
+          styles: { fontSize: 8, cellPadding: 3 },
+          headStyles: { fillColor: [100, 100, 100] },
+          columnStyles: { 0: { cellWidth: 55 }, 1: { cellWidth: 22 }, 2: { cellWidth: 35 }, 3: { cellWidth: 'auto' } }
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 10;
+      }
+
+      // Seção 2: Pendências
+      const pend = this.resultadosVRPendencias();
+      if (pend.length > 0) {
+        if (currentY > 250) { doc.addPage(); currentY = 15; }
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Funcionarios com Pendencias', 14, currentY);
+        currentY += 5;
+
+        const bodyPend = pend.map(r => [
+          this.toTitleCase(r.nome),
+          r.matricula,
+          this.toTitleCase(r.empresa),
+          r.motivos.map(m => m.descricao).join('\n')
+        ]);
+
+        autoTable(doc, {
+          startY: currentY,
+          head: [['Nome', 'Matrícula', 'Empresa', 'Motivos']],
+          body: bodyPend,
+          theme: 'grid',
+          styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak' },
+          headStyles: { fillColor: [220, 38, 38] },
+          columnStyles: { 0: { cellWidth: 55 }, 1: { cellWidth: 22 }, 2: { cellWidth: 35 }, 3: { cellWidth: 'auto' } }
+        });
+      }
 
       doc.save(`relatorio-vr-${Date.now()}.pdf`);
     } catch (e) {
@@ -646,7 +692,7 @@ export class Relatorios {
           return hora;
         }).join(', '),
         HorasTrabalhadas: dia.getHorasTrabalhadas(),
-        Status: dia.getStatus()
+        Status: this.getStatusRelatorio(dia, dia.matricula)
       });
     });
 
@@ -893,7 +939,7 @@ export class Relatorios {
       dia.getDiaSemana().substring(0, 3),
       rowsMeta[i].marcacoes.map(m => m.manual ? `${m.hora}*` : m.hora).join('  '),
       dia.getHorasTrabalhadas(),
-      dia.getStatus()
+      this.getStatusRelatorio(dia, func.matricula)
     ]);
 
     autoTable(doc, {
@@ -980,5 +1026,12 @@ export class Relatorios {
     }
   }
 
-
+  public getStatusRelatorio(dia: MarcacaoDia, matricula: string): string {
+    const status = dia.getStatus();
+    const emp = this.employees().find(e => e.matricula === matricula);
+    if (emp?.data_admissao && DateHelper.toIsoDate(dia.data) < DateHelper.toIsoDate(emp.data_admissao)) {
+      if (status === 'Falta' || status === 'Falta Confirmada') return '--';
+    }
+    return status;
+  }
 }

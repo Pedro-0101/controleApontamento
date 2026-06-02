@@ -84,6 +84,27 @@
 .motivo-manual   { background: #dbeafe; color: #1d4ed8; }
 .motivo-dias     { background: #f3f4f6; color: #374151; }
 
+/* ── VR Report Categories ────────────────────────── */
+
+.vr-category-header {
+  margin: var(--spacing-xl) 0 var(--spacing-md) 0;
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 2px solid var(--color-gray-200);
+}
+
+.vr-category-header h3 {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-gray-800);
+  margin: 0 0 4px 0;
+}
+
+.vr-category-header p {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-500);
+  margin: 0;
+}
+
 /* ── page-container ─────────────────────────────────── */
 
 .page-container {

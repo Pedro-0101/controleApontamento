@@ -205,34 +205,71 @@
             <p>Nenhuma pendência encontrada no período selecionado.</p>
           </div>
         } @else {
-          <div class="table-container">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>Matrícula</th>
-                  <th>Empresa</th>
-                  <th>Motivos de Inelegibilidade</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (r of resultadosVR(); track r.matricula) {
+          <!-- Tabela 1: Experiência -->
+          @if (resultadosVRExperiencia().length > 0) {
+            <div class="vr-category-header">
+              <h3>Funcionários em Período de Experiência (Não recebem VR)</h3>
+              <p>Este grupo não recebe o benefício por tempo de registro ou contrato de experiência.</p>
+            </div>
+            <div class="table-container" style="margin-bottom: 30px;">
+              <table class="data-table">
+                <thead>
                   <tr>
-                    <td>{{ r.nome | titleCaseCustom }}</td>
-                    <td>{{ r.matricula }}</td>
-                    <td>{{ r.empresa | titleCaseCustom }}</td>
-                    <td>
-                      <div class="motivos-list">
-                        @for (m of r.motivos; track $index) {
-                          <span class="motivo-chip {{ motivoClass(m.tipo) }}">{{ m.descricao }}</span>
-                        }
-                      </div>
-                    </td>
+                    <th>Nome</th>
+                    <th>Matrícula</th>
+                    <th>Empresa</th>
+                    <th>Status</th>
                   </tr>
-                }
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  @for (r of resultadosVRExperiencia(); track r.matricula) {
+                    <tr>
+                      <td>{{ r.nome | titleCaseCustom }}</td>
+                      <td>{{ r.matricula }}</td>
+                      <td>{{ r.empresa | titleCaseCustom }}</td>
+                      <td><span class="motivo-chip motivo-dias">Período de Experiência</span></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+
+          <!-- Tabela 2: Pendências -->
+          @if (resultadosVRPendencias().length > 0) {
+            <div class="vr-category-header">
+              <h3>Funcionários com Pendências (Não recebem VR)</h3>
+              <p>Este grupo não recebe o benefício devido a faltas, atrasos ou excesso de pontos manuais.</p>
+            </div>
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Matrícula</th>
+                    <th>Empresa</th>
+                    <th>Motivos de Inelegibilidade</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (r of resultadosVRPendencias(); track r.matricula) {
+                    <tr>
+                      <td>{{ r.nome | titleCaseCustom }}</td>
+                      <td>{{ r.matricula }}</td>
+                      <td>{{ r.empresa | titleCaseCustom }}</td>
+                      <td>
+                        <div class="motivos-list">
+                          @for (m of r.motivos; track $index) {
+                            <span class="motivo-chip {{ motivoClass(m.tipo) }}">{{ m.descricao }}</span>
+                          }
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
         }
 
       } @else if (marcacoesPorDia().length === 0) {
@@ -316,8 +353,8 @@
                   </td>
                   <td>{{ dia.getHorasTrabalhadas() }}</td>
                   <td>
-                    <span class="badge" [ngClass]="'status-' + dia.getStatus()">
-                      {{ dia.getStatus() | titleCaseCustom }}
+                    <span class="badge" [ngClass]="'status-' + getStatusRelatorio(dia, dia.matricula)">
+                      {{ getStatusRelatorio(dia, dia.matricula) === '--' ? '--' : (getStatusRelatorio(dia, dia.matricula) | titleCaseCustom) }}
                     </span>
                   </td>
                 </tr>

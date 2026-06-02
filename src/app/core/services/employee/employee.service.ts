@@ -13,7 +13,16 @@ interface EmployeeResponse {
 
 interface BatchEmployeeResponse {
   success: boolean;
-  employees: Array<{ matricula: string; nome: string; empresa: string; trabalha_sabado: number; local: string; cargo: string }>;
+  employees: Array<{ 
+    matricula: string; 
+    nome: string; 
+    empresa: string; 
+    trabalha_sabado: number; 
+    local: string; 
+    cargo: string;
+    data_admissao?: string;
+    data_fim_experiencia?: string;
+  }>;
   error?: string;
 }
 
@@ -92,7 +101,16 @@ export class EmployeeService {
    * @param matriculas - Array de matrículas
    * @returns Array de objetos com matricula e nome
    */
-  async getEmployeeNamesBatch(matriculas: string[]): Promise<Array<{ matricula: string; nome: string; empresa: string; trabalha_sabado: number; local: string; cargo: string }>> {
+  async getEmployeeNamesBatch(matriculas: string[]): Promise<Array<{ 
+    matricula: string; 
+    nome: string; 
+    empresa: string; 
+    trabalha_sabado: number; 
+    local: string; 
+    cargo: string;
+    data_admissao?: string;
+    data_fim_experiencia?: string;
+  }>> {
     try {
       this.logger.info('EmployeeService', `Buscando nomes para ${matriculas.length} matrículas`);
 
@@ -102,7 +120,13 @@ export class EmployeeService {
 
       if (response.success) {
         this.logger.info('EmployeeService', 'Nomes encontrados com sucesso');
-        return response.employees.map(e => ({ ...e, local: e.local ?? '', cargo: e.cargo ?? '' }));
+        return response.employees.map(e => ({ 
+          ...e, 
+          local: e.local ?? '', 
+          cargo: e.cargo ?? '',
+          data_admissao: e.data_admissao ? String(e.data_admissao).substring(0, 10) : undefined,
+          data_fim_experiencia: e.data_fim_experiencia ? String(e.data_fim_experiencia).substring(0, 10) : undefined
+        }));
       }
 
       this.logger.warn('EmployeeService', 'Erro ao buscar nomes em lote');

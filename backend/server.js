@@ -597,7 +597,15 @@ app.post('/api/employees/batch', async (req, res) => {
     // Criar um mapa de matrícula -> {nome, empresa, local, cargo}
     const employeeMap = {};
     rows.forEach(row => {
-      employeeMap[row.matricula] = { nome: row.nome, empresa: row.empresa, trabalha_sabado: row.trabalha_sabado, local: row.local || '', cargo: row.cargo || '' };
+      employeeMap[row.matricula] = { 
+        nome: row.nome, 
+        empresa: row.empresa, 
+        trabalha_sabado: row.trabalha_sabado, 
+        local: row.local || '', 
+        cargo: row.cargo || '',
+        data_admissao: row.data_admissao,
+        data_fim_experiencia: row.data_fim_experiencia
+      };
     });
 
     // Para cada matrícula solicitada, retornar dados ou fallback
@@ -609,7 +617,9 @@ app.post('/api/employees/batch', async (req, res) => {
         empresa: data ? data.empresa : '',
         trabalha_sabado: data ? data.trabalha_sabado : 1,
         local: data ? data.local : '',
-        cargo: data ? data.cargo : ''
+        cargo: data ? data.cargo : '',
+        data_admissao: data ? data.data_admissao : null,
+        data_fim_experiencia: data ? data.data_fim_experiencia : null
       };
     });
 
