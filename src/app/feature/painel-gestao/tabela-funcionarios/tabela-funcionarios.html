@@ -72,7 +72,6 @@
         <thead>
           <tr>
             <th class="col-checkbox"></th>
-            <th class="col-matricula">Matrícula</th>
             <th class="col-empresa">Empresa</th>
             <th class="col-cargo">Cargo</th>
             <th class="col-local">Local</th>
@@ -89,7 +88,6 @@
           @for (row of skeletonRows; track row; let i = $index) {
             <tr class="skeleton-row" [style.--row-delay]="(i * 60) + 'ms'">
               <td><div class="skeleton-cell" style="width: 16px; height: 16px; border-radius: 3px; margin: auto;"></div></td>
-              <td><div class="skeleton-cell sk-matricula"></div></td>
               <td><div class="skeleton-cell sk-empresa"></div></td>
               <td><div class="skeleton-cell sk-cargo"></div></td>
               <td><div class="skeleton-cell sk-local"></div></td>
@@ -139,10 +137,6 @@
                 title="Selecionar página"
               >
             </th>
-            <th (click)="onSort('matricula')" class="sortable col-matricula">
-              Matrícula
-              @if(sortColumn() === 'matricula') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
-            </th>
             <th (click)="onSort('empresa')" class="sortable col-empresa">
               Empresa
               @if(sortColumn() === 'empresa') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
@@ -188,7 +182,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="12" style="text-align: center">Nenhuma marcação encontrada.</td>
+              <td colspan="11" style="text-align: center">Nenhuma marcação encontrada.</td>
             </tr>
           }
         </tbody>

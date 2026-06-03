@@ -228,10 +228,6 @@ body {
   min-width: 300px;
 }
 
-.col-matricula {
-  width: 100px;
-}
-
 .col-empresa {
   width: 190px;
 }
@@ -253,8 +249,8 @@ body {
 }
 
 .col-hora {
-  width: 260px;
-  min-width: 260px;
+  width: 360px;
+  min-width: 360px;
 }
 
 .col-almoco {

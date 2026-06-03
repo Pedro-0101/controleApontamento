@@ -2,7 +2,6 @@
 <td class="col-checkbox" (click)="$event.stopPropagation()">
   <input type="checkbox" class="row-checkbox" [checked]="isSelected()" (change)="toggleSelect.emit()">
 </td>
-<td class="col-matricula" (click)="abrirDetalhes()">{{ marcacao().matricula }}</td>
 <td class="col-empresa" (click)="abrirDetalhes()">
   <span class="empresa-cell">
     <span class="empresa-dot" [style.background]="getEmpresaColor(marcacao().apiEmpresaNome)" [title]="marcacao().apiEmpresaNome ?? marcacao().empresa ?? ''"></span>
