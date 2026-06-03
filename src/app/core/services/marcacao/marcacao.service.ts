@@ -1156,8 +1156,9 @@ export class MarcacaoService {
     await this.saveManualMarcacao(matricula, data, '13:00');
     // Comentário
     await this.saveComment(matricula, data, 'Comentário automático: Intervalo padrão inserido');
-    // Status Corrigido
-    await this.saveEvent(matricula, data, data, 'Corrigido', 'FIXO');
+    // Status 'Corrigido' não é mais aplicado aqui incondicionalmente.
+    // Os chamadores (detalhes, lote) simulam o status resultante e só aplicam
+    // 'Corrigido' se o dia NÃO resultar em 'Atraso' ou 'Incompleto'.
   }
 
   async getAllEvents(): Promise<any[]> {

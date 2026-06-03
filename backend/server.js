@@ -149,9 +149,9 @@ async function initializeDatabase() {
     console.log('Tabela locais verificada/criada com sucesso');
 
     // Inserir empresa e local "Mix Porto Feliz" (seed inicial)
-    await pool.query(`INSERT IGNORE INTO empresas (nome) VALUES (?)`, ['Mix Porto Feliz']);
-    await pool.query(`INSERT IGNORE INTO locais (nome) VALUES (?)`, ['Mix Porto Feliz']);
-    console.log('Empresa e local "Mix Porto Feliz" verificados/inseridos');
+    await pool.query(`INSERT IGNORE INTO empresas (nome) VALUES (?)`, ['MIX PORTO FELIZ']);
+    await pool.query(`INSERT IGNORE INTO locais (nome) VALUES (?)`, ['MIX PORTO FELIZ']);
+    console.log('Empresa e local "MIX PORTO FELIZ" verificados/inseridos');
 
     // Adicionar coluna empresa_id em qrcod_2023
     try {

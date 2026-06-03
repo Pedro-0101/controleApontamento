@@ -107,9 +107,27 @@ export class ModalDetalhesMarcacaoComponent {
     this.isSaving.set(true);
     try {
       const isoDate = DateHelper.toIsoDate(this.record().data);
+
+      // Simula adição de 12:00 e 13:00 para decidir se deve marcar como Corrigido
+      const base = new Date(isoDate + 'T00:00:00');
+      const p12 = new Marcacao({ dataMarcacao: new Date(base.getTime() + 12 * 3600 * 1000) });
+      const p13 = new Marcacao({ dataMarcacao: new Date(base.getTime() + 13 * 3600 * 1000) });
+      const simulatedPunches = [...this.getMarcacoes(), p12, p13];
+      const simulatedDia = new MarcacaoDia(
+        this.record().id,
+        this.record().cpf,
+        this.record().matricula,
+        this.record().nome,
+        this.record().data,
+        simulatedPunches,
+        this.record().empresa,
+        this.record().trabalhaSabado ?? true
+      );
+      const statusApos = simulatedDia.getStatus();
+
       await this.marcacaoService.saveStandardInterval(this.record().matricula, isoDate);
-      
-      if (this.record().evento !== 'Corrigido') {
+
+      if (this.record().evento !== 'Corrigido' && statusApos !== 'Atraso' && statusApos !== 'Incompleto') {
         await this.marcacaoService.saveEvent(
           this.record().matricula,
           isoDate,
@@ -152,7 +170,7 @@ export class ModalDetalhesMarcacaoComponent {
       }
 
       // Simula o status resultante após adicionar o ponto, antes de salvar no servidor.
-      // Só marca como "Corrigido" se o dia não ficar como "Atraso" após o novo ponto.
+      // Só marca como "Corrigido" se o dia não se encaixar em Atraso ou Incompleto.
       const [h, m] = hora.split(':').map(Number);
       const newPunchDate = new Date(isoDate + 'T00:00:00');
       newPunchDate.setHours(h, m, 0, 0);
@@ -172,7 +190,7 @@ export class ModalDetalhesMarcacaoComponent {
       await this.marcacaoService.saveManualMarcacao(this.record().matricula, isoDate, hora);
       this.novoPontoHora.set('');
 
-      if (this.record().evento !== 'Corrigido' && statusAposPonto !== 'Atraso') {
+      if (this.record().evento !== 'Corrigido' && statusAposPonto !== 'Atraso' && statusAposPonto !== 'Incompleto') {
         await this.marcacaoService.saveEvent(
           this.record().matricula,
           eventDate,

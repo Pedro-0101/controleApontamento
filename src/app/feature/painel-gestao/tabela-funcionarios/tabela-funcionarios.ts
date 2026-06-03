@@ -5,6 +5,7 @@ import { ToastService } from '../../../core/services/toast/toast.service';
 import { DateHelper } from '../../../core/helpers/dateHelper';
 
 import { MarcacaoDia } from '../../../models/marcacaoDia/marcacao-dia';
+import { Marcacao } from '../../../models/marcacao/marcacao';
 import { LinhaTabelaMarcacoes } from './linha-tabela-marcacoes/linha-tabela-marcacoes';
 import { ModalExportacaoComponent } from './modal-exportacao/modal-exportacao';
 import { ModalDetalhesMarcacaoComponent } from './modal-detalhes-marcacao/modal-detalhes-marcacao';
@@ -314,7 +315,30 @@ export class TabelaFuncionarios {
     this.isApplyingIntervaloPadrao.set(true);
     try {
       for (const dia of paraProcessar) {
-        await this.marcacaoService.saveStandardInterval(dia.matricula, DateHelper.toIsoDate(dia.data));
+        const iso = DateHelper.toIsoDate(dia.data);
+
+        // Simula o status após inserir 12:00 + 13:00. Só aplica 'Corrigido' se não for Atraso/Incompleto.
+        const base = new Date(iso + 'T00:00:00');
+        const p12 = new Marcacao({ dataMarcacao: new Date(base.getTime() + 12 * 3600 * 1000) });
+        const p13 = new Marcacao({ dataMarcacao: new Date(base.getTime() + 13 * 3600 * 1000) });
+        const simulatedPunches = [...dia.marcacoes, p12, p13];
+        const simulatedDia = new MarcacaoDia(
+          dia.id,
+          dia.cpf,
+          dia.matricula,
+          dia.nome,
+          dia.data,
+          simulatedPunches,
+          dia.empresa,
+          dia.trabalhaSabado ?? true
+        );
+        const statusApos = simulatedDia.getStatus();
+
+        await this.marcacaoService.saveStandardInterval(dia.matricula, iso);
+
+        if (dia.evento !== 'Corrigido' && statusApos !== 'Atraso' && statusApos !== 'Incompleto') {
+          await this.marcacaoService.saveEvent(dia.matricula, iso, iso, 'Corrigido', 'FIXO');
+        }
       }
       this.toastService.success(`Intervalo padrão lançado para ${paraProcessar.length} funcionário(s)!`);
       this.showIntervaloPadraoModal.set(false);
