@@ -1,0 +1,44 @@
+.employee-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  color: var(--color-gray-800);
+}
+
+.employee-name lucide-icon {
+  color: var(--color-gray-400);
+}
+
+.counter-column {
+  width: 90px;
+  text-align: center;
+}
+
+.counter-cell {
+  text-align: center;
+}
+
+.counter-placeholder {
+  color: var(--color-gray-400);
+}
+
+.filters-layout {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+  padding: 0 var(--spacing-md);
+}
+
+.filters-layout app-search-filter {
+  flex: 1;
+}
+
+.company-filter-box {
+  min-width: 280px;
+}
+
+.flex-1 {
+  flex: 1;
+}

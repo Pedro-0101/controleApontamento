@@ -1,0 +1,91 @@
+@if (isLoading()) {
+  <div class="loading-container">
+    <div class="spinner"></div>
+    <p>Carregando funcionários...</p>
+  </div>
+} @else {
+  <div class="table-container">
+    <div class="filters-layout">
+      <app-search-filter
+        class="flex-1"
+        searchPlaceholder="Pesquisar por nome, matrícula, empresa ou local..."
+        filterLabel="Status:"
+        [filterOptions]="filterOptions()"
+        (searchChange)="onSearchChange($event)"
+        (filterChange)="onFilterChange($event)"
+      ></app-search-filter>
+
+      <div class="company-filter-box">
+        <app-multi-select-dropdown
+          [options]="companyOptions()"
+          [placeholder]="'Selecione as empresas...'"
+          [searchPlaceholder]="'Buscar empresas...'"
+          (selectionChange)="onCompanySelectionChange($event)"
+        ></app-multi-select-dropdown>
+      </div>
+    </div>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Matrícula</th>
+          <th>Nome</th>
+          <th>Empresa</th>
+          <th>Local</th>
+          <th>Cargo</th>
+          <th>Status</th>
+          <th class="counter-column">Cadastrado</th>
+          <th class="counter-column">Ativo</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (func of paginatedFuncionarios(); track func.matricula) {
+          <tr>
+            <td>{{ func.matricula }}</td>
+            <td class="employee-name">
+              <lucide-icon name="user" [size]="16"></lucide-icon>
+              {{ func.nome | titleCaseCustom }}
+            </td>
+            <td>{{ func.empresa | titleCaseCustom }}</td>
+            <td>{{ func.local | titleCaseCustom }}</td>
+            <td>{{ func.cargo | titleCaseCustom }}</td>
+            <td>
+              <span class="badge" [class]="getStatusClass(func.ativo)">
+                {{ getStatusLabel(func.ativo) }}
+              </span>
+            </td>
+            <td class="counter-cell">
+              @if (func.relogiosCadastrado !== null) {
+                {{ func.relogiosCadastrado }}
+              } @else {
+                <span class="counter-placeholder">—</span>
+              }
+            </td>
+            <td class="counter-cell">
+              @if (func.relogiosAtivo !== null) {
+                {{ func.relogiosAtivo }}
+              } @else {
+                <span class="counter-placeholder">—</span>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="8" class="empty-state">
+              <lucide-icon name="users" [size]="48"></lucide-icon>
+              <p>Nenhum funcionário encontrado</p>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <app-pagination
+      [totalItems]="filteredFuncionarios().length"
+      [itemsPerPage]="itemsPerPage()"
+      [currentPage]="currentPage()"
+      (pageChange)="onPageChange($event)"
+      (itemsPerPageChange)="onItemsPerPageChange($event)"
+    ></app-pagination>
+  </div>
+}
