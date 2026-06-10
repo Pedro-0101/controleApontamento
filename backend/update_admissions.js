@@ -17,26 +17,34 @@ const dbConfig = {
  */
 function parseDate(dateStr) {
   if (!dateStr) return null;
-  
-  // Tenta formato DD/MM/YYYY
-  const parts = dateStr.trim().split('/');
-  if (parts.length === 3) {
-    const day = parts[0].padStart(2, '0');
-    const month = parts[1].padStart(2, '0');
-    const year = parts[2];
-    
-    // Validação básica de ano
-    if (year.length === 4) {
-      return `${year}-${month}-${day}`;
-    }
+  const s = String(dateStr).trim();
+
+  // Formato DD/MM/YYYY
+  const dm = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dm) {
+    const d = parseInt(dm[1], 10);
+    const m = parseInt(dm[2], 10);
+    const y = parseInt(dm[3], 10);
+    if (y < 1900 || y > 2100) return null;
+    const dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   }
-  
-  // Fallback para Date nativo se possível
-  const d = new Date(dateStr);
-  if (!isNaN(d.getTime())) {
-    return d.toISOString().split('T')[0];
+
+  // Formato YYYY-MM-DD
+  const ym = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (ym) {
+    const y = parseInt(ym[1], 10);
+    const m = parseInt(ym[2], 10);
+    const d = parseInt(ym[3], 10);
+    if (y < 1900 || y > 2100) return null;
+    if (m < 1 || m > 12) return null;
+    if (d < 1 || d > 31) return null;
+    const dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   }
-  
+
   return null;
 }
 

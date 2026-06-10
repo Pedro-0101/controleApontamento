@@ -297,6 +297,43 @@ async function createAuditLog(usuario, acao, tabela, registroId, dadosAntigos, d
   }
 }
 
+/**
+ * Valida e normaliza uma data no formato YYYY-MM-DD ou DD/MM/YYYY.
+ * Retorna a data no formato YYYY-MM-DD ou null se inválida.
+ */
+function parseAndValidateDate(dateStr) {
+  if (!dateStr) return null;
+  const s = String(dateStr).trim();
+
+  // Formato DD/MM/YYYY
+  const dm = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dm) {
+    const d = parseInt(dm[1], 10);
+    const m = parseInt(dm[2], 10);
+    const y = parseInt(dm[3], 10);
+    if (y < 1900 || y > 2100) return null;
+    const dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+
+  // Formato YYYY-MM-DD
+  const ym = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (ym) {
+    const y = parseInt(ym[1], 10);
+    const m = parseInt(ym[2], 10);
+    const d = parseInt(ym[3], 10);
+    if (y < 1900 || y > 2100) return null;
+    if (m < 1 || m > 12) return null;
+    if (d < 1 || d > 31) return null;
+    const dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+
+  return null;
+}
+
 // Rota para salvar um novo comentário
 app.post('/api/comments', async (req, res) => {
   const { matricula, data, comentario, criadoPor } = req.body;
@@ -671,6 +708,22 @@ app.post('/api/employees', async (req, res) => {
     });
   }
 
+  const dataAdmissaoVal = parseAndValidateDate(data_admissao);
+  const dataFimExpVal   = parseAndValidateDate(data_fim_experiencia);
+
+  if (data_admissao && !dataAdmissaoVal) {
+    return res.status(400).json({
+      success: false,
+      error: `Data de admissão inválida: ${data_admissao}`
+    });
+  }
+  if (data_fim_experiencia && !dataFimExpVal) {
+    return res.status(400).json({
+      success: false,
+      error: `Data de fim de experiência inválida: ${data_fim_experiencia}`
+    });
+  }
+
   try {
     // Buscar nomes para preencher colunas varchar (compatibilidade)
     let empresaNome = '';
@@ -686,7 +739,7 @@ app.post('/api/employees', async (req, res) => {
 
     const [result] = await pool.query(
       'INSERT INTO qrcod_2023 (matricula, empresa_id, empresa, local_id, local, nome, cargo, ativo, trabalha_sabado, data_admissao, data_fim_experiencia) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [matricula, empresa_id || null, empresaNome, local_id || null, localNome, nome, cargo || '', ativo !== undefined ? ativo : 1, trabalha_sabado !== undefined ? trabalha_sabado : 1, data_admissao || null, data_fim_experiencia || null]
+      [matricula, empresa_id || null, empresaNome, local_id || null, localNome, nome, cargo || '', ativo !== undefined ? ativo : 1, trabalha_sabado !== undefined ? trabalha_sabado : 1, dataAdmissaoVal, dataFimExpVal]
     );
 
     // Buscar o funcionário criado para retornar
@@ -727,6 +780,22 @@ app.put('/api/employees/:id', async (req, res) => {
     });
   }
 
+  const dataAdmissaoVal = parseAndValidateDate(data_admissao);
+  const dataFimExpVal   = parseAndValidateDate(data_fim_experiencia);
+
+  if (data_admissao && !dataAdmissaoVal) {
+    return res.status(400).json({
+      success: false,
+      error: `Data de admissão inválida: ${data_admissao}`
+    });
+  }
+  if (data_fim_experiencia && !dataFimExpVal) {
+    return res.status(400).json({
+      success: false,
+      error: `Data de fim de experiência inválida: ${data_fim_experiencia}`
+    });
+  }
+
   try {
     // Buscar nomes para preencher colunas varchar (compatibilidade)
     let empresaNome = '';
@@ -742,7 +811,7 @@ app.put('/api/employees/:id', async (req, res) => {
 
     await pool.query(
       'UPDATE qrcod_2023 SET matricula=?, empresa_id=?, empresa=?, local_id=?, local=?, nome=?, cargo=?, ativo=?, trabalha_sabado=?, data_admissao=?, data_fim_experiencia=? WHERE id=?',
-      [matricula, empresa_id || null, empresaNome, local_id || null, localNome, nome, cargo || '', ativo !== undefined ? ativo : 1, trabalha_sabado !== undefined ? trabalha_sabado : 1, data_admissao || null, data_fim_experiencia || null, id]
+      [matricula, empresa_id || null, empresaNome, local_id || null, localNome, nome, cargo || '', ativo !== undefined ? ativo : 1, trabalha_sabado !== undefined ? trabalha_sabado : 1, dataAdmissaoVal, dataFimExpVal, id]
     );
 
     // Buscar o funcionário atualizado

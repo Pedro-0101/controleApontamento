@@ -1,5 +1,5 @@
-import { Component, computed, inject } from '@angular/core';
-import { Router, RouterOutlet, NavigationEnd } from '@angular/router';
+import { Component, computed, inject, signal } from '@angular/core';
+import { Router, RouterOutlet, NavigationEnd, NavigationStart, NavigationCancel, NavigationError } from '@angular/router';
 import { Sidebar } from './core/sidebar/sidebar';
 import { filter } from 'rxjs/operators';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -14,7 +14,8 @@ import { ToastComponent } from './shared/toast/toast.component';
 export class App {
   private router = inject(Router);
 
-  // Track current route
+  isNavigating = signal(true);
+
   private navigationEnd$ = this.router.events.pipe(
     filter(event => event instanceof NavigationEnd)
   );
@@ -23,7 +24,20 @@ export class App {
     initialValue: null
   });
 
-  // Hide sidebar on login/auth pages
+  constructor() {
+    this.router.events.subscribe(event => {
+      if (event instanceof NavigationStart) {
+        this.isNavigating.set(true);
+      } else if (
+        event instanceof NavigationEnd ||
+        event instanceof NavigationCancel ||
+        event instanceof NavigationError
+      ) {
+        this.isNavigating.set(false);
+      }
+    });
+  }
+
   showSidebar = computed(() => {
     const route = this.currentRoute();
     if (!route) return false;

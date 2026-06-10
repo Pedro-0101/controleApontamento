@@ -1,3 +1,11 @@
+@if (isNavigating()) {
+  <div class="loading-overlay">
+    <div class="loading-box">
+      <div class="loading-spinner"></div>
+      <p class="loading-text">Carregando...</p>
+    </div>
+  </div>
+}
 @if (showSidebar()) {
   <app-sidebar></app-sidebar>
 }
