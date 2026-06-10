@@ -43,7 +43,10 @@ export class FuncionarioRelogioService {
 
   private async loadFromApi(): Promise<FuncionarioRelogio[]> {
     const tokens = this.apiSessionService.getAllTokens();
-    if (tokens.length === 0) return [];
+    if (tokens.length === 0) {
+      this.loggerService.warn('FuncionarioRelogioService', 'Nenhum token disponível para buscar funcionários');
+      return [];
+    }
 
     const results = await Promise.all(tokens.map(async token => {
       try {
