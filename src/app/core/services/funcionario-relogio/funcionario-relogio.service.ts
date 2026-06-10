@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { environment } from '../../../../environments/environment';
 import { ApiSessionService } from '../apiSession/api-session.service';
 import { EmployeeService } from '../employee/employee.service';
@@ -16,8 +16,8 @@ export class FuncionarioRelogioService {
   private _funcionarios = signal<FuncionarioRelogio[]>([]);
   private _loading = signal(false);
 
-  readonly funcionarios = computed(() => this._funcionarios());
-  readonly isLoading = computed(() => this._loading());
+  readonly funcionarios = this._funcionarios.asReadonly();
+  readonly isLoading = this._loading.asReadonly();
 
   async load(): Promise<void> {
     this._loading.set(true);
@@ -74,11 +74,13 @@ export class FuncionarioRelogioService {
   merge(local: FuncionarioRelogio[], api: FuncionarioRelogio[]): FuncionarioRelogio[] {
     const map = new Map<string, FuncionarioRelogio>();
     for (const f of local) {
+      if (!f.matricula) continue;
       map.set(f.matricula, f);
     }
     for (const f of api) {
       if (map.has(f.matricula)) {
-        map.get(f.matricula)!.fonte = 'ambos';
+        const existing = map.get(f.matricula)!;
+        map.set(f.matricula, Object.assign(new FuncionarioRelogio(), existing, { fonte: 'ambos' as const }));
       } else {
         map.set(f.matricula, f);
       }

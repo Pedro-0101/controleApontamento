@@ -12,20 +12,26 @@
 
   <div class="tab-bar" role="tablist">
     <button
+      id="tab-relogios"
       class="tab"
       role="tab"
-      [class.active]="activeTab() === 'relogios'"
+      aria-controls="panel-relogios"
       [attr.aria-selected]="activeTab() === 'relogios'"
+      [attr.tabindex]="activeTab() === 'relogios' ? 0 : -1"
+      [class.active]="activeTab() === 'relogios'"
       (click)="activeTab.set('relogios')"
     >
       <lucide-icon name="clock" [size]="16"></lucide-icon>
       Relógios
     </button>
     <button
+      id="tab-funcionarios"
       class="tab"
       role="tab"
-      [class.active]="activeTab() === 'funcionarios'"
+      aria-controls="panel-funcionarios"
       [attr.aria-selected]="activeTab() === 'funcionarios'"
+      [attr.tabindex]="activeTab() === 'funcionarios' ? 0 : -1"
+      [class.active]="activeTab() === 'funcionarios'"
       (click)="activeTab.set('funcionarios')"
     >
       <lucide-icon name="users" [size]="16"></lucide-icon>
@@ -33,7 +39,12 @@
     </button>
   </div>
 
-  @if (activeTab() === 'relogios') {
+  <div
+    id="panel-relogios"
+    role="tabpanel"
+    aria-labelledby="tab-relogios"
+    [hidden]="activeTab() !== 'relogios'"
+  >
     @if (isLoading()) {
       <div class="loading-container">
         <div class="spinner"></div>
@@ -95,9 +106,14 @@
         ></app-pagination>
       </div>
     }
-  }
+  </div>
 
-  @if (activeTab() === 'funcionarios') {
+  <div
+    id="panel-funcionarios"
+    role="tabpanel"
+    aria-labelledby="tab-funcionarios"
+    [hidden]="activeTab() !== 'funcionarios'"
+  >
     <app-relogios-funcionarios />
-  }
+  </div>
 </div>

@@ -18,6 +18,7 @@
       <div class="company-filter-box">
         <app-multi-select-dropdown
           [options]="companyOptions()"
+          [valueProp]="'nome'"
           [placeholder]="'Selecione as empresas...'"
           [searchPlaceholder]="'Buscar empresas...'"
           (selectionChange)="onCompanySelectionChange($event)"

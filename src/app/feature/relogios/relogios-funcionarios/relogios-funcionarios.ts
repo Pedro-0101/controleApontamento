@@ -39,7 +39,7 @@ export class RelogiosFuncionarios {
         .map(f => f.empresa)
         .filter(e => !!e)
     )].sort();
-    return companies.map(c => ({ nome: c, matricula: c }));
+    return companies.map(c => ({ nome: c }));
   });
 
   filteredFuncionarios = computed(() => {
@@ -83,8 +83,11 @@ export class RelogiosFuncionarios {
   onFilterChange(filter: string) {
     this.statusFilter.set(filter);
     this.currentPage.set(1);
-    this.selectedCompanies.set([]);
-    this.multiSelect?.clearSelection();
+    if (this.multiSelect) {
+      this.multiSelect.clearSelection();
+    } else {
+      this.selectedCompanies.set([]);
+    }
   }
 
   onCompanySelectionChange(selected: string[]) {
