@@ -13,3 +13,35 @@
 .num-serie lucide-icon {
   color: var(--color-primary);
 }
+
+.tab-bar {
+  display: flex;
+  border-bottom: 2px solid var(--color-gray-200);
+  background: var(--color-gray-50);
+  padding: 0 var(--spacing-md);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-gray-500);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab:hover {
+  color: var(--color-gray-700);
+}
+
+.tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}

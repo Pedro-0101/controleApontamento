@@ -1,21 +1,26 @@
+// src/app/feature/relogios/relogios.ts
 import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { RelogioService } from '../../core/services/relogio/relogio.service';
+import { FuncionarioRelogioService } from '../../core/services/funcionario-relogio/funcionario-relogio.service';
 import { Relogio } from '../../models/relogio/relogio';
 import { Pagination } from '../../shared/pagination/pagination';
 import { SearchFilter, FilterOption } from '../../shared/search-filter/search-filter';
+import { RelogiosFuncionarios } from './relogios-funcionarios/relogios-funcionarios';
 
 @Component({
   selector: 'app-relogios',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, Pagination, SearchFilter],
+  imports: [CommonModule, LucideAngularModule, Pagination, SearchFilter, RelogiosFuncionarios],
   templateUrl: './relogios.html',
   styleUrl: './relogios.css'
 })
 export class Relogios implements OnInit {
   private relogioService = inject(RelogioService);
+  private funcionarioRelogioService = inject(FuncionarioRelogioService);
 
+  activeTab = signal<'relogios' | 'funcionarios'>('relogios');
   allRelogios = signal<Relogio[]>([]);
   searchText = signal('');
   statusFilter = signal('all');
@@ -29,11 +34,9 @@ export class Relogios implements OnInit {
     { label: 'Offline', value: 'offline' }
   ]);
 
-  // Filtered relogios based on search and filter
   filteredRelogios = computed(() => {
     let result = this.allRelogios();
 
-    // Apply search filter
     const search = this.searchText().toLowerCase();
     if (search) {
       result = result.filter(r =>
@@ -43,7 +46,6 @@ export class Relogios implements OnInit {
       );
     }
 
-    // Apply status filter
     const status = this.statusFilter();
     if (status === '4') {
       result = result.filter(r => r.status === 4);
@@ -54,16 +56,17 @@ export class Relogios implements OnInit {
     return result;
   });
 
-  // Paginated relogios
   paginatedRelogios = computed(() => {
     const filtered = this.filteredRelogios();
     const start = (this.currentPage() - 1) * this.itemsPerPage();
-    const end = start + this.itemsPerPage();
-    return filtered.slice(start, end);
+    return filtered.slice(start, start + this.itemsPerPage());
   });
 
   async ngOnInit() {
-    await this.loadRelogios();
+    await Promise.all([
+      this.loadRelogios(),
+      this.funcionarioRelogioService.load()
+    ]);
   }
 
   async loadRelogios() {
