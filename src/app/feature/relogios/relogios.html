@@ -10,10 +10,12 @@
     </div>
   </div>
 
-  <div class="tab-bar">
+  <div class="tab-bar" role="tablist">
     <button
       class="tab"
+      role="tab"
       [class.active]="activeTab() === 'relogios'"
+      [attr.aria-selected]="activeTab() === 'relogios'"
       (click)="activeTab.set('relogios')"
     >
       <lucide-icon name="clock" [size]="16"></lucide-icon>
@@ -21,7 +23,9 @@
     </button>
     <button
       class="tab"
+      role="tab"
       [class.active]="activeTab() === 'funcionarios'"
+      [attr.aria-selected]="activeTab() === 'funcionarios'"
       (click)="activeTab.set('funcionarios')"
     >
       <lucide-icon name="users" [size]="16"></lucide-icon>
