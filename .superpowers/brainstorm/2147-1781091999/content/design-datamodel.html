@@ -1,0 +1,46 @@
+<h2>Design — Modelo de dados e merge</h2>
+<p class="subtitle">Como os dados das duas fontes se combinam</p>
+
+<div class="section">
+  <h3>Interface <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:13px;">FuncionarioRelogio</code></h3>
+  <div style="background:#1e293b;border-radius:8px;padding:16px;font-family:monospace;font-size:12px;line-height:1.7;color:#e2e8f0;">
+    <div><span style="color:#7dd3fc;">interface</span> <span style="color:#a5f3fc;">IFuncionarioRelogio</span> {</div>
+    <div style="padding-left:16px;"><span style="color:#86efac;">matricula</span>: <span style="color:#fde68a;">string</span>;</div>
+    <div style="padding-left:16px;"><span style="color:#86efac;">nome</span>: <span style="color:#fde68a;">string</span>;</div>
+    <div style="padding-left:16px;"><span style="color:#86efac;">empresa</span>: <span style="color:#fde68a;">string</span>;</div>
+    <div style="padding-left:16px;"><span style="color:#86efac;">local</span>: <span style="color:#fde68a;">string</span>;</div>
+    <div style="padding-left:16px;"><span style="color:#86efac;">cargo</span>: <span style="color:#fde68a;">string</span>;</div>
+    <div style="padding-left:16px;"><span style="color:#86efac;">ativo</span>: <span style="color:#fde68a;">number</span>; <span style="color:#64748b;">// 0 | 1</span></div>
+    <div style="padding-left:16px;"><span style="color:#86efac;">relogiosCadastrado</span>: <span style="color:#fde68a;">number | null</span>; <span style="color:#64748b;">// null = ainda sem dados</span></div>
+    <div style="padding-left:16px;"><span style="color:#86efac;">relogiosAtivo</span>: <span style="color:#fde68a;">number | null</span>;</div>
+    <div style="padding-left:16px;"><span style="color:#86efac;">fonte</span>: <span style="color:#fde68a;">'local' | 'api' | 'ambos'</span>;</div>
+    <div>}</div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Estratégia de merge (chave: <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:13px;">matricula</code>)</h3>
+  <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;">
+
+    <div style="display:flex;gap:10px;align-items:flex-start;background:#f0fdf4;border-left:3px solid #4ade80;padding:10px 12px;border-radius:0 6px 6px 0;">
+      <div style="font-weight:700;color:#166534;min-width:90px;">Local + API</div>
+      <div style="color:#15803d;">Usa dados do banco local (mais completos: empresa, local, cargo, ativo). Marca <code style="background:#dcfce7;padding:1px 4px;border-radius:3px;">fonte: 'ambos'</code>. Ignora campos redundantes da API.</div>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:flex-start;background:#eff6ff;border-left:3px solid #60a5fa;padding:10px 12px;border-radius:0 6px 6px 0;">
+      <div style="font-weight:700;color:#1d4ed8;min-width:90px;">Só local</div>
+      <div style="color:#1e40af;">Funcionário existe no banco mas não está na API (ex: cadastrado manualmente). Marca <code style="background:#dbeafe;padding:1px 4px;border-radius:3px;">fonte: 'local'</code>.</div>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:flex-start;background:#fef9c3;border-left:3px solid #facc15;padding:10px 12px;border-radius:0 6px 6px 0;">
+      <div style="font-weight:700;color:#854d0e;min-width:90px;">Só API</div>
+      <div style="color:#713f12;">Funcionário existe na Stefanini mas não no banco local. Mapeia os campos disponíveis (CodigoFuncionario → matricula, NomeFuncionario → nome). Empresa/local/cargo ficam vazios. Marca <code style="background:#fef9c3;padding:1px 4px;border-radius:3px;">fonte: 'api'</code>.</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section">
+  <h3>Campo <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:13px;">fonte</code> na tabela</h3>
+  <p style="font-size:12px;color:#475569;">O campo <code>fonte</code> fica no modelo mas <strong>não aparece como coluna</strong> na tabela. Pode ser usado futuramente para destacar linhas de origem desconhecida ou para debug.</p>
+</div>

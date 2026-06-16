@@ -6,9 +6,11 @@ import { environment } from '../../../../environments/environment';
 export interface AuditLog {
   id: number;
   usuario: string;
-  acao: 'CREATE' | 'UPDATE' | 'DELETE';
+  acao: 'CREATE' | 'UPDATE' | 'DELETE' | 'IGNORE_POINT' | 'UNIGNORE_POINT';
   tabela: string;
   registro_id: number;
+  matricula_funcionario: string | null;
+  nome_funcionario: string;
   dados_antigos: any;
   dados_novos: any;
   timestamp: string;
@@ -21,7 +23,7 @@ export class AuditLogService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrlBackend}/audit-logs`;
 
-  async getLogs(filters: { dataInicio?: string; dataFim?: string; usuario?: string[]; acao?: string }): Promise<AuditLog[]> {
+  async getLogs(filters: { dataInicio?: string; dataFim?: string; usuario?: string[]; acao?: string; tabela?: string[]; matricula?: string[] }): Promise<AuditLog[]> {
     let params = new HttpParams();
     if (filters.dataInicio) params = params.set('dataInicio', filters.dataInicio);
     if (filters.dataFim) params = params.set('dataFim', filters.dataFim);
@@ -32,6 +34,16 @@ export class AuditLogService {
       });
     }
     if (filters.acao) params = params.set('acao', filters.acao);
+    if (filters.tabela && filters.tabela.length > 0) {
+      filters.tabela.forEach(t => {
+        params = params.append('tabela', t);
+      });
+    }
+    if (filters.matricula && filters.matricula.length > 0) {
+      filters.matricula.forEach(m => {
+        params = params.append('matricula', m);
+      });
+    }
 
     try {
       const response = await firstValueFrom(

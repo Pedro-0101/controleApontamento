@@ -1,0 +1,93 @@
+<h2>Design — Arquitetura</h2>
+<p class="subtitle">Novos arquivos e como se conectam</p>
+
+<div class="section">
+  <h3>Fluxo de dados</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="padding:16px;font-size:12px;">
+      <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+
+        <!-- Sources -->
+        <div style="display:flex;flex-direction:column;gap:8px;min-width:140px;">
+          <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;">Fontes</div>
+          <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:8px 10px;">
+            <div style="font-weight:600;color:#1d4ed8;">MySQL local</div>
+            <div style="color:#3b82f6;font-size:11px;">tabela qrcod_2023</div>
+          </div>
+          <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:8px 10px;">
+            <div style="font-weight:600;color:#1d4ed8;">Stefanini API</div>
+            <div style="color:#3b82f6;font-size:11px;">SelecionaFuncionarioCategoria</div>
+            <div style="color:#3b82f6;font-size:11px;">(1 chamada por token)</div>
+          </div>
+        </div>
+
+        <!-- Arrow -->
+        <div style="display:flex;align-items:center;padding-top:32px;color:#94a3b8;font-size:18px;">→</div>
+
+        <!-- Service -->
+        <div style="display:flex;flex-direction:column;gap:8px;min-width:160px;">
+          <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;">Novo serviço</div>
+          <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:8px 10px;">
+            <div style="font-weight:600;color:#92400e;">FuncionarioRelogioService</div>
+            <div style="color:#b45309;font-size:11px;margin-top:4px;">• carrega ambas as fontes em paralelo</div>
+            <div style="color:#b45309;font-size:11px;">• merge por matrícula</div>
+            <div style="color:#b45309;font-size:11px;">• local tem prioridade</div>
+            <div style="color:#b45309;font-size:11px;">• expõe signal funcionarios()</div>
+          </div>
+        </div>
+
+        <!-- Arrow -->
+        <div style="display:flex;align-items:center;padding-top:32px;color:#94a3b8;font-size:18px;">→</div>
+
+        <!-- Components -->
+        <div style="display:flex;flex-direction:column;gap:8px;min-width:160px;">
+          <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;">Componentes</div>
+          <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px 10px;">
+            <div style="font-weight:600;color:#166534;">Relogios</div>
+            <div style="color:#16a34a;font-size:11px;margin-top:4px;">+ activeTab signal</div>
+            <div style="color:#16a34a;font-size:11px;">+ tab bar no HTML</div>
+            <div style="color:#16a34a;font-size:11px;">carrega ambos no ngOnInit</div>
+          </div>
+          <div style="background:#f0fdf4;border:2px solid #6366f1;border-radius:6px;padding:8px 10px;">
+            <div style="font-weight:600;color:#4338ca;">RelogiosFuncionarios <span style="font-size:10px;background:#e0e7ff;padding:1px 5px;border-radius:4px;">NOVO</span></div>
+            <div style="color:#6366f1;font-size:11px;margin-top:4px;">• tabela com filtros</div>
+            <div style="color:#6366f1;font-size:11px;">• search, status, empresa</div>
+            <div style="color:#6366f1;font-size:11px;">• paginação</div>
+            <div style="color:#6366f1;font-size:11px;">• colunas cadastrado/ativo: —</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Arquivos</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div>
+      <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Novos</div>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px;font-size:11px;font-family:monospace;line-height:1.8;">
+        <div style="color:#6366f1;">src/app/models/funcionario-relogio/</div>
+        <div style="padding-left:12px;color:#475569;">funcionario-relogio.ts</div>
+        <div style="color:#6366f1;margin-top:4px;">src/app/core/services/funcionario-relogio/</div>
+        <div style="padding-left:12px;color:#475569;">funcionario-relogio.service.ts</div>
+        <div style="color:#6366f1;margin-top:4px;">src/app/feature/relogios/relogios-funcionarios/</div>
+        <div style="padding-left:12px;color:#475569;">relogios-funcionarios.ts</div>
+        <div style="padding-left:12px;color:#475569;">relogios-funcionarios.html</div>
+        <div style="padding-left:12px;color:#475569;">relogios-funcionarios.css</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Modificados</div>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px;font-size:11px;font-family:monospace;line-height:1.8;">
+        <div style="color:#f59e0b;">src/app/feature/relogios/</div>
+        <div style="padding-left:12px;color:#475569;">relogios.ts</div>
+        <div style="padding-left:12px;color:#475569;">relogios.html</div>
+        <div style="padding-left:12px;color:#475569;">relogios.css</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:16px;font-size:12px;color:#64748b;">Nenhuma alteração no backend ou banco de dados para o MVP.</p>

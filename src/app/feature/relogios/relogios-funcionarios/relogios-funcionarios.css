@@ -1,3 +1,44 @@
+/* =============================================================================
+   Toolbar de filtros — integrada ao container, como nas demais tabelas
+   ============================================================================= */
+
+.filters-layout {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-lg);
+  background: white;
+  border-bottom: 1px solid var(--color-gray-200);
+  padding: var(--spacing-lg) var(--spacing-xl);
+}
+
+.filters-layout app-search-filter {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+/* O search-filter traz card próprio (padding + borda inferior); aqui quem é o
+   card é a toolbar, e o gap entre todos os filtros precisa ser o mesmo */
+.filters-layout ::ng-deep .search-filter-container {
+  padding: 0;
+  border-bottom: none;
+  gap: var(--spacing-lg);
+}
+
+/* A busca absorve a sobra de largura; sem ela o filtro de empresa era empurrado
+   para a lateral direita */
+.filters-layout ::ng-deep .search-box {
+  max-width: none;
+}
+
+.company-filter-box {
+  min-width: 280px;
+}
+
+/* =============================================================================
+   Tabela principal
+   ============================================================================= */
+
 .employee-name {
   display: flex;
   align-items: center;
@@ -10,8 +51,16 @@
   color: var(--color-gray-400);
 }
 
+.col-matricula {
+  width: 110px;
+}
+
+.col-status {
+  width: 110px;
+}
+
 .counter-column {
-  width: 90px;
+  width: 100px;
   text-align: center;
 }
 
@@ -19,26 +68,237 @@
   text-align: center;
 }
 
-.counter-placeholder {
-  color: var(--color-gray-400);
+.counter-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--color-text-2);
 }
 
-.filters-layout {
-  display: flex;
-  gap: var(--spacing-md);
+.counter-value.counter-positive {
+  color: var(--color-success-text);
+}
+
+/* 5+ relógios: contador vira badge vermelho de alerta */
+.counter-value.counter-alert {
+  display: inline-flex;
   align-items: center;
-  margin-bottom: var(--spacing-xl);
-  padding: 0 var(--spacing-md);
+  justify-content: center;
+  min-width: 26px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.filters-layout app-search-filter {
-  flex: 1;
+.counter-skeleton {
+  display: inline-block;
+  width: 22px;
+  height: 12px;
+  border-radius: 4px;
+  background: var(--color-gray-100);
+  animation: counter-pulse 1.2s ease-in-out infinite;
 }
 
-.company-filter-box {
-  min-width: 280px;
+@keyframes counter-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
 }
 
-.flex-1 {
-  flex: 1;
+/* =============================================================================
+   Linha expansível
+   ============================================================================= */
+
+.expandable-row {
+  cursor: pointer;
+}
+
+.expand-column {
+  width: 36px;
+}
+
+.expand-cell {
+  text-align: center;
+}
+
+.expand-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 4px;
+  border-radius: 4px;
+  color: var(--color-gray-500);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.expand-button:hover {
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
+}
+
+.expand-chevron {
+  display: flex;
+  transition: transform 0.18s ease;
+}
+
+.expand-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.data-table tbody tr.row-expanded {
+  background: var(--color-gray-50);
+  border-bottom-color: transparent;
+}
+
+.data-table tbody tr.row-expanded .expand-button {
+  color: var(--color-primary);
+}
+
+/* =============================================================================
+   Painel de relógios vinculados
+   ============================================================================= */
+
+.vinculos-row > td {
+  background: var(--color-gray-50);
+  padding: 0;
+  border-left: 3px solid var(--color-primary);
+}
+
+.vinculos-panel {
+  padding: var(--spacing-md) var(--spacing-xl) var(--spacing-lg) 47px;
+  animation: vinculos-enter 0.18s ease;
+}
+
+@keyframes vinculos-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.vinculos-loading,
+.vinculos-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-gray-500);
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-sm) 0;
+}
+
+.spinner-sm {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}
+
+.vinculos-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: var(--spacing-md);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-2);
+}
+
+.vinculos-header lucide-icon {
+  display: flex;
+  color: var(--color-primary);
+}
+
+.vinculos-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-50);
+  color: var(--color-primary-dark);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sub-tabela com colunas alinhadas, espelhando a tabela da aba Relógios */
+.vinculos-table {
+  width: 100%;
+  max-width: 760px;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  font-size: var(--font-size-sm);
+}
+
+.vinculos-table th {
+  padding: 8px 14px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-3);
+  background: #fbfbfc;
+  border-bottom: 1px solid var(--color-divider);
+  white-space: nowrap;
+}
+
+.vinculos-table td {
+  padding: 8px 14px;
+  color: var(--color-text-2);
+  border-bottom: 1px solid var(--color-divider);
+  vertical-align: middle;
+}
+
+.vinculos-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.vinculos-table tbody tr {
+  transition: background var(--transition-fast);
+}
+
+.vinculos-table tbody tr:hover {
+  background: var(--color-row-hover);
+}
+
+.vinculo-col-serie {
+  width: 200px;
+}
+
+.vinculo-col-status {
+  width: 110px;
+}
+
+.vinculo-num-serie {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: var(--color-gray-800);
+}
+
+.vinculo-num-serie lucide-icon {
+  display: flex;
+  color: var(--color-primary);
+}
+
+.vinculo-descricao {
+  color: var(--color-text-2);
+}
+
+.vinculo-sem-descricao {
+  color: var(--color-gray-400);
 }

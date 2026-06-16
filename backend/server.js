@@ -5,7 +5,7 @@ const path = require('path');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
-const PORT = 3000;
+const PORT = 3001;
 
 // Configuração do banco de dados
 const dbConfig = {
@@ -87,6 +87,38 @@ async function initializeDatabase() {
     // Garantir que a coluna acao tenha tamanho suficiente (correção de erro de truncamento)
     await pool.query('ALTER TABLE audit_log MODIFY COLUMN acao VARCHAR(50)');
     console.log('Tabela audit_log verificada/criada com sucesso');
+
+    // Adicionar coluna matricula_funcionario em audit_log se ainda não existir
+    try {
+      await pool.query('ALTER TABLE audit_log ADD COLUMN matricula_funcionario VARCHAR(50) NULL AFTER registro_id');
+      console.log('Coluna matricula_funcionario adicionada à tabela audit_log');
+    } catch (e) {
+      if (!e.message?.includes('Duplicate column name')) throw e;
+    }
+
+    // Índice para matricula_funcionario
+    try {
+      await pool.query('CREATE INDEX idx_matricula_funcionario ON audit_log (matricula_funcionario)');
+    } catch (e) {
+      if (!e.message?.includes('Duplicate key name')) throw e;
+    }
+
+    // Backfill: extrair matrícula do JSON para registros existentes
+    try {
+      await pool.query(`
+        UPDATE audit_log
+        SET matricula_funcionario = COALESCE(
+          NULLIF(JSON_UNQUOTE(JSON_EXTRACT(dados_novos, '$.matricula')), ''),
+          NULLIF(JSON_UNQUOTE(JSON_EXTRACT(dados_antigos, '$.matricula')), ''),
+          NULLIF(JSON_UNQUOTE(JSON_EXTRACT(dados_novos, '$.matricula_funcionario')), ''),
+          NULLIF(JSON_UNQUOTE(JSON_EXTRACT(dados_antigos, '$.matricula_funcionario')), '')
+        )
+        WHERE matricula_funcionario IS NULL
+      `);
+      console.log('Backfill de matricula_funcionario concluído');
+    } catch (e) {
+      console.error('Erro no backfill de matricula_funcionario:', e.message);
+    }
 
     // Adicionar coluna data_admissao em qrcod_2023 se ainda não existir
     try {
@@ -278,16 +310,26 @@ async function initializeDatabase() {
 }
 
 // Helper para criar logs de auditoria
-async function createAuditLog(usuario, acao, tabela, registroId, dadosAntigos, dadosNovos) {
+async function createAuditLog(usuario, acao, tabela, registroId, dadosAntigos, dadosNovos, matriculaFuncionario = null) {
   try {
+    // Extrair matrícula dos dados se não foi passada explicitamente
+    if (!matriculaFuncionario) {
+      matriculaFuncionario = (dadosNovos && dadosNovos.matricula) ||
+                              (dadosAntigos && dadosAntigos.matricula) ||
+                              (dadosNovos && dadosNovos.matricula_funcionario) ||
+                              (dadosAntigos && dadosAntigos.matricula_funcionario) ||
+                              null;
+    }
+
     await pool.query(`
-      INSERT INTO audit_log (usuario, acao, tabela, registro_id, dados_antigos, dados_novos)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO audit_log (usuario, acao, tabela, registro_id, matricula_funcionario, dados_antigos, dados_novos)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `, [
       usuario,
       acao,
       tabela,
       registroId,
+      matriculaFuncionario,
       dadosAntigos ? JSON.stringify(dadosAntigos) : null,
       dadosNovos ? JSON.stringify(dadosNovos) : null
     ]);
@@ -1030,39 +1072,58 @@ app.get('/api/auth/users', async (req, res) => {
 
 // --- Rota de Auditoria ---
 app.get('/api/audit-logs', async (req, res) => {
-  const { dataInicio, dataFim, usuario, acao } = req.query;
+  const { dataInicio, dataFim, usuario, acao, tabela, matricula } = req.query;
   
   try {
     let query = `
-      SELECT id, usuario, acao, tabela, registro_id, dados_antigos, dados_novos, 
-             DATE_FORMAT(timestamp, '%Y-%m-%d %H:%i:%s') as timestamp 
-      FROM audit_log 
+      SELECT a.id, a.usuario, a.acao, a.tabela, a.registro_id, a.dados_antigos, a.dados_novos, 
+             a.matricula_funcionario,
+             COALESCE(f.nome, '') as nome_funcionario,
+             DATE_FORMAT(a.timestamp, '%Y-%m-%d %H:%i:%s') as timestamp 
+      FROM audit_log a
+      LEFT JOIN qrcod_2023 f ON a.matricula_funcionario = f.matricula
       WHERE 1=1
     `;
     const params = [];
 
     if (dataInicio) {
-      query += " AND timestamp >= ?";
+      query += " AND a.timestamp >= ?";
       params.push(`${dataInicio} 00:00:00`);
     }
     if (dataFim) {
-      query += " AND timestamp <= ?";
+      query += " AND a.timestamp <= ?";
       params.push(`${dataFim} 23:59:59`);
     }
     if (usuario) {
       const userList = Array.isArray(usuario) ? usuario : [usuario];
       if (userList.length > 0) {
         const placeholders = userList.map(() => '?').join(',');
-        query += ` AND usuario IN (${placeholders})`;
+        query += ` AND a.usuario IN (${placeholders})`;
         params.push(...userList);
       }
     }
     if (acao) {
-      query += " AND acao = ?";
+      query += " AND a.acao = ?";
       params.push(acao);
     }
+    if (tabela) {
+      const tabelaList = Array.isArray(tabela) ? tabela : [tabela];
+      if (tabelaList.length > 0) {
+        const placeholders = tabelaList.map(() => '?').join(',');
+        query += ` AND a.tabela IN (${placeholders})`;
+        params.push(...tabelaList);
+      }
+    }
+    if (matricula) {
+      const matriculaList = Array.isArray(matricula) ? matricula : [matricula];
+      if (matriculaList.length > 0) {
+        const placeholders = matriculaList.map(() => '?').join(',');
+        query += ` AND a.matricula_funcionario IN (${placeholders})`;
+        params.push(...matriculaList);
+      }
+    }
 
-    query += " ORDER BY timestamp DESC LIMIT 500";
+    query += " ORDER BY a.timestamp DESC LIMIT 500";
 
     const [rows] = await pool.query(query, params);
     res.json({ success: true, logs: rows });

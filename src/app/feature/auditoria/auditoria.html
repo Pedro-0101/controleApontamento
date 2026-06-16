@@ -36,7 +36,30 @@
           <option value="CREATE">CREATE</option>
           <option value="UPDATE">UPDATE</option>
           <option value="DELETE">DELETE</option>
+          <option value="IGNORE_POINT">IGNORE_POINT</option>
+          <option value="UNIGNORE_POINT">UNIGNORE_POINT</option>
         </select>
+      </div>
+      <div class="filter-item">
+        <label>Tabela</label>
+        <app-multi-select-dropdown 
+          [options]="tabelaOptions" 
+          [initialValue]="tabelaFiltro()"
+          (selectionChange)="tabelaFiltro.set($event)"
+          placeholder="Filtrar por tabela...">
+        </app-multi-select-dropdown>
+      </div>
+      <div class="filter-item">
+        <label>Funcionário</label>
+        <app-multi-select-dropdown 
+          [options]="funcionarios()" 
+          labelProp="nome"
+          valueProp="matricula"
+          subLabelProp="matricula"
+          [initialValue]="funcionarioFiltro()"
+          (selectionChange)="funcionarioFiltro.set($event)"
+          placeholder="Filtrar por funcionário...">
+        </app-multi-select-dropdown>
       </div>
     </div>
   </div>
@@ -51,6 +74,7 @@
             <th>Ação</th>
             <th>Tabela</th>
             <th>ID Registro</th>
+            <th>Funcionário</th>
             <th>Alterações</th>
           </tr>
         </thead>
@@ -69,6 +93,21 @@
               </td>
               <td class="col-table">{{ log.tabela }}</td>
               <td class="col-reg-id">#{{ log.registro_id }}</td>
+              <td class="col-employee">
+                @if (log.nome_funcionario) {
+                  <div class="employee-pill">
+                    <lucide-icon name="clipboard-check" [size]="14"></lucide-icon>
+                    {{ log.nome_funcionario }}
+                  </div>
+                } @else if (log.matricula_funcionario) {
+                  <div class="employee-pill employee-muted">
+                    <lucide-icon name="clipboard-check" [size]="14"></lucide-icon>
+                    {{ log.matricula_funcionario }}
+                  </div>
+                } @else {
+                  <span class="text-muted">—</span>
+                }
+              </td>
               <td class="col-changes">
                 <div class="changes-summary">
                   @if (log.acao === 'CREATE') {
@@ -87,7 +126,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="6" class="empty-state">
+              <td colspan="7" class="empty-state">
                 <div class="empty-content">
                   <lucide-icon name="search-x" [size]="48"></lucide-icon>
                   <p>Nenhum log encontrado para os filtros selecionados.</p>

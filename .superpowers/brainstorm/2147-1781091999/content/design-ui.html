@@ -1,0 +1,123 @@
+<h2>Design — Interface</h2>
+<p class="subtitle">Mockup da página de Relógios com as duas abas</p>
+
+<div class="section">
+  <h3>Aba de Relógios (existente, sem mudança no conteúdo)</h3>
+  <div class="mockup">
+    <div class="mockup-header">Relógios</div>
+    <div class="mockup-body" style="padding:0;">
+      <!-- Header -->
+      <div style="padding:12px 16px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;font-size:14px;color:#1e293b;">⏱ Relógios</div>
+          <div style="font-size:11px;color:#64748b;">Gerenciar relógios de ponto</div>
+        </div>
+      </div>
+      <!-- Tab bar -->
+      <div style="display:flex;border-bottom:2px solid #e2e8f0;background:#f8fafc;padding:0 16px;">
+        <div style="padding:8px 16px;border-bottom:2px solid #6366f1;margin-bottom:-2px;font-weight:600;color:#6366f1;font-size:12px;">Relógios</div>
+        <div style="padding:8px 16px;color:#64748b;font-size:12px;">Funcionários</div>
+      </div>
+      <!-- Content -->
+      <div style="padding:12px 16px;">
+        <div style="background:#e2e8f0;height:28px;border-radius:4px;margin-bottom:8px;"></div>
+        <div style="background:#f1f5f9;height:60px;border-radius:4px;"></div>
+        <div style="background:#f8fafc;height:32px;border-radius:4px;margin-top:8px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Aba de Funcionários (nova)</h3>
+  <div class="mockup">
+    <div class="mockup-header">Relógios → aba Funcionários</div>
+    <div class="mockup-body" style="padding:0;">
+      <!-- Header -->
+      <div style="padding:12px 16px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;font-size:14px;color:#1e293b;">⏱ Relógios</div>
+          <div style="font-size:11px;color:#64748b;">Gerenciar relógios de ponto</div>
+        </div>
+      </div>
+      <!-- Tab bar -->
+      <div style="display:flex;border-bottom:2px solid #e2e8f0;background:#f8fafc;padding:0 16px;">
+        <div style="padding:8px 16px;color:#64748b;font-size:12px;">Relógios</div>
+        <div style="padding:8px 16px;border-bottom:2px solid #6366f1;margin-bottom:-2px;font-weight:600;color:#6366f1;font-size:12px;">Funcionários</div>
+      </div>
+      <!-- Filters -->
+      <div style="padding:10px 16px;display:flex;gap:8px;border-bottom:1px solid #f1f5f9;">
+        <div style="flex:1;background:#f1f5f9;border-radius:4px;height:28px;display:flex;align-items:center;padding:0 10px;">
+          <span style="font-size:11px;color:#94a3b8;">🔍 Pesquisar por nome ou matrícula...</span>
+        </div>
+        <div style="width:100px;background:#f1f5f9;border-radius:4px;height:28px;display:flex;align-items:center;padding:0 10px;">
+          <span style="font-size:11px;color:#94a3b8;">Status ▾</span>
+        </div>
+        <div style="width:140px;background:#f1f5f9;border-radius:4px;height:28px;display:flex;align-items:center;padding:0 10px;">
+          <span style="font-size:11px;color:#94a3b8;">Selecione empresas... ▾</span>
+        </div>
+      </div>
+      <!-- Table -->
+      <div style="overflow:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:11px;">
+          <thead>
+            <tr style="background:#f8fafc;">
+              <th style="padding:7px 10px;text-align:left;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;">Matrícula</th>
+              <th style="padding:7px 10px;text-align:left;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;">Nome</th>
+              <th style="padding:7px 10px;text-align:left;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;">Empresa</th>
+              <th style="padding:7px 10px;text-align:left;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;">Local</th>
+              <th style="padding:7px 10px;text-align:left;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;">Cargo</th>
+              <th style="padding:7px 10px;text-align:left;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;">Status</th>
+              <th style="padding:7px 10px;text-align:center;color:#6366f1;font-weight:600;border-bottom:1px solid #e2e8f0;">Cadastrado</th>
+              <th style="padding:7px 10px;text-align:center;color:#6366f1;font-weight:600;border-bottom:1px solid #e2e8f0;">Ativo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;">001</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;">👤 João Silva</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;">Mix Caieiras</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;">Administração</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;">Operador</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;"><span style="background:#dcfce7;color:#166534;padding:2px 7px;border-radius:10px;font-size:10px;">Ativo</span></td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;text-align:center;color:#94a3b8;">—</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;text-align:center;color:#94a3b8;">—</td>
+            </tr>
+            <tr style="background:#fafafa;">
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;">002</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;">👤 Maria Souza</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;">Mix Porto Feliz</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;">Produção</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;">Analista</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;"><span style="background:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:10px;font-size:10px;">Inativo</span></td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;text-align:center;color:#94a3b8;">—</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;text-align:center;color:#94a3b8;">—</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;">003</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;">👤 Carlos Lima</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;">Mix São Paulo</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;">TI</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;">Dev</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;"><span style="background:#dcfce7;color:#166534;padding:2px 7px;border-radius:10px;font-size:10px;">Ativo</span></td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;text-align:center;color:#94a3b8;">—</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;text-align:center;color:#94a3b8;">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Pagination -->
+      <div style="padding:8px 16px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #f1f5f9;">
+        <div style="font-size:11px;color:#94a3b8;">Mostrando 3 de 148 funcionários</div>
+        <div style="display:flex;gap:4px;">
+          <div style="padding:3px 8px;background:#f1f5f9;border-radius:4px;font-size:11px;color:#64748b;">‹</div>
+          <div style="padding:3px 8px;background:#6366f1;border-radius:4px;font-size:11px;color:#fff;">1</div>
+          <div style="padding:3px 8px;background:#f1f5f9;border-radius:4px;font-size:11px;color:#64748b;">2</div>
+          <div style="padding:3px 8px;background:#f1f5f9;border-radius:4px;font-size:11px;color:#64748b;">›</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="font-size:11px;color:#94a3b8;">Filtros: search (nome/matrícula) + status (Todos/Ativos/Inativos) + multi-select de empresa — mesmo padrão de Colaboradores.</p>

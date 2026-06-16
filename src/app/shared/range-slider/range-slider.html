@@ -1,0 +1,37 @@
+<div class="range-slider">
+  @if (label()) {
+    <span class="range-label">{{ label() }}</span>
+  }
+
+  <div class="slider-area">
+    <div class="slider-track"></div>
+    <div
+      class="slider-fill"
+      [style.left.%]="pctMin()"
+      [style.width.%]="pctMax() - pctMin()"
+    ></div>
+    <input
+      type="range"
+      class="thumb"
+      [class.thumb-top]="valueMin() === max()"
+      [min]="min()"
+      [max]="max()"
+      step="1"
+      [value]="valueMin()"
+      (input)="onMinInput($any($event.target))"
+      [attr.aria-label]="(label() || 'Intervalo') + ' — mínimo'"
+    />
+    <input
+      type="range"
+      class="thumb"
+      [min]="min()"
+      [max]="max()"
+      step="1"
+      [value]="valueMax()"
+      (input)="onMaxInput($any($event.target))"
+      [attr.aria-label]="(label() || 'Intervalo') + ' — máximo'"
+    />
+  </div>
+
+  <span class="range-values">{{ valueMin() }}–{{ maxLabel() }}</span>
+</div>

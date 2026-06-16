@@ -6,6 +6,8 @@ import { AuditLog, AuditLogService } from '../../core/services/audit-log/audit-l
 import { DateHelper } from '../../core/helpers/dateHelper';
 import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-select-dropdown';
 import { AuthService } from '../../core/services/auth/auth.service';
+import { EmployeeService } from '../../core/services/employee/employee.service';
+import { Employee } from '../../models/employee/employee';
 
 @Component({
   selector: 'app-auditoria',
@@ -17,6 +19,7 @@ import { AuthService } from '../../core/services/auth/auth.service';
 export class Auditoria implements OnInit {
   private auditLogService = inject(AuditLogService);
   private authService = inject(AuthService);
+  private employeeService = inject(EmployeeService);
 
   logs = signal<AuditLog[]>([]);
   isLoading = signal(false);
@@ -26,8 +29,13 @@ export class Auditoria implements OnInit {
   dataFim = signal(DateHelper.toIsoDate(DateHelper.getStringDate(new Date())));
   usuarioFiltro = signal<string[]>([]);
   acaoFiltro = signal('');
+  tabelaFiltro = signal<string[]>([]);
+  funcionarioFiltro = signal<string[]>([]);
+
+  tabelaOptions = ['ponto_manual', 'comentario_dia', 'evento_funcionario', 'marcacao_desconsiderada'];
 
   adminUsers = signal<string[]>([]);
+  funcionarios = signal<Employee[]>([]);
 
   constructor() {
     effect(() => {
@@ -36,8 +44,12 @@ export class Auditoria implements OnInit {
   }
 
   async ngOnInit() {
-    const users = await this.authService.getAdminUsers();
+    const [users, employees] = await Promise.all([
+      this.authService.getAdminUsers(),
+      this.employeeService.getAllActiveEmployees()
+    ]);
     this.adminUsers.set(users);
+    this.funcionarios.set(employees);
   }
 
   async loadLogs() {
@@ -46,7 +58,9 @@ export class Auditoria implements OnInit {
       dataInicio: this.dataInicio(),
       dataFim: this.dataFim(),
       usuario: this.usuarioFiltro(),
-      acao: this.acaoFiltro()
+      acao: this.acaoFiltro(),
+      tabela: this.tabelaFiltro(),
+      matricula: this.funcionarioFiltro()
     };
     const results = await this.auditLogService.getLogs(filters);
     this.logs.set(results);

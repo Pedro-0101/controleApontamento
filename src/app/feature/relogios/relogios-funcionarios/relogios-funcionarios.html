@@ -7,7 +7,6 @@
   <div class="table-container">
     <div class="filters-layout">
       <app-search-filter
-        class="flex-1"
         searchPlaceholder="Pesquisar por nome, matrícula, empresa ou local..."
         filterLabel="Status:"
         [filterOptions]="filterOptions()"
@@ -24,24 +23,93 @@
           (selectionChange)="onCompanySelectionChange($event)"
         ></app-multi-select-dropdown>
       </div>
+
+      <app-range-slider
+        label="Relógios ativos:"
+        [min]="0"
+        [max]="relogiosAtivoSliderMax"
+        [openEnded]="true"
+        (rangeChange)="onRelogiosAtivoRangeChange($event)"
+      ></app-range-slider>
     </div>
 
     <table class="data-table">
       <thead>
         <tr>
-          <th>Matrícula</th>
-          <th>Nome</th>
-          <th>Empresa</th>
-          <th>Local</th>
-          <th>Cargo</th>
-          <th>Status</th>
-          <th class="counter-column">Cadastrado</th>
-          <th class="counter-column">Ativo</th>
+          <th class="expand-column"></th>
+          <th
+            class="sortable col-matricula"
+            [class.sorted]="sortColumn() === 'matricula'"
+            (click)="onSort('matricula')"
+          >
+            Matrícula
+            @if (sortColumn() === 'matricula') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+          </th>
+          <th class="sortable" [class.sorted]="sortColumn() === 'nome'" (click)="onSort('nome')">
+            Nome
+            @if (sortColumn() === 'nome') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+          </th>
+          <th class="sortable" [class.sorted]="sortColumn() === 'empresa'" (click)="onSort('empresa')">
+            Empresa
+            @if (sortColumn() === 'empresa') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+          </th>
+          <th class="sortable" [class.sorted]="sortColumn() === 'local'" (click)="onSort('local')">
+            Local
+            @if (sortColumn() === 'local') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+          </th>
+          <th class="sortable" [class.sorted]="sortColumn() === 'cargo'" (click)="onSort('cargo')">
+            Cargo
+            @if (sortColumn() === 'cargo') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+          </th>
+          <th
+            class="sortable col-status"
+            [class.sorted]="sortColumn() === 'ativo'"
+            (click)="onSort('ativo')"
+          >
+            Status
+            @if (sortColumn() === 'ativo') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+          </th>
+          <th
+            class="sortable counter-column"
+            [class.sorted]="sortColumn() === 'relogiosCadastrado'"
+            (click)="onSort('relogiosCadastrado')"
+          >
+            Cadastrado
+            @if (sortColumn() === 'relogiosCadastrado') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+          </th>
+          <th
+            class="sortable counter-column"
+            [class.sorted]="sortColumn() === 'relogiosAtivo'"
+            (click)="onSort('relogiosAtivo')"
+          >
+            Ativo
+            @if (sortColumn() === 'relogiosAtivo') { <span>{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span> }
+          </th>
         </tr>
       </thead>
       <tbody>
         @for (func of paginatedFuncionarios(); track func.matricula) {
-          <tr>
+          <tr
+            class="expandable-row"
+            [class.row-expanded]="expandedMatricula() === func.matricula"
+            (click)="toggleVinculos(func.matricula)"
+          >
+            <td class="expand-cell">
+              <button
+                type="button"
+                class="expand-button"
+                [attr.aria-expanded]="expandedMatricula() === func.matricula"
+                [attr.aria-label]="'Ver relógios vinculados de ' + (func.nome || func.matricula)"
+                (click)="$event.stopPropagation(); toggleVinculos(func.matricula)"
+              >
+                <lucide-icon
+                  name="chevron-right"
+                  [size]="16"
+                  class="expand-chevron"
+                  [class.expanded]="expandedMatricula() === func.matricula"
+                ></lucide-icon>
+              </button>
+            </td>
             <td>{{ func.matricula }}</td>
             <td class="employee-name">
               <lucide-icon name="user" [size]="16"></lucide-icon>
@@ -57,22 +125,87 @@
             </td>
             <td class="counter-cell">
               @if (func.relogiosCadastrado !== null) {
-                {{ func.relogiosCadastrado }}
+                <span
+                  class="counter-value"
+                  [class.counter-alert]="func.relogiosCadastrado >= limiteRelogiosAlerta"
+                >{{ func.relogiosCadastrado }}</span>
               } @else {
-                <span class="counter-placeholder">—</span>
+                <span class="counter-skeleton" aria-label="Carregando"></span>
               }
             </td>
             <td class="counter-cell">
               @if (func.relogiosAtivo !== null) {
-                {{ func.relogiosAtivo }}
+                <span
+                  class="counter-value"
+                  [class.counter-positive]="func.relogiosAtivo > 0"
+                  [class.counter-alert]="func.relogiosAtivo >= limiteRelogiosAlerta"
+                >{{ func.relogiosAtivo }}</span>
               } @else {
-                <span class="counter-placeholder">—</span>
+                <span class="counter-skeleton" aria-label="Carregando"></span>
               }
             </td>
           </tr>
+          @if (expandedMatricula() === func.matricula) {
+            <tr class="vinculos-row">
+              <td colspan="9">
+                <div class="vinculos-panel">
+                  @if (loadingVinculos()) {
+                    <div class="vinculos-loading">
+                      <div class="spinner spinner-sm"></div>
+                      <span>Buscando relógios vinculados...</span>
+                    </div>
+                  } @else if (relogiosVinculados().length === 0) {
+                    <div class="vinculos-empty">
+                      <lucide-icon name="clock" [size]="16"></lucide-icon>
+                      Nenhum relógio vinculado a esta matrícula
+                    </div>
+                  } @else {
+                    <div class="vinculos-header">
+                      <lucide-icon name="clock" [size]="14"></lucide-icon>
+                      <span>Relógios vinculados</span>
+                      <span class="vinculos-count">{{ relogiosVinculados().length }}</span>
+                    </div>
+                    <table class="vinculos-table">
+                      <thead>
+                        <tr>
+                          <th class="vinculo-col-serie">Número de Série</th>
+                          <th>Descrição</th>
+                          <th class="vinculo-col-status">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (vinculo of relogiosVinculados(); track vinculo.numSerie) {
+                          <tr>
+                            <td>
+                              <span class="vinculo-num-serie">
+                                <lucide-icon name="clock" [size]="14"></lucide-icon>
+                                {{ vinculo.numSerie }}
+                              </span>
+                            </td>
+                            <td class="vinculo-descricao">
+                              @if (vinculo.descricao) {
+                                {{ vinculo.descricao | titleCaseCustom }}
+                              } @else {
+                                <span class="vinculo-sem-descricao">—</span>
+                              }
+                            </td>
+                            <td>
+                              <span class="badge" [class]="getVinculoStatusClass(vinculo)">
+                                {{ getVinculoStatusLabel(vinculo) }}
+                              </span>
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
         } @empty {
           <tr>
-            <td colspan="8" class="empty-state">
+            <td colspan="9" class="empty-state">
               <lucide-icon name="users" [size]="48"></lucide-icon>
               <p>Nenhum funcionário encontrado</p>
             </td>

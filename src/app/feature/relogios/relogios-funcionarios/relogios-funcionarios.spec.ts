@@ -42,4 +42,14 @@ describe('RelogiosFuncionarios', () => {
   it('should create', () => {
     expect(component).toBeTruthy();
   });
+
+  it('deve aplicar o intervalo de relógios ativos e voltar para a página 1', () => {
+    component.currentPage.set(3);
+
+    component.onRelogiosAtivoRangeChange({ min: 2, max: 6 });
+
+    expect(component.relogiosAtivoMin()).toBe(2);
+    expect(component.relogiosAtivoMax()).toBe(6);
+    expect(component.currentPage()).toBe(1);
+  });
 });
