@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject, input, signal } from '@angular/core';
+import { Component, EventEmitter, Output, inject, input, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
@@ -9,6 +9,7 @@ import { ToastService } from '../../../../core/services/toast/toast.service';
 import { Marcacao } from '../../../../models/marcacao/marcacao';
 import { TitleCaseCustomPipe } from '../../../../shared/pipes/title-case-custom.pipe';
 import { EmployeeService } from '../../../../core/services/employee/employee.service';
+import { HistoricoAcao } from '../../../../models/historicoAcao/historico-acao';
 
 @Component({
   selector: 'app-modal-detalhes-marcacao',
@@ -36,6 +37,16 @@ export class ModalDetalhesMarcacaoComponent {
   novoStatusFixo = signal('');
   statusDisponiveis = MarcacaoService.getPossiveisStatus();
   statusFixos = MarcacaoService.getPossiveisStatusFixos();
+
+  historico = signal<HistoricoAcao[]>([]);
+
+  constructor() {
+    effect(() => {
+      if (this.record()) {
+        this.carregarHistorico();
+      }
+    });
+  }
 
   async desabilitarFuncionario() {
     if (!confirm(`Deseja realmente desabilitar o funcionário ${this.record().nome}?`)) return;
@@ -306,6 +317,43 @@ export class ModalDetalhesMarcacaoComponent {
     }
   }
 
+
+  async carregarHistorico() {
+    try {
+      const isoDate = DateHelper.toIsoDate(this.record().data);
+      const result = await this.marcacaoService.fetchHistoricoBatch(
+        [this.record().matricula],
+        isoDate,
+        DateHelper.toIsoDate(this.record().data)
+      );
+      this.historico.set(result);
+    } catch (error) {
+      console.error('Erro ao carregar histórico:', error);
+      this.historico.set([]);
+    }
+  }
+
+  getEventoCriadoEm(): string | null {
+    const em = this.record().eventoCriadoEm;
+    if (!em) return null;
+    const date = new Date(em);
+    if (isNaN(date.getTime())) return null;
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const por = this.record().eventoCriadoPor;
+    return `${por ? `Lançado por ${por} em ` : 'Lançado em '}${day}/${month}/${year} às ${hours}:${minutes}`;
+  }
+
+  formatHistoricoTime(iso: string): string {
+    const date = new Date(iso);
+    if (isNaN(date.getTime())) return iso;
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
 
   getMarcacoes() {
     return this.record().marcacoes;

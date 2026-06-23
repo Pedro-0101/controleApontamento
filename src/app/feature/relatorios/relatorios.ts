@@ -448,7 +448,7 @@ export class Relatorios {
         }
 
         // Regra 4: atraso confirmado > 10 min
-        if (status === 'Atraso' || status === 'Atraso Confirmado') {
+        if (status === 'Atraso' || status === 'Descontar Atraso') {
           const extras = dia.getHorasNormaisEExtras();
           const atrasoMin = extras?.atraso ?? 0;
           if (atrasoMin > 10) {
@@ -774,7 +774,7 @@ export class Relatorios {
       else if (s === 'Falta')             c.falta++;
       else if (s === 'Falta Confirmada')  c.faltaConfirmada++;
       else if (s === 'Atraso')            c.atraso++;
-      else if (s === 'Atraso Confirmado') c.atrasoConfirmado++;
+      else if (s === 'Descontar Atraso') c.atrasoConfirmado++;
       else if (ausencias.has(s))          c.ausencia++;
       else                                c.outros++;
     }
@@ -788,7 +788,7 @@ export class Relatorios {
       'Falta':             { bg: [254, 226, 226], text: [153, 27,  27]  },
       'Falta Confirmada':  { bg: [254, 226, 226], text: [153, 27,  27]  },
       'Atraso':            { bg: [254, 243, 199], text: [146, 64,  14]  },
-      'Atraso Confirmado': { bg: [254, 243, 199], text: [146, 64,  14]  },
+      'Descontar Atraso':  { bg: [254, 243, 199], text: [146, 64,  14]  },
       'Incompleto':        { bg: [254, 243, 199], text: [146, 64,  14]  },
       'Pendente':          { bg: [243, 244, 246], text: [55,  65,  81]  },
       'Em andamento':      { bg: [219, 234, 254], text: [30,  64,  175] },
@@ -833,7 +833,7 @@ export class Relatorios {
       ['Ok / Corrigido',                   c.ok + c.corrigido],
       ['Incompleto',                       c.incompleto],
       ['Atraso (sem confirmacao)',         c.atraso],
-      ['Atraso Confirmado',               c.atrasoConfirmado],
+      ['Descontar Atraso',                c.atrasoConfirmado],
       ['Falta (sem confirmacao)',          c.falta],
       ['Falta Confirmada',                c.faltaConfirmada],
       ['Folga / Ferias / Afastamento / BH', c.ausencia],

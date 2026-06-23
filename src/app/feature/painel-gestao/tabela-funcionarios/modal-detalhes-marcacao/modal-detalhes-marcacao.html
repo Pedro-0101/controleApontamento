@@ -24,13 +24,16 @@
       <div class="detail-row">
         <div class="detail-item">
           <label>Data</label>
-          <span>{{ record().getDataFormatada() }} ({{ record().getDiaSemana() }})</span>
+          <span class="data-value">{{ record().getDataFormatada() }} ({{ record().getDiaSemana() }})</span>
         </div>
         <div class="detail-item">
           <label>Status</label>
           <span class="badge" [class]="'status-' + record().getStatus().toLowerCase()">
             {{ record().getStatus() | titleCaseCustom }}
           </span>
+          @if (getEventoCriadoEm()) {
+            <span class="lancado-em">{{ getEventoCriadoEm() }}</span>
+          }
         </div>
         <div class="detail-item">
           <label>Total Horas</label>
@@ -191,6 +194,24 @@
               Enviar
             </button>
           </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <label class="section-title">Histórico ({{ historico().length }})</label>
+        <div class="historico-list">
+          @for (item of historico(); track $index) {
+            <div class="historico-item">
+              <div class="historico-header">
+                <lucide-icon name="activity" [size]="14"></lucide-icon>
+                <span class="historico-author">{{ item.criado_por }}</span>
+                <span class="historico-time">{{ formatHistoricoTime(item.criado_em) }}</span>
+              </div>
+              <div class="historico-body">{{ item.acao }}</div>
+            </div>
+          } @empty {
+            <p class="empty-msg">Nenhuma ação registrada.</p>
+          }
         </div>
       </div>
 

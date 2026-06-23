@@ -186,7 +186,7 @@ export class TabelaFuncionarios {
 
   readonly bulkActions = [
     'Falta Confirmada',
-    'Atraso Confirmado',
+    'Descontar Atraso',
     'Corrigido',
     'Folga',
     'BH',

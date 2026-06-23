@@ -2,6 +2,7 @@ import { ComentarioMarcacao } from "../comentarioMarcacao/comentario-marcacao";
 import { DateHelper } from "../../core/helpers/dateHelper";
 import { Marcacao } from "../marcacao/marcacao";
 import { Relogio } from "../relogio/relogio";
+import { HistoricoAcao } from "../historicoAcao/historico-acao";
 
 // 1. A interface define apenas a ESTRUTURA DOS DADOS (Shape)
 export interface MarcacaoDia {
@@ -19,12 +20,15 @@ export interface MarcacaoDia {
     cargo?: string;
     evento?: string; // Nome do evento/status
     evento_categoria?: 'PERIODO' | 'FIXO'; // Categoria do evento
+    eventoCriadoEm?: string; // Timestamp de quando o evento foi criado
+    eventoCriadoPor?: string; // Quem criou o evento
+    historico?: HistoricoAcao[]; // Histórico de ações do dia
     trabalhaSabado?: boolean;
 }
 
 // 2. O tipo define os possíveis valores para o status
 export type statusMarcacaoDia = 'Atraso' | 'Falta' | 'Incompleto' | 'Ok' | 'Outro' | 'Pendente' | 'Em andamento';
-export type statusFixos = 'Ferias' | 'Folga' | 'Afastado' | 'Atestado' | 'BH' | 'BH do Atraso' | 'Atraso Confirmado' | 'Falta Confirmada' | 'Corrigido' | 'Suspensao';
+export type statusFixos = 'Ferias' | 'Folga' | 'Afastado' | 'Atestado' | 'BH' | 'BH do Atraso' | 'Descontar Atraso' | 'Falta Confirmada' | 'Corrigido' | 'Suspensao';
 
 // 3. A classe implementa a interface e adiciona a LÓGICA (Comportamento)
 export class MarcacaoDia implements MarcacaoDia {
@@ -41,6 +45,9 @@ export class MarcacaoDia implements MarcacaoDia {
     cargo?: string;
     evento?: string;
     evento_categoria?: 'PERIODO' | 'FIXO';
+    eventoCriadoEm?: string;
+    eventoCriadoPor?: string;
+    historico?: HistoricoAcao[];
     trabalhaSabado?: boolean;
 
     /** Empresa da API de origem — derivada das marcações individuais */

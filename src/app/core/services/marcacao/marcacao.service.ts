@@ -700,6 +700,8 @@ export class MarcacaoService {
           if (activeEvent) {
             md.evento = activeEvent.tipo_evento;
             md.evento_categoria = activeEvent.categoria;
+            md.eventoCriadoEm = activeEvent.criado_em;
+            md.eventoCriadoPor = activeEvent.criado_por;
           }
         });
       }
@@ -901,6 +903,20 @@ export class MarcacaoService {
     }
   }
 
+  async fetchHistoricoBatch(matriculas: string[], dataInicio: string, dataFim: string): Promise<any[]> {
+    const body = { matriculas, dataInicio, dataFim };
+
+    try {
+      const response = await firstValueFrom(
+        this.http.post<{ success: boolean, history: any[] }>(`${environment.apiUrlBackend}/marcacoes/historico/batch`, body)
+      );
+      return response.success ? response.history : [];
+    } catch (error) {
+      this.loggerService.error('MarcacaoService', 'Erro ao buscar histórico:', error);
+      return [];
+    }
+  }
+
   async toggleDesconsiderarStatus(m: Marcacao, matricula: string, data: string, desconsiderar: boolean): Promise<void> {
     const criadoPor = this.authService._userName() || 'Sistema';
     const body = {
@@ -972,7 +988,7 @@ export class MarcacaoService {
   }
 
   static getPossiveisStatusFixos(): string[] {
-    return ['BH', 'BH do Atraso', 'Atraso Confirmado', 'Falta Confirmada', 'Corrigido', 'Folga'];
+    return ['BH', 'BH do Atraso', 'Descontar Atraso', 'Falta Confirmada', 'Corrigido', 'Folga'];
   }
 
   static getPeriodEvents(): string[] {

@@ -411,7 +411,8 @@ tbody tr.clickable-row:hover {
   border-color: var(--st-late-bd);
 }
 
-.status-atraso-confirmado {
+.status-descontar-atraso,
+.status-descontar {
   background-color: var(--st-late-bg);
   color: var(--st-late-fg);
   border-color: var(--st-late-bd);

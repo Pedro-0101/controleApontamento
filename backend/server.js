@@ -286,6 +286,18 @@ async function initializeDatabase() {
     }
     console.log('Tabela evento_funcionario verificada/criada com sucesso');
 
+    // Renomear status 'Atraso Confirmado' para 'Descontar Atraso' em registros existentes
+    try {
+      const [renameResult] = await pool.query(
+        "UPDATE evento_funcionario SET tipo_evento = 'Descontar Atraso' WHERE tipo_evento = 'Atraso Confirmado'"
+      );
+      if (renameResult.affectedRows > 0) {
+        console.log(`Migração: ${renameResult.affectedRows} evento(s) 'Atraso Confirmado' renomeados para 'Descontar Atraso'`);
+      }
+    } catch (e) {
+      console.error("Erro ao migrar 'Atraso Confirmado' para 'Descontar Atraso':", e.message);
+    }
+
     // Criar tabela de marcações desconsideradas se não existir
     await pool.query(`
       CREATE TABLE IF NOT EXISTS marcacao_desconsiderada (
@@ -301,6 +313,31 @@ async function initializeDatabase() {
       )
     `);
     console.log('Tabela marcacao_desconsiderada verificada/criada com sucesso');
+
+    // Adicionar coluna data_marcacao em audit_log se ainda não existir
+    try {
+      await pool.query('ALTER TABLE audit_log ADD COLUMN data_marcacao DATE NULL AFTER matricula_funcionario');
+      console.log('Coluna data_marcacao adicionada à tabela audit_log');
+    } catch (e) {
+      if (!e.message?.includes('Duplicate column name')) throw e;
+    }
+
+    // Backfill: extrair data_marcacao do JSON para registros existentes
+    try {
+      await pool.query(`
+        UPDATE audit_log
+        SET data_marcacao = COALESCE(
+          NULLIF(JSON_UNQUOTE(JSON_EXTRACT(dados_novos, '$.data')), ''),
+          NULLIF(JSON_UNQUOTE(JSON_EXTRACT(dados_antigos, '$.data')), ''),
+          NULLIF(JSON_UNQUOTE(JSON_EXTRACT(dados_novos, '$.dataInicio')), ''),
+          NULLIF(JSON_UNQUOTE(JSON_EXTRACT(dados_antigos, '$.data_inicio')), '')
+        )
+        WHERE data_marcacao IS NULL
+      `);
+      console.log('Backfill de data_marcacao concluído');
+    } catch (e) {
+      console.error('Erro no backfill de data_marcacao:', e.message);
+    }
 
     console.log('Pool de conexões MySQL criado com sucesso');
   } catch (error) {
@@ -321,15 +358,40 @@ async function createAuditLog(usuario, acao, tabela, registroId, dadosAntigos, d
                               null;
     }
 
+    // Extrair data da marcação dos dados (prioridade para o campo 'data', depois 'dataInicio'/'data_inicio')
+    let dataMarcacao = null;
+    const src = dadosNovos || dadosAntigos;
+    if (src) {
+      const raw = src.data || src.dataInicio || src.data_inicio;
+      if (raw) {
+        // O campo pode vir como objeto Date (do MySQL) ou string. Em ambos os
+        // casos normalizamos para YYYY-MM-DD. Para Date, usamos a data UTC pois
+        // os valores são armazenados como meia-noite local convertida para UTC.
+        if (raw instanceof Date) {
+          dataMarcacao = !isNaN(raw.getTime()) ? raw.toISOString().substring(0, 10) : null;
+        } else {
+          // String: aceita "YYYY-MM-DD..." ou ISO; tenta parsear se necessário.
+          const s = String(raw);
+          if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+            dataMarcacao = s.substring(0, 10);
+          } else {
+            const d = new Date(s);
+            dataMarcacao = !isNaN(d.getTime()) ? d.toISOString().substring(0, 10) : null;
+          }
+        }
+      }
+    }
+
     await pool.query(`
-      INSERT INTO audit_log (usuario, acao, tabela, registro_id, matricula_funcionario, dados_antigos, dados_novos)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO audit_log (usuario, acao, tabela, registro_id, matricula_funcionario, data_marcacao, dados_antigos, dados_novos)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       usuario,
       acao,
       tabela,
       registroId,
       matriculaFuncionario,
+      dataMarcacao,
       dadosAntigos ? JSON.stringify(dadosAntigos) : null,
       dadosNovos ? JSON.stringify(dadosNovos) : null
     ]);
@@ -1250,6 +1312,7 @@ app.post('/api/employees/events/batch', async (req, res) => {
     const placeholders = matriculas.map(() => '?').join(',');
     const [rows] = await pool.query(`
       SELECT 
+        id,
         matricula_funcionario, 
         DATE_FORMAT(data_inicio, '%Y-%m-%d') as data_inicio, 
         DATE_FORMAT(data_fim, '%Y-%m-%d') as data_fim, 
@@ -1337,6 +1400,90 @@ app.post('/api/marcacoes/desconsiderar/batch', async (req, res) => {
   } catch (error) {
     console.error('Erro ao buscar marcações desconsideradas:', error);
     res.status(500).json({ success: false, error: 'Erro ao buscar marcações desconsideradas' });
+  }
+});
+
+// ── Histórico de Ações ──────────────────────────────────────────────────────
+
+function formatAuditAction(entry) {
+  const { acao, tabela, dados_novos, dados_antigos } = entry;
+  const usuario = entry.usuario || 'Sistema';
+
+  try {
+    const dn = dados_novos ? (typeof dados_novos === 'string' ? JSON.parse(dados_novos) : dados_novos) : null;
+    const da = dados_antigos ? (typeof dados_antigos === 'string' ? JSON.parse(dados_antigos) : dados_antigos) : null;
+
+    if (tabela === 'comentario_dia' && acao === 'CREATE') {
+      return { criado_por: usuario, acao: 'Adicionou um comentário', criado_em: entry.timestamp };
+    }
+    if (tabela === 'ponto_manual') {
+      if (acao === 'CREATE' && dn && dn.hora) {
+        return { criado_por: usuario, acao: `Inseriu ponto ${dn.hora}`, criado_em: entry.timestamp };
+      }
+      if (acao === 'UPDATE' && dn && dn.hora && da && da.hora) {
+        const hAntiga = da.hora.substring(0, 5);
+        return { criado_por: usuario, acao: `Alterou ponto de ${hAntiga} para ${dn.hora}`, criado_em: entry.timestamp };
+      }
+      if (acao === 'DELETE' && da && da.hora) {
+        return { criado_por: usuario, acao: `Removeu ponto ${da.hora.substring(0, 5)}`, criado_em: entry.timestamp };
+      }
+    }
+    if (tabela === 'evento_funcionario') {
+      if (acao === 'CREATE' && dn && dn.tipoEvento) {
+        return { criado_por: usuario, acao: `Lançou status ${dn.tipoEvento}${dn.categoria === 'FIXO' ? '' : ''}`, criado_em: entry.timestamp };
+      }
+      if (acao === 'DELETE' && da && da.tipo_evento) {
+        return { criado_por: usuario, acao: `Removeu status ${da.tipo_evento}`, criado_em: entry.timestamp };
+      }
+    }
+    if (tabela === 'marcacao_desconsiderada') {
+      if (acao === 'IGNORE_POINT') {
+        return { criado_por: usuario, acao: 'Desconsiderou ponto', criado_em: entry.timestamp };
+      }
+      if (acao === 'UNIGNORE_POINT') {
+        return { criado_por: usuario, acao: 'Reconsiderou ponto', criado_em: entry.timestamp };
+      }
+    }
+  } catch (e) {
+    // fallback
+  }
+
+  return { criado_por: usuario, acao: `${acao} em ${tabela}`, criado_em: entry.timestamp };
+}
+
+// Rota para buscar histórico de ações via audit_log
+app.post('/api/marcacoes/historico/batch', async (req, res) => {
+  const { matriculas, dataInicio, dataFim } = req.body;
+
+  if (!Array.isArray(matriculas) || matriculas.length === 0 || !dataInicio || !dataFim) {
+    return res.status(400).json({ success: false, error: 'Parâmetros inválidos' });
+  }
+
+  try {
+    const placeholders = matriculas.map(() => '?').join(',');
+    const dataInicioStr = String(dataInicio).substring(0, 10);
+    const dataFimStr = String(dataFim).substring(0, 10);
+    const [rows] = await pool.query(`
+      SELECT usuario, acao, tabela, dados_novos, dados_antigos,
+             DATE_FORMAT(timestamp, '%Y-%m-%dT%T') as timestamp
+      FROM audit_log
+      WHERE matricula_funcionario IN (${placeholders})
+      AND (
+        data_marcacao BETWEEN ? AND ?
+        OR JSON_UNQUOTE(JSON_EXTRACT(dados_novos, '$.data')) BETWEEN ? AND ?
+        OR JSON_UNQUOTE(JSON_EXTRACT(dados_antigos, '$.data')) BETWEEN ? AND ?
+        OR JSON_UNQUOTE(JSON_EXTRACT(dados_novos, '$.dataInicio')) BETWEEN ? AND ?
+        OR JSON_UNQUOTE(JSON_EXTRACT(dados_antigos, '$.data_inicio')) BETWEEN ? AND ?
+      )
+      AND tabela IN ('comentario_dia', 'ponto_manual', 'evento_funcionario', 'marcacao_desconsiderada')
+      ORDER BY timestamp ASC
+    `, [...matriculas, dataInicioStr, dataFimStr, dataInicioStr, dataFimStr, dataInicioStr, dataFimStr, dataInicioStr, dataFimStr, dataInicioStr, dataFimStr]);
+
+    const history = rows.map(formatAuditAction);
+    res.json({ success: true, history });
+  } catch (error) {
+    console.error('Erro ao buscar histórico:', error);
+    res.status(500).json({ success: false, error: 'Erro ao buscar histórico' });
   }
 });
 
