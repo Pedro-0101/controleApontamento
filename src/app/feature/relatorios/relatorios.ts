@@ -926,7 +926,6 @@ export class Relatorios {
 
     // Build row metadata — hora in HH:MM, flag manual and desconsiderado
     const rowsMeta = func.dias.map(dia => ({
-      fillColor: [255, 255, 255] as [number, number, number],
       marcacoes: dia.marcacoes.map(m => ({
         hora: this.formatHora(m.dataMarcacao),
         manual: m.numSerieRelogio === 'MANUAL',
@@ -937,7 +936,12 @@ export class Relatorios {
     const tableBody = func.dias.map((dia, i) => [
       dia.getDataFormatada(),
       dia.getDiaSemana().substring(0, 3),
-      rowsMeta[i].marcacoes.map(m => m.manual ? `${m.hora}*` : m.hora).join('  '),
+      rowsMeta[i].marcacoes.map(m => {
+        let text = m.hora;
+        if (m.manual) text += '*';
+        if (m.desconsiderado) text = `[${text}]`;
+        return text;
+      }).join('  '),
       dia.getHorasTrabalhadas(),
       this.getStatusRelatorio(dia, func.matricula)
     ]);
@@ -958,10 +962,6 @@ export class Relatorios {
       },
       didParseCell: (data: any) => {
         if (data.section !== 'body') return;
-        // Capture row fill (always white now, used by didDrawCell strikethrough)
-        if (data.column.index === 0 && rowsMeta[data.row.index]) {
-          rowsMeta[data.row.index].fillColor = [255, 255, 255];
-        }
         // Status column: only color the text, no background fill
         if (data.column.index === 4) {
           const cor = this.pdfStatusColor(data.cell.raw);
@@ -978,35 +978,28 @@ export class Relatorios {
 
         const cell = data.cell;
         const x = cell.x + cell.padding('left');
-        const baseline = cell.y + cell.height / 2 + 1;
 
-        // Clear cell interior with the row's fill color (preserves alternating pattern)
-        const [fr, fg, fb] = meta.fillColor;
-        doc.setFillColor(fr, fg, fb);
-        doc.rect(cell.x + 0.5, cell.y + 0.5, cell.width - 1, cell.height - 1, 'F');
+        const fz = 8;
+        doc.setFontSize(fz);
+        const strikeY = cell.getTextPos().y + fz * 0.5;
 
-        // Redraw each punch: cancelled ones in gray with strikethrough
-        doc.setFontSize(8);
         let curX = x;
-        meta.marcacoes.forEach((m, idx) => {
-          const label = m.manual ? `${m.hora}*` : m.hora;
-          const sep = idx < meta.marcacoes.length - 1 ? '  ' : '';
-          const gray = m.desconsiderado ? 170 : 0;
-
-          doc.setTextColor(gray, gray, gray);
-          doc.text(label, curX, baseline);
+        meta.marcacoes.forEach((m) => {
+          let label = m.hora;
+          if (m.manual) label += '*';
+          if (m.desconsiderado) label = `[${label}]`;
+          const w = doc.getTextWidth(label);
+          const sepW = doc.getTextWidth('  ');
 
           if (m.desconsiderado) {
-            const w = doc.getTextWidth(label);
-            doc.setDrawColor(170, 170, 170);
-            doc.setLineWidth(0.3);
-            doc.line(curX, baseline - 1, curX + w, baseline - 1);
+            doc.setDrawColor(150, 150, 150);
+            doc.setLineWidth(0.4);
+            doc.line(curX, strikeY, curX + w, strikeY);
           }
 
-          curX += doc.getTextWidth(label + sep);
+          curX += w + sepW;
         });
 
-        doc.setTextColor(0, 0, 0);
         doc.setDrawColor(0, 0, 0);
       }
     });
@@ -1021,7 +1014,7 @@ export class Relatorios {
       doc.setTextColor(107, 114, 128);
       let ly = finalY + 6;
       if (hasManual)    { doc.text('* Ponto inserido manualmente no sistema', 14, ly); ly += 4; }
-      if (hasCancelled)   doc.text('Pontos em cinza riscados foram desconsiderados/cancelados', 14, ly);
+      if (hasCancelled)   doc.text('Marcações entre colchetes e riscadas foram desconsideradas/canceladas', 14, ly);
       doc.setTextColor(0, 0, 0);
     }
   }
