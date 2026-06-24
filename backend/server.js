@@ -327,10 +327,10 @@ async function initializeDatabase() {
       await pool.query(`
         UPDATE audit_log
         SET data_marcacao = COALESCE(
-          NULLIF(JSON_UNQUOTE(JSON_EXTRACT(dados_novos, '$.data')), ''),
-          NULLIF(JSON_UNQUOTE(JSON_EXTRACT(dados_antigos, '$.data')), ''),
-          NULLIF(JSON_UNQUOTE(JSON_EXTRACT(dados_novos, '$.dataInicio')), ''),
-          NULLIF(JSON_UNQUOTE(JSON_EXTRACT(dados_antigos, '$.data_inicio')), '')
+          NULLIF(DATE(JSON_UNQUOTE(JSON_EXTRACT(dados_novos, '$.data'))), ''),
+          NULLIF(DATE(JSON_UNQUOTE(JSON_EXTRACT(dados_antigos, '$.data'))), ''),
+          NULLIF(DATE(JSON_UNQUOTE(JSON_EXTRACT(dados_novos, '$.dataInicio'))), ''),
+          NULLIF(DATE(JSON_UNQUOTE(JSON_EXTRACT(dados_antigos, '$.data_inicio'))), '')
         )
         WHERE data_marcacao IS NULL
       `);
