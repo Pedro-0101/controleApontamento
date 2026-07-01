@@ -13,11 +13,17 @@ const dbConfig = {
   port: 3306,
   database: 'dnpmix',
   user: 'root',
-  password: 'pass'
+  password: 'pass',
+  charset: 'utf8mb4',
+  multipleStatements: true
 };
 
 // Middleware
 app.use(cors());
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  next();
+});
 
 // 1. Configuração do Proxy para a API externa (Ponto Certificado)
 // Usamos uma função de filtro para decidir o que vai para o proxy e o que é local
@@ -327,10 +333,12 @@ async function initializeDatabase() {
       await pool.query(`
         UPDATE audit_log
         SET data_marcacao = COALESCE(
-          NULLIF(DATE(JSON_UNQUOTE(JSON_EXTRACT(dados_novos, '$.data'))), ''),
-          NULLIF(DATE(JSON_UNQUOTE(JSON_EXTRACT(dados_antigos, '$.data'))), ''),
-          NULLIF(DATE(JSON_UNQUOTE(JSON_EXTRACT(dados_novos, '$.dataInicio'))), ''),
-          NULLIF(DATE(JSON_UNQUOTE(JSON_EXTRACT(dados_antigos, '$.data_inicio'))), '')
+          STR_TO_DATE(SUBSTRING(JSON_UNQUOTE(JSON_EXTRACT(dados_novos, '$.data')), 1, 10), '%Y-%m-%d'),
+          STR_TO_DATE(SUBSTRING(JSON_UNQUOTE(JSON_EXTRACT(dados_antigos, '$.data')), 1, 10), '%Y-%m-%d'),
+          STR_TO_DATE(SUBSTRING(JSON_UNQUOTE(JSON_EXTRACT(dados_novos, '$.dataInicio')), 1, 10), '%Y-%m-%d'),
+          STR_TO_DATE(SUBSTRING(JSON_UNQUOTE(JSON_EXTRACT(dados_antigos, '$.data_inicio')), 1, 10), '%Y-%m-%d'),
+          STR_TO_DATE(SUBSTRING(JSON_UNQUOTE(JSON_EXTRACT(dados_novos, '$.data')), 1, 10), '%d/%m/%Y'),
+          STR_TO_DATE(SUBSTRING(JSON_UNQUOTE(JSON_EXTRACT(dados_antigos, '$.data')), 1, 10), '%d/%m/%Y')
         )
         WHERE data_marcacao IS NULL
       `);
@@ -1734,7 +1742,19 @@ async function startServer() {
   
   // Servir arquivos estáticos do Angular (Production Build)
   const distPath = path.join(__dirname, '../dist/controleApontamento/browser');
-  app.use(express.static(distPath));
+  app.use(express.static(distPath, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      } else if (filePath.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      } else if (filePath.endsWith('.css')) {
+        res.setHeader('Content-Type', 'text/css; charset=utf-8');
+      } else if (filePath.endsWith('.json')) {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      }
+    }
+  }));
 
   // Rota catch-all para Single Page Application (Angular)
   app.get('*', (req, res) => {

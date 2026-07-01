@@ -1,6 +1,7 @@
-import { Component, EventEmitter, inject, Output } from '@angular/core';
+import { Component, EventEmitter, inject, Output, effect, Injector, runInInjectionContext } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
 import { MarcacaoService } from '../../../core/services/marcacao/marcacao.service';
+import { LoggerService } from '../../../core/services/logger/logger.service';
 
 export interface CardFilter {
   statuses: string[];
@@ -16,6 +17,8 @@ export interface CardFilter {
 })
 export class CadsPainel {
   private marcacaoService = inject(MarcacaoService);
+  private logger = inject(LoggerService);
+  private injector = inject(Injector);
 
   @Output() cardClicked = new EventEmitter<CardFilter>();
 
@@ -27,6 +30,20 @@ export class CadsPainel {
 
   readonly AFASTAMENTO_STATUSES = ['Ferias', 'Atestado', 'Afastado', 'Suspensao', 'Folga', 'Feriado'];
   readonly INCONSISTENCIA_STATUSES = ['Falta', 'Atraso', 'Incompleto', 'Pendente'];
+
+  constructor() {
+    this.logger.info('CadsPainel [constructor]', 'Componente inicializado');
+    runInInjectionContext(this.injector, () => {
+      effect(() => {
+        const tf = this._totalFuncionarios();
+        const tp = this._totalPresentes();
+        const ta = this._totalAtrasoEntrada();
+        const taf = this._totalAfastamentos();
+        const ti = this._totalInconsistencias();
+        this.logger.info('CadsPainel [effect]', `CARDS RECALCULADOS -> Funcionarios=${tf} Presentes=${tp} Atrasos=${ta} Afastamentos=${taf} Inconsistencias=${ti}`);
+      });
+    });
+  }
 
   onPresencaClick(): void {
     this.cardClicked.emit({ statuses: [], especiais: ['com_marcacoes'] });

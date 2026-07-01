@@ -1,6 +1,5 @@
-import { ApplicationConfig, importProvidersFrom, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { ApplicationConfig, importProvidersFrom, provideBrowserGlobalErrorListeners, provideZonelessChangeDetection } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
-import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
 import {
   LucideAngularModule,
@@ -75,10 +74,10 @@ import { routes } from './app.routes';
 
 export const appConfig: ApplicationConfig = {
   providers: [
+    provideZonelessChangeDetection(),
     provideHttpClient(),
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideAnimations(),
     importProvidersFrom(LucideAngularModule.pick({
       User,
       ShoppingCart,

@@ -48,7 +48,7 @@ export class ApiSessionService {
   }
 
   async startSession(): Promise<boolean> {
-    this.logger.info('ApiSessionService', 'Iniciando sessões para todas as empresas');
+    this.logger.info('ApiSessionService [startSession]', 'Iniciando sessões para todas as empresas');
     try {
       const response = await firstValueFrom(
         this.http.get<{ success: boolean; tokens: CompanyToken[] }>(
@@ -56,10 +56,13 @@ export class ApiSessionService {
         )
       );
 
+      this.logger.info('ApiSessionService [startSession]', `Resposta: success=${response?.success} tokensCount=${response?.tokens?.length}`);
+
       if (response?.success && response.tokens?.length > 0) {
         this.companyTokens.set(response.tokens);
         const validos = response.tokens.filter(c => c.token).length;
-        this.logger.info('ApiSessionService', `${validos}/${response.tokens.length} tokens obtidos`);
+        this.logger.info('ApiSessionService [startSession]', `${validos}/${response.tokens.length} tokens obtidos`);
+        this.logger.info('ApiSessionService [startSession]', `Empresas: ${response.tokens.map(c => `${c.nome}(token=${!!c.token})`).join(', ')}`);
 
         const desativadas = response.tokens.filter(c => c.erro);
         if (desativadas.length > 0) {
@@ -68,19 +71,20 @@ export class ApiSessionService {
             `As seguintes empresas estão desativadas na API: ${nomes}`,
             10000
           );
-          this.logger.warn('ApiSessionService', `Empresas desativadas: ${nomes}`);
+          this.logger.warn('ApiSessionService [startSession]', `Empresas desativadas: ${nomes}`);
         }
 
         if (validos > 0) {
           this.startOrResetBackgroundRefresh();
+          this.logger.info('ApiSessionService [startSession]', 'Sessão iniciada com sucesso');
           return true;
         }
       }
 
-      this.logger.error('ApiSessionService', 'Nenhum token válido retornado');
+      this.logger.error('ApiSessionService [startSession]', 'Nenhum token válido retornado');
       return false;
     } catch (error: any) {
-      this.logger.error('ApiSessionService', 'Erro ao iniciar sessões:', error);
+      this.logger.error('ApiSessionService [startSession]', 'Erro ao iniciar sessões:', error);
       return false;
     }
   }

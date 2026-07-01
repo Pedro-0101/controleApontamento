@@ -3,7 +3,7 @@ const http = require('http');
 
 const CONFIG = {
   host: 'localhost',
-  port: 3000,
+  port: 3001,
   credentials: {
     chaveEmpresa: '987c2db7-2311-4380-9770-babe1b4c4dcc',
     usuario: 'daniele.almeida@grupodnp.com.br',

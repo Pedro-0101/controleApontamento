@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, signal, effect, Injector, runInInjectionContext } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { LoggerService } from '../logger/logger.service';
@@ -153,9 +153,23 @@ export class MarcacaoService {
   private prefetchCache = new Map<string, { marcacoes: Marcacao[], marcacoesDia: MarcacaoDia[] }>();
 
   constructor() {
+    const self = this;
+    runInInjectionContext(inject(Injector), () => {
+      effect(() => {
+        const total = self._totalFuncionarios();
+        const backup = self.marcacaoesFiltradasBackup().length;
+        const filtered = self.marcacoesFiltradas().length;
+        if (total === 0 && backup > 0) {
+          self.loggerService.error('MarcacaoService [GUARD]', `CARDS ZERARAM SOZINHOS! totalFunc=0 mas backup=${backup} filtered=${filtered}. Stack:`);
+          self.loggerService.error('MarcacaoService [GUARD]', new Error().stack || 'no stack');
+        }
+      });
+    });
   }
 
   async updateMarcacoes(dataInicio: string, dataFim: string): Promise<Marcacao[]> {
+    this.loggerService.info('MarcacaoService [updateMarcacoes]', `INICIO dataInicio=${dataInicio} dataFim=${dataFim}`);
+    this.loggerService.info('MarcacaoService [updateMarcacoes]', `Signals ANTES -> marcacoesFiltradas=${this.marcacoesFiltradas().length} backup=${this.marcacaoesFiltradasBackup().length} totalFunc=${this._totalFuncionarios()}`);
     this.currentDataInicio.set(dataInicio);
     this.currentDataFim.set(dataFim);
 
@@ -164,44 +178,54 @@ export class MarcacaoService {
     try {
 
       this.isLoadingMarcacoes.set(true);
+      this.loggerService.info('MarcacaoService [updateMarcacoes]', 'isLoadingMarcacoes=true');
 
       // Verificar se já existe no cache de prefetch
       const cached = this.prefetchCache.get(cacheKey);
       if (cached) {
-        this.loggerService.info('MarcacaoService', `Usando dados do cache para ${dataInicio} - ${dataFim}`);
+        this.loggerService.info('MarcacaoService [updateMarcacoes]', `Usando dados do CACHE para ${dataInicio} - ${dataFim} | cache.marcacoes=${cached.marcacoes.length} cache.dia=${cached.marcacoesDia.length}`);
         this.prefetchCache.delete(cacheKey);
 
         this.marcacoes.set(cached.marcacoes);
         this.ordenarTodasMarcacoes(cached.marcacoesDia);
         this.marcacaoesFiltradasBackup.set(cached.marcacoesDia);
+        this.loggerService.info('MarcacaoService [updateMarcacoes]', `backup apos cache set: ${this.marcacaoesFiltradasBackup().length}`);
         this.applyFilters();
+        this.loggerService.info('MarcacaoService [updateMarcacoes]', `filtradas apos applyFilters: ${this.marcacoesFiltradas().length} | totalFunc=${this._totalFuncionarios()}`);
         this.hasLoadedOnce.set(true);
         this.isLoadingMarcacoes.set(false);
         return cached.marcacoes;
       }
 
+      this.loggerService.info('MarcacaoService [updateMarcacoes]', `Sem cache. Chamando fetchMarcacoes...`);
       // Buscar marcações da API
       const marcacoes = await this.fetchMarcacoes(dataInicio, dataFim);
+      this.loggerService.info('MarcacaoService [updateMarcacoes]', `fetchMarcacoes retornou ${marcacoes.length} marcações brutas`);
 
       this.marcacoes.set(marcacoes);
 
       // Formatar marcações por dia
       const marcacoesOrdenadas = marcacoes.sort((a, b) => a.cpf.localeCompare(b.cpf));
+      this.loggerService.info('MarcacaoService [updateMarcacoes]', `Chamando formatarMarcacoesPorDia...`);
       const marcacoesPorDia = await this.formatarMarcacoesPorDia(marcacoesOrdenadas, dataInicio, dataFim);
+      this.loggerService.info('MarcacaoService [updateMarcacoes]', `formatarMarcacoesPorDia retornou ${marcacoesPorDia.length} dias`);
 
       this.ordenarTodasMarcacoes(marcacoesPorDia);
       this.marcacaoesFiltradasBackup.set(marcacoesPorDia);
+      this.loggerService.info('MarcacaoService [updateMarcacoes]', `backup apos set: ${this.marcacaoesFiltradasBackup().length}`);
 
       // Aplicar filtros existentes ao invés de resetar para a lista completa
       this.applyFilters();
+      this.loggerService.info('MarcacaoService [updateMarcacoes]', `filtradas apos applyFilters: ${this.marcacoesFiltradas().length} | totalFunc=${this._totalFuncionarios()} | totalPresentes=${this._totalPresentes()}`);
 
       this.hasLoadedOnce.set(true);
       this.isLoadingMarcacoes.set(false);
+      this.loggerService.info('MarcacaoService [updateMarcacoes]', `FIM OK. hasLoadedOnce=true`);
       return marcacoes;
 
     } catch (error) {
 
-      this.loggerService.error('MarcacaoService', 'Erro ao atualizar marcações \n' + error);
+      this.loggerService.error('MarcacaoService [updateMarcacoes]', 'ERRO ao atualizar marcações \n' + error);
       this.marcacoes.set([]);
       this.hasLoadedOnce.set(true);
       this.isLoadingMarcacoes.set(false);
@@ -941,6 +965,7 @@ export class MarcacaoService {
   }
 
   private async fetchMarcacoes(dataInicio: string, dataFim: string, matriculaFuncionario?: string): Promise<Marcacao[]> {
+    this.loggerService.info('MarcacaoService [fetchMarcacoes]', `dataInicio=${dataInicio} dataFim=${dataFim} matricula=${matriculaFuncionario || 'TODOS'}`);
     // Estende o intervalo em ±1 dia para capturar batidas offline que sincronizaram
     // no dia seguinte e batidas antes das 04:00 que pertencem à jornada do dia anterior.
     let dataInicioAjustada = dataInicio;
@@ -957,6 +982,7 @@ export class MarcacaoService {
       fimObj.setDate(fimObj.getDate() + 1);
       dataFimAjustada = DateHelper.getStringDate(fimObj);
     }
+    this.loggerService.info('MarcacaoService [fetchMarcacoes]', `Datas ajustadas: ${dataInicioAjustada} -> ${dataFimAjustada}`);
 
     try {
       let marcacoes: Marcacao[] = [];
@@ -974,11 +1000,11 @@ export class MarcacaoService {
         );
       }
 
-      this.loggerService.info('MarcacaoService', `Encontradas ${marcacoes.length} marcações.`);
+      this.loggerService.info('MarcacaoService [fetchMarcacoes]', `Encontradas ${marcacoes.length} marcações da API externa.`);
       return marcacoes;
 
     } catch (error: any) {
-      this.loggerService.error('MarcacaoService', 'Erro na requisição API de marcações:', error);
+      this.loggerService.error('MarcacaoService [fetchMarcacoes]', 'ERRO na requisição API de marcações:', error);
       throw error;
     }
   }
@@ -1070,6 +1096,7 @@ export class MarcacaoService {
   }
 
   private applyFilters(): void {
+    this.loggerService.info('MarcacaoService [applyFilters]', `INICIO | backup=${this.marcacaoesFiltradasBackup().length}`);
     this.isLoadingMarcacoes.set(true);
     let filtradas = this.marcacaoesFiltradasBackup();
 
@@ -1115,7 +1142,9 @@ export class MarcacaoService {
       filtradas = filtradas.filter(dia => dia.marcacoes.filter(m => !m.desconsiderado).length > 0);
     }
 
+    this.loggerService.info('MarcacaoService [applyFilters]', `Antes do set: filtradas=${filtradas.length} | empresas=${empresas.length} statuses=${statuses.length} locais=${locais.length} relogios=${relogios.length} especiais=${filtrosEspeciais.length}`);
     this.marcacoesFiltradas.set(filtradas);
+    this.loggerService.info('MarcacaoService [applyFilters]', `DEPOIS do set: marcacoesFiltradas=${this.marcacoesFiltradas().length} | totalFunc=${this._totalFuncionarios()} | totalPresentes=${this._totalPresentes()} | totalAfast=${this._totalAfastamentos()} | totalIncons=${this._totalInconsistencias()}`);
     this.isLoadingMarcacoes.set(false);
   }
 

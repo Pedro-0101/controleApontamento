@@ -2,7 +2,6 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ToastService } from '../../core/services/toast/toast.service';
 import { LucideAngularModule } from 'lucide-angular';
-import { animate, style, transition, trigger } from '@angular/animations';
 
 @Component({
   selector: 'app-toast',
@@ -11,7 +10,7 @@ import { animate, style, transition, trigger } from '@angular/animations';
   template: `
     <div class="toast-container">
       @for (toast of toastService.currentToasts(); track toast.id) {
-        <div class="toast" [class]="toast.type" @slideInOut>
+        <div class="toast slide-in-out" [class]="toast.type">
           <div class="toast-icon">
             @switch (toast.type) {
               @case ('success') { <lucide-icon name="check-circle"></lucide-icon> }
@@ -53,11 +52,17 @@ import { animate, style, transition, trigger } from '@angular/animations';
       max-width: 480px;
       border-left: 6px solid #ccc;
       transform-origin: right top;
+      animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%) scale(0.9); opacity: 0; }
+      to { transform: translateX(0) scale(1); opacity: 1; }
     }
 
     .toast.success { border-left-color: var(--color-success, #10b981); }
     .toast.error { border-left-color: var(--color-danger, #ef4444); }
-    .toast.info { border-left-color: var(--color-primary, #3b82f6); }
+    .toast.info { border-left-color: var(--color-primary, #3b82b6); }
     .toast.warning { border-left-color: var(--color-warning, #f59e0b); }
 
     .toast-icon {
@@ -68,7 +73,7 @@ import { animate, style, transition, trigger } from '@angular/animations';
 
     .toast.success .toast-icon { color: var(--color-success, #10b981); }
     .toast.error .toast-icon { color: var(--color-danger, #ef4444); }
-    .toast.info .toast-icon { color: var(--color-primary, #3b82f6); }
+    .toast.info .toast-icon { color: var(--color-primary, #3b82b6); }
     .toast.warning .toast-icon { color: var(--color-warning, #f59e0b); }
 
     .toast-message {
@@ -92,20 +97,9 @@ import { animate, style, transition, trigger } from '@angular/animations';
 
     .toast-close:hover {
       background: var(--color-gray-100, #f3f4f6);
-      color: var(--color-gray-700, #374151);
+      color: var(--color-gray-700, #373841);
     }
-  `],
-  animations: [
-    trigger('slideInOut', [
-      transition(':enter', [
-        style({ transform: 'translateX(100%) scale(0.9)', opacity: 0 }),
-        animate('400ms cubic-bezier(0.16, 1, 0.3, 1)', style({ transform: 'translateX(0) scale(1)', opacity: 1 }))
-      ]),
-      transition(':leave', [
-        animate('250ms ease-in', style({ transform: 'translateX(100%)', opacity: 0 }))
-      ])
-    ])
-  ]
+  `]
 })
 export class ToastComponent {
   toastService = inject(ToastService);

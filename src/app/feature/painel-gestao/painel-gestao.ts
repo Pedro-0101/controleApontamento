@@ -62,6 +62,7 @@ export class PainelGestao {
     effect(() => {
       const d = this.currentDate();
       const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      this.loggerService.info('PainelGestaoComponent [effect]', `currentDate mudou -> ${iso}`);
       this.router.navigate([], {
         relativeTo: this.activatedRoute,
         queryParams: { data: iso },
@@ -72,20 +73,35 @@ export class PainelGestao {
   }
 
   ngOnInit() {
+    this.loggerService.info('PainelGestaoComponent [ngOnInit]', 'ngOnInit disparado');
     // Restaura a data da URL ao abrir a página
     const dataParam = this.activatedRoute.snapshot.queryParams['data'];
     if (dataParam) {
       const [year, month, day] = dataParam.split('-').map(Number);
       if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+        this.loggerService.info('PainelGestaoComponent [ngOnInit]', `Restaurando data da URL: ${dataParam}`);
         this.currentDate.set(new Date(year, month - 1, day));
       }
     }
+    this.loggerService.info('PainelGestaoComponent [ngOnInit]', `currentDate antes de carregarDia: ${this.currentDate().toISOString()}`);
     this.carregarDia();
   }
 
   async carregarDia() {
     const dateStr = DateHelper.getStringDate(this.currentDate());
-    await this.marcacaoService.updateMarcacoes(dateStr, dateStr);
+    this.loggerService.info('PainelGestaoComponent [carregarDia]', `Iniciando carregamento para data: ${dateStr}`);
+    this.loggerService.info('PainelGestaoComponent [carregarDia]', `marcacoesFiltradas ANTES: ${this.marcacaoService._marcacoesFiltradas().length} itens`);
+
+    try {
+      const result = await this.marcacaoService.updateMarcacoes(dateStr, dateStr);
+      this.loggerService.info('PainelGestaoComponent [carregarDia]', `updateMarcacoes retornou ${result.length} marcações brutas`);
+      this.loggerService.info('PainelGestaoComponent [carregarDia]', `marcacoesFiltradas DEPOIS: ${this.marcacaoService._marcacoesFiltradas().length} itens`);
+      this.loggerService.info('PainelGestaoComponent [carregarDia]', `totalFuncionarios card: ${this.marcacaoService._totalFuncionarios()}`);
+      this.loggerService.info('PainelGestaoComponent [carregarDia]', `totalPresentes card: ${this.marcacaoService._totalPresentes()}`);
+      this.loggerService.info('PainelGestaoComponent [carregarDia]', `dataFormatada signal: ${this.dataFormatada()}`);
+    } catch (e) {
+      this.loggerService.error('PainelGestaoComponent [carregarDia]', `ERRO ao carregar dia`, e);
+    }
 
     // Prefetch dos dias adjacentes em background
     const diaAnterior = new Date(this.currentDate());
@@ -104,29 +120,40 @@ export class PainelGestao {
   }
 
   irParaDiaAnterior() {
+    this.loggerService.info('PainelGestaoComponent [irParaDiaAnterior]', `Data atual: ${this.currentDate().toISOString()}`);
     const novaData = new Date(this.currentDate());
     novaData.setDate(novaData.getDate() - 1);
+    this.loggerService.info('PainelGestaoComponent [irParaDiaAnterior]', `Nova data: ${novaData.toISOString()}`);
     this.currentDate.set(novaData);
+    this.loggerService.info('PainelGestaoComponent [irParaDiaAnterior]', `currentDate apos set: ${this.currentDate().toISOString()}`);
     this.tabela?.clearSelection();
     this.carregarDia();
   }
 
   irParaProximoDia() {
-    if (this.isHoje()) return;
+    if (this.isHoje()) {
+      this.loggerService.info('PainelGestaoComponent [irParaProximoDia]', 'Bloqueado: já é hoje');
+      return;
+    }
+    this.loggerService.info('PainelGestaoComponent [irParaProximoDia]', `Data atual: ${this.currentDate().toISOString()}`);
     const novaData = new Date(this.currentDate());
     novaData.setDate(novaData.getDate() + 1);
+    this.loggerService.info('PainelGestaoComponent [irParaProximoDia]', `Nova data: ${novaData.toISOString()}`);
     this.currentDate.set(novaData);
+    this.loggerService.info('PainelGestaoComponent [irParaProximoDia]', `currentDate apos set: ${this.currentDate().toISOString()}`);
     this.tabela?.clearSelection();
     this.carregarDia();
   }
 
   irParaHoje() {
+    this.loggerService.info('PainelGestaoComponent [irParaHoje]', 'Indo para hoje');
     this.currentDate.set(new Date());
     this.tabela?.clearSelection();
     this.carregarDia();
   }
 
   irParaData(date: Date) {
+    this.loggerService.info('PainelGestaoComponent [irParaData]', `Data selecionada: ${date.toISOString()}`);
     this.currentDate.set(date);
     this.tabela?.clearSelection();
     this.carregarDia();

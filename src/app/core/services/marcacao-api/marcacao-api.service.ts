@@ -37,19 +37,25 @@ export class MarcacaoApiService {
     baseParams: Omit<SelecionaMarcacoesParams, 'tokenAcesso'>
   ): Promise<Marcacao[]> {
     const companies = this.apiSessionService.getCompanies().filter(c => c.token);
+    this.logger.info('MarcacaoApiService [callAllTokens]', `Empresas com token: ${companies.length} de ${this.apiSessionService.getCompanies().length} total`);
     if (companies.length === 0) {
-      this.logger.warn('MarcacaoApiService', 'Nenhum token disponível');
+      this.logger.warn('MarcacaoApiService [callAllTokens]', 'Nenhum token disponível - getCompanies() retornou 0 tokens válidos');
+      this.logger.warn('MarcacaoApiService [callAllTokens]', `Companies detalhe: ${JSON.stringify(this.apiSessionService.getCompanies().map(c => ({nome:c.nome, temToken: !!c.token, erro: c.erro})))}`);
       return [];
     }
+    this.logger.info('MarcacaoApiService [callAllTokens]', `Params: dataInicio=${baseParams.dataInicio} dataFim=${baseParams.dataFim} matricula=${baseParams.matriculaFuncionario || 'TODOS'} relogio=${baseParams.numSerieRelogio || 'TODOS'}`);
     const results = await Promise.all(
       companies.map(async company => {
+        this.logger.info('MarcacaoApiService [callAllTokens]', `Chamando API para empresa ${company.nome}...`);
         const marcacoes = await this.callSelecionaMarcacoes({ ...baseParams, tokenAcesso: company.token });
         marcacoes.forEach(m => m.apiEmpresaNome = company.nome);
-        this.logger.info('MarcacaoApiService', `${company.nome}: ${marcacoes.length} marcação(ões) retornada(s)`);
+        this.logger.info('MarcacaoApiService [callAllTokens]', `${company.nome}: ${marcacoes.length} marcação(ões) retornada(s)`);
         return marcacoes;
       })
     );
-    return results.flat();
+    const flat = results.flat();
+    this.logger.info('MarcacaoApiService [callAllTokens]', `TOTAL mesclado de todas empresas: ${flat.length} marcações`);
+    return flat;
   }
 
   /**
@@ -109,6 +115,7 @@ export class MarcacaoApiService {
    * Chama o endpoint SelecionaMarcacoes da API externa
    */
   private async callSelecionaMarcacoes(params: SelecionaMarcacoesParams): Promise<Marcacao[]> {
+    this.logger.info('MarcacaoApiService [callSelecionaMarcacoes]', `POST ${this.API_URL} | token presente=${!!params.tokenAcesso}`);
     const startTime = performance.now();
     try {
       const response = await firstValueFrom(
@@ -117,7 +124,7 @@ export class MarcacaoApiService {
         })
           .pipe(
             catchError((error) => {
-              this.logger.error('MarcacaoApiService', 'Erro na chamada SelecionaMarcacoes:', error);
+              this.logger.error('MarcacaoApiService [callSelecionaMarcacoes]', 'Erro na chamada HTTP:', error);
               return of([]);
             })
           )
@@ -125,17 +132,22 @@ export class MarcacaoApiService {
 
       const endTime = performance.now();
       this.updateObservability(endTime - startTime);
+      this.logger.info('MarcacaoApiService [callSelecionaMarcacoes]', `Resposta recebida em ${Math.round(endTime - startTime)}ms | tipo=${typeof response} | keys=${response ? Object.keys(response).join(',') : 'null'}`);
 
       const data = response?.d?.results || response?.d || response;
+      this.logger.info('MarcacaoApiService [callSelecionaMarcacoes]', `data extraída: isArray=${Array.isArray(data)} | length=${Array.isArray(data) ? data.length : 'N/A'} | tipo=${typeof data}`);
 
       if (!data || !Array.isArray(data)) {
+        this.logger.warn('MarcacaoApiService [callSelecionaMarcacoes]', 'data não é array ou está vazio. Resposta bruta (primeiros 500 chars):', JSON.stringify(response).substring(0, 500));
         return [];
       }
 
-      return data.map((item: any) => this.transformToMarcacao(item));
+      const transformed = data.map((item: any) => this.transformToMarcacao(item));
+      this.logger.info('MarcacaoApiService [callSelecionaMarcacoes]', `Transformadas ${transformed.length} marcações`);
+      return transformed;
     } catch (error) {
       this.updateObservability(3000, true);
-      this.logger.error('MarcacaoApiService', 'Erro ao chamar SelecionaMarcacoes:', error);
+      this.logger.error('MarcacaoApiService [callSelecionaMarcacoes]', 'EXCEPTION ao chamar SelecionaMarcacoes:', error);
       throw error;
     }
   }
