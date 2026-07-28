@@ -10,11 +10,12 @@ import { Marcacao } from '../../../../models/marcacao/marcacao';
 import { TitleCaseCustomPipe } from '../../../../shared/pipes/title-case-custom.pipe';
 import { EmployeeService } from '../../../../core/services/employee/employee.service';
 import { HistoricoAcao } from '../../../../models/historicoAcao/historico-acao';
+import { ModalLancarEventoComponent } from '../../../eventos/modal-lancar-evento/modal-lancar-evento';
 
 @Component({
   selector: 'app-modal-detalhes-marcacao',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, TitleCaseCustomPipe],
+  imports: [CommonModule, FormsModule, LucideAngularModule, TitleCaseCustomPipe, ModalLancarEventoComponent],
   templateUrl: './modal-detalhes-marcacao.html',
   styleUrl: './modal-detalhes-marcacao.css'
 })
@@ -33,6 +34,7 @@ export class ModalDetalhesMarcacaoComponent {
   novoComentario = signal('');
   novoPontoHora = signal('');
   isSaving = signal(false);
+  showLancarEvento = signal(false);
 
   novoStatusFixo = signal('');
   statusDisponiveis = MarcacaoService.getPossiveisStatus();
@@ -353,6 +355,11 @@ export class ModalDetalhesMarcacaoComponent {
     const hours = date.getHours().toString().padStart(2, '0');
     const minutes = date.getMinutes().toString().padStart(2, '0');
     return `${hours}:${minutes}`;
+  }
+
+  onEventoCriado() {
+    this.showLancarEvento.set(false);
+    this.updated.emit();
   }
 
   getMarcacoes() {

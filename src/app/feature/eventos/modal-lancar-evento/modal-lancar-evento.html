@@ -1,0 +1,57 @@
+<div class="modal-overlay" (click)="close.emit()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="header-info">
+        <h3>Lançar Evento</h3>
+        <p>{{ nome() }} - {{ matricula() }}</p>
+      </div>
+      <button class="btn-close" (click)="close.emit()">
+        <lucide-icon name="x" [size]="20"></lucide-icon>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-item form-item-wide">
+          <label>Tipo de Evento</label>
+          <select [(ngModel)]="tipoEvento" class="form-input">
+            <option value="">Selecione o tipo...</option>
+            @for (tipo of statusPeriodo; track tipo) {
+              <option [value]="tipo">{{ tipo }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="form-item">
+          <label>Data Início</label>
+          <input type="date" [(ngModel)]="dataInicio" class="form-input">
+        </div>
+
+        <div class="form-item">
+          <label>Data Fim</label>
+          <input type="date" [(ngModel)]="dataFim" class="form-input">
+        </div>
+
+        <div class="form-item form-item-full">
+          <label>Descrição / Observação</label>
+          <textarea
+            [(ngModel)]="detalhes"
+            class="form-input form-textarea"
+            placeholder="Ex.: Aprovado pelo gestor."
+            rows="3"
+          ></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="close.emit()">Cancelar</button>
+      <button class="btn btn-primary" (click)="salvar()" [disabled]="isSaving()">
+        @if (isSaving()) {
+          <div class="btn-spinner"></div>
+        }
+        Salvar Evento
+      </button>
+    </div>
+  </div>
+</div>

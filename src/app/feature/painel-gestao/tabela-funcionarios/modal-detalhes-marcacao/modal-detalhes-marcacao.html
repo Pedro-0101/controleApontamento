@@ -9,6 +9,10 @@
             <lucide-icon name="user" [size]="14"></lucide-icon>
             <span>Ver Perfil</span>
           </button>
+          <button class="btn btn-sm btn-outline" style="display: flex; align-items: center; justify-content: center; gap: 6px;" (click)="showLancarEvento.set(true)" title="Lançar Evento">
+            <lucide-icon name="calendar-plus" [size]="14"></lucide-icon>
+            <span>Lançar Evento</span>
+          </button>
           <button class="btn btn-sm btn-danger" style="display: flex; align-items: center; justify-content: center; gap: 6px;" (click)="desabilitarFuncionario()" title="Desabilitar Funcionário" [disabled]="isSaving()">
             <lucide-icon name="user-x" [size]="14"></lucide-icon>
             <span>Desabilitar</span>
@@ -222,4 +226,14 @@
     </div>
   </div>
 </div>
+
+@if (showLancarEvento()) {
+  <app-modal-lancar-evento
+    [matricula]="record().matricula"
+    [nome]="record().nome"
+    [data]="DateHelper.toIsoDate(record().data)"
+    (close)="showLancarEvento.set(false)"
+    (created)="onEventoCriado()"
+  />
+}
 
