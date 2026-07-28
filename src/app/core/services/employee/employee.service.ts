@@ -18,6 +18,7 @@ interface BatchEmployeeResponse {
     nome: string; 
     empresa: string; 
     trabalha_sabado: number; 
+    bate_ponto: number;
     local: string; 
     cargo: string;
     data_admissao?: string;
@@ -106,6 +107,7 @@ export class EmployeeService {
     nome: string; 
     empresa: string; 
     trabalha_sabado: number; 
+    bate_ponto: number;
     local: string; 
     cargo: string;
     data_admissao?: string;
@@ -124,16 +126,17 @@ export class EmployeeService {
           ...e, 
           local: e.local ?? '', 
           cargo: e.cargo ?? '',
+          bate_ponto: e.bate_ponto ?? 1,
           data_admissao: e.data_admissao ? String(e.data_admissao).substring(0, 10) : undefined,
           data_fim_experiencia: e.data_fim_experiencia ? String(e.data_fim_experiencia).substring(0, 10) : undefined
         }));
       }
 
       this.logger.warn('EmployeeService', 'Erro ao buscar nomes em lote');
-      return matriculas.map(matricula => ({ matricula, nome: 'nome nao encontrado', empresa: '', trabalha_sabado: 1, local: '', cargo: '' }));
+      return matriculas.map(matricula => ({ matricula, nome: 'nome nao encontrado', empresa: '', trabalha_sabado: 1, bate_ponto: 1, local: '', cargo: '' }));
     } catch (error: any) {
       this.logger.error('EmployeeService', 'Erro ao buscar nomes em lote:', error);
-      return matriculas.map(matricula => ({ matricula, nome: 'nome nao encontrado', empresa: '', trabalha_sabado: 1, local: '', cargo: '' }));
+      return matriculas.map(matricula => ({ matricula, nome: 'nome nao encontrado', empresa: '', trabalha_sabado: 1, bate_ponto: 1, local: '', cargo: '' }));
     }
   }
 

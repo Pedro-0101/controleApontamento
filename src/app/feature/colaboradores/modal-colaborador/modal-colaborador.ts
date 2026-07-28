@@ -36,6 +36,7 @@ export class ModalColaborador implements OnInit {
   cargo              = signal('');
   ativo              = signal(true);
   trabalhaSabado     = signal(true);
+  batePonto          = signal(true);
   dataAdmissao       = signal('');
   dataFimExperiencia = signal('');
   isSaving           = signal(false);
@@ -64,6 +65,7 @@ export class ModalColaborador implements OnInit {
       this.cargo.set(emp.cargo ?? '');
       this.ativo.set(emp.ativo === 1);
       this.trabalhaSabado.set(emp.trabalha_sabado === 1);
+      this.batePonto.set(emp.bate_ponto === 1 || emp.bate_ponto === undefined);
       this.dataAdmissao.set(emp.data_admissao ?? '');
       this.dataFimExperiencia.set(emp.data_fim_experiencia ?? emp.data_admissao ?? '');
     }
@@ -92,6 +94,7 @@ export class ModalColaborador implements OnInit {
         cargo:               this.cargo(),
         ativo:               this.ativo() ? 1 : 0,
         trabalha_sabado:     this.trabalhaSabado() ? 1 : 0,
+        bate_ponto:          this.batePonto() ? 1 : 0,
         data_admissao:       this.dataAdmissao() || undefined,
         data_fim_experiencia: this.dataFimExperiencia() || undefined,
       };

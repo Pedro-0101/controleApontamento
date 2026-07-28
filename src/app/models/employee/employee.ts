@@ -9,6 +9,7 @@ export class Employee {
   cargo!: string;
   ativo!: number; // 0 ou 1
   trabalha_sabado!: number; // 0 ou 1
+  bate_ponto!: number; // 0 ou 1, default 1
   data_admissao?: string;       // YYYY-MM-DD, opcional
   data_fim_experiencia?: string; // YYYY-MM-DD, opcional
 
@@ -24,6 +25,7 @@ export class Employee {
     employee.cargo = json.cargo ?? '';
     employee.ativo = json.ativo ?? 1;
     employee.trabalha_sabado = Number(json.trabalha_sabado ?? 1);
+    employee.bate_ponto = Number(json.bate_ponto ?? 1);
     employee.data_admissao = json.data_admissao
       ? String(json.data_admissao).substring(0, 10)
       : undefined;

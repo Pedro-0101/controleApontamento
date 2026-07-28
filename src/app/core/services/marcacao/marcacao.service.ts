@@ -386,13 +386,14 @@ export class MarcacaoService {
     const matriculasUnicas = [...new Set(marcacoes.map(m => m.matriculaFuncionario))];
 
     // 2. Buscar nomes em lote (1 chamada HTTP ao invés de N)
-    const employeeDataMap = new Map<string, { nome: string, empresa: string, trabalha_sabado: number, local: string, cargo: string, data_admissao?: string, data_fim_experiencia?: string }>();
+    const employeeDataMap = new Map<string, { nome: string, empresa: string, trabalha_sabado: number, bate_ponto: number, local: string, cargo: string, data_admissao?: string, data_fim_experiencia?: string }>();
     try {
       const employeesBatch = await this.employeeService.getEmployeeNamesBatch(matriculasUnicas);
       employeesBatch.forEach(item => employeeDataMap.set(item.matricula, {
         nome: item.nome,
         empresa: item.empresa,
         trabalha_sabado: item.trabalha_sabado,
+        bate_ponto: item.bate_ponto,
         local: item.local ?? '',
         cargo: item.cargo ?? '',
         data_admissao: item.data_admissao,
@@ -438,7 +439,8 @@ export class MarcacaoService {
           empData ? (empData.trabalha_sabado === 1) : true,
           undefined,
           local,
-          cargo
+          cargo,
+          empData ? (empData.bate_ponto === 1) : true
         );
         gruposMap.set(chave, marcacaoDia);
       }
@@ -512,6 +514,7 @@ export class MarcacaoService {
           const key = `${matriculaLimpa}:${dateStr}`;
 
           if (!marcacoesMap.has(key)) {
+            const batePonto = funcionario.bate_ponto !== undefined ? funcionario.bate_ponto === 1 : true;
             const marcacaoDia = new MarcacaoDia(
               0,
               '',
@@ -523,7 +526,8 @@ export class MarcacaoService {
               funcionario.trabalha_sabado === 1,
               undefined,
               funcionario.local ?? '',
-              funcionario.cargo ?? ''
+              funcionario.cargo ?? '',
+              batePonto
             );
             marcacoesDia.push(marcacaoDia);
             marcacoesMap.add(key);
@@ -643,7 +647,8 @@ export class MarcacaoService {
             const emp = funcionariosAtivos.find(f => String(f.matricula).trim() === matriculaStr);
 
             if (emp) {
-              md = new MarcacaoDia(0, '', matriculaStr, emp.nome, dataStr, [], emp.empresa, emp.trabalha_sabado === 1, undefined, emp.local ?? '', emp.cargo ?? '');
+              const batePonto = emp.bate_ponto !== undefined ? emp.bate_ponto === 1 : true;
+              md = new MarcacaoDia(0, '', matriculaStr, emp.nome, dataStr, [], emp.empresa, emp.trabalha_sabado === 1, undefined, emp.local ?? '', emp.cargo ?? '', batePonto);
               marcacoesDia.push(md);
             }
           }

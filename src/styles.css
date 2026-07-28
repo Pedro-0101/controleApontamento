@@ -474,6 +474,14 @@ tbody tr.clickable-row:hover {
   border-color: var(--st-pending-bd);
 }
 
+.status-não-bate-ponto,
+.status-nao-bate-ponto {
+  background-color: var(--st-pending-bg);
+  color: var(--st-pending-fg);
+  border-color: var(--st-pending-bd);
+  opacity: 0.85;
+}
+
 
 /* Button Spinner */
 .btn-spinner {
@@ -615,6 +623,16 @@ tbody tr.clickable-row:hover {
 .badge-info {
   background: var(--color-info-bg);
   color: var(--color-info-text);
+}
+
+.bate-ponto-sim {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.bate-ponto-nao {
+  background: var(--st-pending-bg);
+  color: var(--st-pending-fg);
 }
 
 /* =============================================================================

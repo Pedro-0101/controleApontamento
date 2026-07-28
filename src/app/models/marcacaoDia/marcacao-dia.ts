@@ -24,6 +24,7 @@ export interface MarcacaoDia {
     eventoCriadoPor?: string; // Quem criou o evento
     historico?: HistoricoAcao[]; // Histórico de ações do dia
     trabalhaSabado?: boolean;
+    bate_ponto?: boolean; // false = funcionario nao bate ponto (encarregados, viagem, etc)
 }
 
 // 2. O tipo define os possíveis valores para o status
@@ -49,6 +50,7 @@ export class MarcacaoDia implements MarcacaoDia {
     eventoCriadoPor?: string;
     historico?: HistoricoAcao[];
     trabalhaSabado?: boolean;
+    bate_ponto?: boolean;
 
     /** Empresa da API de origem — derivada das marcações individuais */
     get apiEmpresaNome(): string | undefined {
@@ -66,7 +68,8 @@ export class MarcacaoDia implements MarcacaoDia {
         trabalhaSabado: boolean = true,
         comentarios?: ComentarioMarcacao[],
         local?: string,
-        cargo?: string
+        cargo?: string,
+        bate_ponto: boolean = true
     ) {
         this.id = id;
         this.cpf = cpf;
@@ -76,6 +79,7 @@ export class MarcacaoDia implements MarcacaoDia {
         this.local = local || '';
         this.cargo = cargo || '';
         this.trabalhaSabado = trabalhaSabado;
+        this.bate_ponto = bate_ponto;
         this.comentarios = comentarios || [];
         this.data = data;
 
@@ -118,6 +122,11 @@ export class MarcacaoDia implements MarcacaoDia {
                     isIncompleto = true;
                 }
             }
+        }
+
+        // Funcionario que nao bate ponto (encarregados, viajantes, etc)
+        if (this.bate_ponto === false && numMarcacoes === 0) {
+            return "Não bate ponto";
         }
 
         const evtStr = this.evento ? this.evento.trim() : null;

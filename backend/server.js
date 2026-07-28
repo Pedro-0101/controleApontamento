@@ -141,6 +141,13 @@ async function initializeDatabase() {
       if (!e.message?.includes('Duplicate column name')) throw e;
     }
 
+    try {
+      await pool.query("ALTER TABLE qrcod_2023 ADD COLUMN bate_ponto TINYINT(1) NOT NULL DEFAULT 1");
+      console.log('Coluna bate_ponto adicionada à tabela qrcod_2023');
+    } catch (e) {
+      if (!e.message?.includes('Duplicate column name')) throw e;
+    }
+
     // Criar tabela de configuração de empresas da API
     await pool.query(`
       CREATE TABLE IF NOT EXISTS empresas_config (
@@ -693,7 +700,7 @@ const EMPLOYEE_SELECT = `
   SELECT q.id, q.matricula,
          q.empresa_id, COALESCE(e.nome, q.empresa, '') AS empresa,
          q.local_id,   COALESCE(l.nome, q.\`local\`, '') AS \`local\`,
-         q.nome, q.cargo, q.ativo, q.trabalha_sabado, q.data_admissao, q.data_fim_experiencia
+         q.nome, q.cargo, q.ativo, q.trabalha_sabado, q.bate_ponto, q.data_admissao, q.data_fim_experiencia
   FROM qrcod_2023 q
   LEFT JOIN empresas e ON q.empresa_id = e.id
   LEFT JOIN locais   l ON q.local_id   = l.id
@@ -755,6 +762,7 @@ app.post('/api/employees/batch', async (req, res) => {
         nome: row.nome, 
         empresa: row.empresa, 
         trabalha_sabado: row.trabalha_sabado, 
+        bate_ponto: row.bate_ponto,
         local: row.local || '', 
         cargo: row.cargo || '',
         data_admissao: row.data_admissao,
@@ -770,6 +778,7 @@ app.post('/api/employees/batch', async (req, res) => {
         nome: data ? data.nome : 'nome nao encontrado',
         empresa: data ? data.empresa : '',
         trabalha_sabado: data ? data.trabalha_sabado : 1,
+        bate_ponto: data ? data.bate_ponto : 1,
         local: data ? data.local : '',
         cargo: data ? data.cargo : '',
         data_admissao: data ? data.data_admissao : null,
@@ -811,7 +820,7 @@ app.get('/api/employees', async (req, res) => {
 
 // Rota para criar novo funcionário
 app.post('/api/employees', async (req, res) => {
-  const { matricula, empresa_id, local_id, nome, cargo, ativo, trabalha_sabado, data_admissao, data_fim_experiencia } = req.body;
+  const { matricula, empresa_id, local_id, nome, cargo, ativo, trabalha_sabado, bate_ponto, data_admissao, data_fim_experiencia } = req.body;
 
   if (!matricula || !nome) {
     return res.status(400).json({
@@ -850,8 +859,8 @@ app.post('/api/employees', async (req, res) => {
     }
 
     const [result] = await pool.query(
-      'INSERT INTO qrcod_2023 (matricula, empresa_id, empresa, local_id, local, nome, cargo, ativo, trabalha_sabado, data_admissao, data_fim_experiencia) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [matricula, empresa_id || null, empresaNome, local_id || null, localNome, nome, cargo || '', ativo !== undefined ? ativo : 1, trabalha_sabado !== undefined ? trabalha_sabado : 1, dataAdmissaoVal, dataFimExpVal]
+      'INSERT INTO qrcod_2023 (matricula, empresa_id, empresa, local_id, local, nome, cargo, ativo, trabalha_sabado, bate_ponto, data_admissao, data_fim_experiencia) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [matricula, empresa_id || null, empresaNome, local_id || null, localNome, nome, cargo || '', ativo !== undefined ? ativo : 1, trabalha_sabado !== undefined ? trabalha_sabado : 1, bate_ponto !== undefined ? bate_ponto : 1, dataAdmissaoVal, dataFimExpVal]
     );
 
     // Buscar o funcionário criado para retornar
@@ -883,7 +892,7 @@ app.post('/api/employees', async (req, res) => {
 // Rota para atualizar funcionário
 app.put('/api/employees/:id', async (req, res) => {
   const { id } = req.params;
-  const { matricula, empresa_id, local_id, nome, cargo, ativo, trabalha_sabado, data_admissao, data_fim_experiencia } = req.body;
+  const { matricula, empresa_id, local_id, nome, cargo, ativo, trabalha_sabado, bate_ponto, data_admissao, data_fim_experiencia } = req.body;
 
   if (!matricula || !nome) {
     return res.status(400).json({
@@ -922,8 +931,8 @@ app.put('/api/employees/:id', async (req, res) => {
     }
 
     await pool.query(
-      'UPDATE qrcod_2023 SET matricula=?, empresa_id=?, empresa=?, local_id=?, local=?, nome=?, cargo=?, ativo=?, trabalha_sabado=?, data_admissao=?, data_fim_experiencia=? WHERE id=?',
-      [matricula, empresa_id || null, empresaNome, local_id || null, localNome, nome, cargo || '', ativo !== undefined ? ativo : 1, trabalha_sabado !== undefined ? trabalha_sabado : 1, dataAdmissaoVal, dataFimExpVal, id]
+      'UPDATE qrcod_2023 SET matricula=?, empresa_id=?, empresa=?, local_id=?, local=?, nome=?, cargo=?, ativo=?, trabalha_sabado=?, bate_ponto=?, data_admissao=?, data_fim_experiencia=? WHERE id=?',
+      [matricula, empresa_id || null, empresaNome, local_id || null, localNome, nome, cargo || '', ativo !== undefined ? ativo : 1, trabalha_sabado !== undefined ? trabalha_sabado : 1, bate_ponto !== undefined ? bate_ponto : 1, dataAdmissaoVal, dataFimExpVal, id]
     );
 
     // Buscar o funcionário atualizado

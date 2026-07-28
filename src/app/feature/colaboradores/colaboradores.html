@@ -60,6 +60,7 @@
             <th>Empresa</th>
             <th>Cargo</th>
             <th>Local</th>
+            <th>Bate Ponto</th>
             <th>Status</th>
             <th class="actions-column">Ações</th>
           </tr>
@@ -78,6 +79,11 @@
               <td>{{ employee.empresa | titleCaseCustom }}</td>
               <td>{{ employee.cargo | titleCaseCustom }}</td>
               <td>{{ employee.local | titleCaseCustom }}</td>
+              <td>
+                <span class="badge" [class]="employee.bate_ponto === 1 ? 'bate-ponto-sim' : 'bate-ponto-nao'">
+                  {{ employee.bate_ponto === 1 ? 'Sim' : 'Não' }}
+                </span>
+              </td>
               <td>
                 <span class="badge" [class]="getStatusClass(employee.ativo)">
                   {{ getStatusLabel(employee.ativo) | titleCaseCustom }}
