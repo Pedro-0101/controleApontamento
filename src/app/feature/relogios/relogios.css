@@ -1,7 +1,3 @@
-/* Using global styles from styles.css */
-
-/* Minimal overrides - most styles inherited from global */
-
 .num-serie {
   display: flex;
   align-items: center;
@@ -48,9 +44,11 @@
 
 .filters-row {
   display: flex;
-  align-items: flex-end;
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-md);
+  align-items: center;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
   flex-wrap: wrap;
 }
 
@@ -62,7 +60,65 @@
   text-align: center;
 }
 
+.badge-func-count::before {
+  display: none;
+}
+
 .count-loading {
-  color: var(--color-gray-400);
-  font-size: var(--font-size-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.spinner-inline {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-gray-200);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin-inline 0.6s linear infinite;
+}
+
+@keyframes spin-inline {
+  to { transform: rotate(360deg); }
+}
+
+.dias-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dias-label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-gray-600);
+  white-space: nowrap;
+}
+
+.dias-input {
+  width: 64px;
+  padding: 5px 8px;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-gray-800);
+  background: var(--color-surface);
+  text-align: center;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.dias-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.15);
+}
+
+.dias-sufixo {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-4);
+  font-weight: 500;
 }

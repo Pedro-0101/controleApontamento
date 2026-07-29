@@ -1,4 +1,3 @@
-// src/app/feature/relogios/relogios.ts
 import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
@@ -6,14 +5,13 @@ import { RelogioService } from '../../core/services/relogio/relogio.service';
 import { MarcacaoApiService } from '../../core/services/marcacao-api/marcacao-api.service';
 import { Relogio } from '../../models/relogio/relogio';
 import { Pagination } from '../../shared/pagination/pagination';
-import { SearchFilter, FilterOption } from '../../shared/search-filter/search-filter';
 import { RangeSlider, RangeValue } from '../../shared/range-slider/range-slider';
 import { RelogiosFuncionarios } from './relogios-funcionarios/relogios-funcionarios';
 
 @Component({
   selector: 'app-relogios',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, Pagination, SearchFilter, RangeSlider, RelogiosFuncionarios],
+  imports: [CommonModule, LucideAngularModule, Pagination, RangeSlider, RelogiosFuncionarios],
   templateUrl: './relogios.html',
   styleUrl: './relogios.css'
 })
@@ -23,8 +21,6 @@ export class Relogios implements OnInit {
 
   activeTab = signal<'relogios' | 'funcionarios'>('relogios');
   allRelogios = signal<Relogio[]>([]);
-  searchText = signal('');
-  statusFilter = signal('all');
   currentPage = signal(1);
   itemsPerPage = signal(10);
   isLoading = signal(true);
@@ -32,34 +28,13 @@ export class Relogios implements OnInit {
   funcionariosPorRelogio = signal<Map<string, number>>(new Map());
   pendingCounts = signal<Set<string>>(new Set());
   minFuncionariosFilter = signal(0);
+  diasBusca = signal(7);
 
   readonly maxFuncionariosSlider = 50;
-
-  filterOptions = signal<FilterOption[]>([
-    { label: 'Todos', value: 'all' },
-    { label: 'Online', value: '4' },
-    { label: 'Offline', value: 'offline' }
-  ]);
 
   filteredRelogios = computed(() => {
     let result = this.allRelogios();
     const countMap = this.funcionariosPorRelogio();
-
-    const search = this.searchText().toLowerCase();
-    if (search) {
-      result = result.filter(r =>
-        r.numSerie.toLowerCase().includes(search) ||
-        r.descricao.toLowerCase().includes(search) ||
-        r.type.toLowerCase().includes(search)
-      );
-    }
-
-    const status = this.statusFilter();
-    if (status === '4') {
-      result = result.filter(r => r.status === 4);
-    } else if (status === 'offline') {
-      result = result.filter(r => r.status !== 4);
-    }
 
     const min = this.minFuncionariosFilter();
     if (min > 0) {
@@ -115,7 +90,7 @@ export class Relogios implements OnInit {
 
     const hoje = new Date();
     const inicio = new Date(hoje);
-    inicio.setDate(inicio.getDate() - 7);
+    inicio.setDate(inicio.getDate() - this.diasBusca());
 
     const fmt = (d: Date) =>
       `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -150,14 +125,16 @@ export class Relogios implements OnInit {
     }
   }
 
-  onSearchChange(search: string) {
-    this.searchText.set(search);
-    this.currentPage.set(1);
-    this.loadCountForPage();
-  }
-
-  onFilterChange(filter: string) {
-    this.statusFilter.set(filter);
+  onDiasBuscaChange(dias: string) {
+    const valor = parseInt(dias, 10);
+    if (isNaN(valor) || valor < 1) {
+      this.diasBusca.set(1);
+    } else if (valor > 500) {
+      this.diasBusca.set(500);
+    } else {
+      this.diasBusca.set(valor);
+    }
+    this.funcionariosPorRelogio.set(new Map());
     this.currentPage.set(1);
     this.loadCountForPage();
   }
@@ -176,13 +153,5 @@ export class Relogios implements OnInit {
     this.itemsPerPage.set(items);
     this.currentPage.set(1);
     this.loadCountForPage();
-  }
-
-  getStatusClass(status: number): string {
-    return status === 4 ? 'status-online' : 'status-offline';
-  }
-
-  getStatusLabel(status: number): string {
-    return status === 4 ? 'Online' : 'Offline';
   }
 }

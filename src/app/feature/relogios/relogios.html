@@ -1,4 +1,3 @@
-<!-- src/app/feature/relogios/relogios.html -->
 <div class="page-container">
   <div class="page-header">
     <div class="header-content">
@@ -53,13 +52,19 @@
     } @else {
       <div class="table-container">
         <div class="filters-row">
-          <app-search-filter
-            searchPlaceholder="Pesquisar por número de série, descrição ou tipo..."
-            filterLabel="Status:"
-            [filterOptions]="filterOptions()"
-            (searchChange)="onSearchChange($event)"
-            (filterChange)="onFilterChange($event)"
-          ></app-search-filter>
+          <div class="dias-input-group">
+            <label for="diasBusca" class="dias-label">Buscar últimos</label>
+            <input
+              type="number"
+              id="diasBusca"
+              class="dias-input"
+              [value]="diasBusca()"
+              min="1"
+              max="500"
+              (change)="onDiasBuscaChange($any($event.target).value)"
+            />
+            <span class="dias-sufixo">dias</span>
+          </div>
           <app-range-slider
             label="Mín. funcionários:"
             [min]="0"
@@ -74,10 +79,8 @@
             <tr>
               <th>Número de Série</th>
               <th>Descrição</th>
-              <th>Tipo</th>
               <th>Nº Funcionários</th>
               <th>Data Criação</th>
-              <th>Status</th>
             </tr>
           </thead>
           <tbody>
@@ -88,24 +91,20 @@
                   {{ relogio.numSerie }}
                 </td>
                 <td>{{ relogio.descricao }}</td>
-                <td>{{ relogio.type }}</td>
                 <td>
                   @if (pendingCounts().has(relogio.numSerie)) {
-                    <span class="count-loading">…</span>
+                    <span class="count-loading">
+                      <span class="spinner-inline"></span>
+                    </span>
                   } @else {
-                    <span class="badge badge-func-count">{{ getFuncionariosCount(relogio.numSerie) }}</span>
+                    <span class="badge badge-func-count" title="Número de funcionários com marcações nos últimos {{ diasBusca() }} dias">{{ getFuncionariosCount(relogio.numSerie) }}</span>
                   }
                 </td>
                 <td>{{ relogio.dataCriacao }}</td>
-                <td>
-                  <span class="badge" [class]="getStatusClass(relogio.status)">
-                    {{ getStatusLabel(relogio.status) }}
-                  </span>
-                </td>
               </tr>
             } @empty {
               <tr>
-                <td colspan="6" class="empty-state">
+                <td colspan="4" class="empty-state">
                   <lucide-icon name="clock" [size]="48"></lucide-icon>
                   <p>Nenhum relógio encontrado</p>
                 </td>
