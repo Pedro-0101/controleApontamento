@@ -1,76 +1,64 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
+import { LoggerService } from '../logger/logger.service';
 import { environment } from '../../../../environments/environment';
 import { ApiSessionService } from '../apiSession/api-session.service';
 import { EmployeeService } from '../employee/employee.service';
-import { LoggerService } from '../logger/logger.service';
-import { RelogioService } from '../relogio/relogio.service';
 import { FuncionarioRelogio } from '../../../models/funcionario-relogio/funcionario-relogio';
 import { RelogioVinculado } from '../../../models/relogio-vinculado/relogio-vinculado';
 
-@Injectable({ providedIn: 'root' })
+@Injectable({
+  providedIn: 'root',
+})
 export class FuncionarioRelogioService {
+  private logger = inject(LoggerService);
   private apiSessionService = inject(ApiSessionService);
   private employeeService = inject(EmployeeService);
-  private loggerService = inject(LoggerService);
-  private relogioService = inject(RelogioService);
 
-  private readonly apiUrl = environment.apiUrlSelecionaFuncionarioCategoria;
-  private readonly apiUrlVinculos = environment.apiUrlRelogiosPorMatricula;
+  private funcionariosSignal = signal<FuncionarioRelogio[]>([]);
+  readonly funcionarios = computed(() => this.funcionariosSignal());
+  private isLoadingSignal = signal(false);
+  readonly isLoading = computed(() => this.isLoadingSignal());
 
-  // Limite de chamadas simultâneas a RetornaRelogiosPorMatricula (1 chamada por matrícula x token)
-  private static readonly CONCORRENCIA_VINCULOS = 5;
-
-  // A API faz DateTime.Parse no parâmetro; string vazia gera erro 400.
-  // Data antiga (dd/MM/yyyy) força carga completa — ver docs/api-ponto-certificado.md §3.1.
-  private static readonly DATA_CARGA_COMPLETA = '01/01/2020';
-
-  private _funcionarios = signal<FuncionarioRelogio[]>([]);
-  private _loading = signal(false);
-
-  private vinculosCache = new Map<string, RelogioVinculado[]>();
-  private vinculosPendentes = new Map<string, Promise<RelogioVinculado[]>>();
-
-  readonly funcionarios = this._funcionarios.asReadonly();
-  readonly isLoading = this._loading.asReadonly();
+  private _vinculadosCache = new Map<string, RelogioVinculado[]>();
+  private _matriculasContadas = new Set<string>();
 
   async load(): Promise<void> {
-    this._loading.set(true);
+    this.isLoadingSignal.set(true);
     try {
-      const [localList, apiList] = await Promise.all([
-        this.loadFromLocal(),
-        this.loadFromApi()
+      const [localFuncionarios, apiFuncionarios] = await Promise.all([
+        this.getLocalFuncionarios(),
+        this.getApiFuncionarios(),
       ]);
-      this._funcionarios.set(this.merge(localList, apiList));
-      this.loggerService.info('FuncionarioRelogioService', `${this._funcionarios().length} funcionários carregados`);
+      const merged = this.merge(localFuncionarios, apiFuncionarios);
+      this.funcionariosSignal.set(merged);
+      this.logger.info('FuncionarioRelogioService', `${merged.length} funcionários carregados (local: ${localFuncionarios.length}, api: ${apiFuncionarios.length})`);
     } catch (error) {
-      this.loggerService.error('FuncionarioRelogioService', 'Erro ao carregar funcionários: ' + error);
-      this._funcionarios.set([]);
+      this.logger.error('FuncionarioRelogioService', 'Erro ao carregar funcionários:', error);
+      this.funcionariosSignal.set([]);
     } finally {
-      this._loading.set(false);
+      this.isLoadingSignal.set(false);
     }
   }
 
-  private async loadFromLocal(): Promise<FuncionarioRelogio[]> {
-    const employees = await this.employeeService.getAllEmployees();
-    return employees.map(e => FuncionarioRelogio.fromEmployee(e));
-  }
-
-  private async loadFromApi(): Promise<FuncionarioRelogio[]> {
-    const tokens = this.apiSessionService.getAllTokens();
-    if (tokens.length === 0) {
-      this.loggerService.warn('FuncionarioRelogioService', 'Nenhum token disponível para buscar funcionários');
+  private async getLocalFuncionarios(): Promise<FuncionarioRelogio[]> {
+    try {
+      const employees = await this.employeeService.getAllActiveEmployees();
+      return employees.map(e => FuncionarioRelogio.fromEmployee(e));
+    } catch {
       return [];
     }
+  }
+
+  private async getApiFuncionarios(): Promise<FuncionarioRelogio[]> {
+    const tokens = this.apiSessionService.getAllTokens();
+    if (tokens.length === 0) return [];
 
     const results = await Promise.all(tokens.map(async token => {
       try {
-        const response = await fetch(this.apiUrl, {
+        const response = await fetch(environment.apiUrlSelecionaFuncionarioCategoria, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            dataAtualizacao: FuncionarioRelogioService.DATA_CARGA_COMPLETA,
-            tokenAcesso: token
-          })
+          body: JSON.stringify({ dataAtualizacao: '01/01/2020', tokenAcesso: token })
         });
         if (!response.ok) return [];
         const data = await response.json();
@@ -80,65 +68,84 @@ export class FuncionarioRelogioService {
       }
     }));
 
-    const seen = new Set<string>();
-    return results.flat().filter(f => {
-      if (!f.matricula || seen.has(f.matricula)) return false;
-      seen.add(f.matricula);
+    const vistos = new Set<string>();
+    return results.flat().filter(r => {
+      if (!r.matricula || vistos.has(r.matricula)) return false;
+      vistos.add(r.matricula);
       return true;
     });
   }
 
   merge(local: FuncionarioRelogio[], api: FuncionarioRelogio[]): FuncionarioRelogio[] {
     const map = new Map<string, FuncionarioRelogio>();
+
     for (const f of local) {
-      if (!f.matricula) continue;
+      f.fonte = 'local';
       map.set(f.matricula, f);
     }
+
     for (const f of api) {
-      if (map.has(f.matricula)) {
-        const existing = map.get(f.matricula)!;
-        map.set(f.matricula, Object.assign(new FuncionarioRelogio(), existing, { fonte: 'ambos' as const }));
+      const existing = map.get(f.matricula);
+      if (existing) {
+        existing.fonte = 'ambos';
       } else {
+        f.fonte = 'api';
         map.set(f.matricula, f);
       }
     }
+
     return Array.from(map.values());
   }
 
-  /**
-   * Busca os relógios vinculados a uma matrícula via RetornaRelogiosPorMatricula
-   * (uma chamada por token de empresa), com cache e deduplicação por numSerie.
-   * Descrição é enriquecida com o cache de relógios do RelogioService.
-   */
-  async getRelogiosVinculados(matricula: string): Promise<RelogioVinculado[]> {
-    if (!matricula) return [];
-    const cached = this.vinculosCache.get(matricula);
-    if (cached) return cached;
-
-    const pendente = this.vinculosPendentes.get(matricula);
-    if (pendente) return pendente;
-
-    const promise = this.fetchRelogiosVinculados(matricula)
-      .then(vinculos => {
-        this.vinculosCache.set(matricula, vinculos);
-        return vinculos;
-      })
-      .finally(() => this.vinculosPendentes.delete(matricula));
-
-    this.vinculosPendentes.set(matricula, promise);
-    return promise;
+  dedupVinculados(arrays: RelogioVinculado[][]): RelogioVinculado[] {
+    const vistos = new Set<string>();
+    const result: RelogioVinculado[] = [];
+    for (const arr of arrays) {
+      for (const v of arr) {
+        if (!v.numSerie || vistos.has(v.numSerie)) continue;
+        vistos.add(v.numSerie);
+        result.push(v);
+      }
+    }
+    return result;
   }
 
-  private async fetchRelogiosVinculados(matricula: string): Promise<RelogioVinculado[]> {
-    const tokens = this.apiSessionService.getAllTokens();
-    if (tokens.length === 0) {
-      this.loggerService.warn('FuncionarioRelogioService', 'Nenhum token disponível para buscar relógios vinculados');
-      return [];
+  async carregarContadores(funcionarios: FuncionarioRelogio[]): Promise<void> {
+    const pendentes = funcionarios.filter(
+      f => f.relogiosCadastrado === null && f.relogiosAtivo === null && f.matricula
+    ).filter(f => !this._matriculasContadas.has(f.matricula));
+
+    if (pendentes.length === 0) return;
+
+    const results = await Promise.allSettled(
+      pendentes.map(f => this.getRelogiosVinculados(f.matricula))
+    );
+
+    for (let i = 0; i < pendentes.length; i++) {
+      const f = pendentes[i];
+      const result = results[i];
+      if (result.status === 'fulfilled') {
+        const vinculados = result.value;
+        f.relogiosCadastrado = vinculados.length;
+        f.relogiosAtivo = vinculados.filter(v => v.ativo).length;
+      } else {
+        f.relogiosCadastrado = 0;
+        f.relogiosAtivo = 0;
+      }
+      this._matriculasContadas.add(f.matricula);
+    }
+  }
+
+  async getRelogiosVinculados(matricula: string): Promise<RelogioVinculado[]> {
+    const cacheKey = matricula.trim();
+    if (this._vinculadosCache.has(cacheKey)) {
+      return this._vinculadosCache.get(cacheKey)!;
     }
 
+    const tokens = this.apiSessionService.getAllTokens();
     const results = await Promise.all(tokens.map(async token => {
       try {
-        const response = await fetch(this.apiUrlVinculos, {
+        const response = await fetch(environment.apiUrlRelogiosPorMatricula, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ matricula, tokenAcesso: token })
@@ -151,49 +158,8 @@ export class FuncionarioRelogioService {
       }
     }));
 
-    return this.dedupVinculados(results).map(v => this.enriquecerDescricao(v));
-  }
-
-  dedupVinculados(listas: RelogioVinculado[][]): RelogioVinculado[] {
-    const vistos = new Set<string>();
-    return listas.flat().filter(v => {
-      if (!v.numSerie || vistos.has(v.numSerie)) return false;
-      vistos.add(v.numSerie);
-      return true;
-    });
-  }
-
-  private enriquecerDescricao(vinculo: RelogioVinculado): RelogioVinculado {
-    if (vinculo.descricao) return vinculo;
-    const relogio = this.relogioService.getRelogioFromNumSerie(vinculo.numSerie);
-    if (relogio.descricao && relogio.descricao !== 'Nao encontrado') {
-      vinculo.descricao = relogio.descricao;
-    }
-    return vinculo;
-  }
-
-  /**
-   * Preenche relogiosCadastrado/relogiosAtivo dos funcionários informados
-   * (tipicamente a página visível da tabela). Limita a concorrência para
-   * não sobrecarregar a API; atualiza o signal só se algo mudou.
-   */
-  async carregarContadores(funcionarios: FuncionarioRelogio[]): Promise<void> {
-    const pendentes = funcionarios.filter(f => f.matricula && f.relogiosCadastrado === null);
-    if (pendentes.length === 0) return;
-
-    let houveMudanca = false;
-    for (let i = 0; i < pendentes.length; i += FuncionarioRelogioService.CONCORRENCIA_VINCULOS) {
-      const lote = pendentes.slice(i, i + FuncionarioRelogioService.CONCORRENCIA_VINCULOS);
-      await Promise.all(lote.map(async f => {
-        const vinculos = await this.getRelogiosVinculados(f.matricula);
-        f.relogiosCadastrado = vinculos.length;
-        f.relogiosAtivo = vinculos.filter(v => v.ativo).length;
-        houveMudanca = true;
-      }));
-    }
-
-    if (houveMudanca) {
-      this._funcionarios.update(lista => [...lista]);
-    }
+    const vinculados = this.dedupVinculados(results);
+    this._vinculadosCache.set(cacheKey, vinculados);
+    return vinculados;
   }
 }
