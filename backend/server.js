@@ -51,7 +51,7 @@ app.use((req, res, next) => {
   }
 
   // Lista de prefixos das nossas rotas locais (excluem o /api inicial no teste de string)
-  const localPrefixes = ['/api/auth', '/api/comments', '/api/marcacoes', '/api/employee', '/api/employees', '/api/health', '/api/audit-logs', '/api/empresas-config', '/api/empresas', '/api/locais'];
+  const localPrefixes = ['/api/auth', '/api/comments', '/api/marcacoes', '/api/employee', '/api/employees', '/api/health', '/api/audit-logs', '/api/empresas-config', '/api/empresas', '/api/locais', '/api/relogios'];
   const isLocal = localPrefixes.some(prefix => req.url.startsWith(prefix));
   
   if (isLocal) {
@@ -353,6 +353,37 @@ async function initializeDatabase() {
     } catch (e) {
       console.error('Erro no backfill de data_marcacao:', e.message);
     }
+
+    // Criar tabela de relogios se não existir
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS relogios (
+        id            INT AUTO_INCREMENT PRIMARY KEY,
+        num_serie     VARCHAR(50) NOT NULL,
+        descricao     VARCHAR(255) NOT NULL,
+        status        INT DEFAULT 1,
+        data_criacao  VARCHAR(50) NULL,
+        criado_em     DATETIME DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_num_serie (num_serie)
+      )
+    `);
+    console.log('Tabela relogios verificada/criada com sucesso');
+
+    // Criar tabela de relacionamento relogio x funcionario se não existir
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS relogio_funcionario (
+        id            INT AUTO_INCREMENT PRIMARY KEY,
+        relogio_id    INT NOT NULL,
+        matricula     VARCHAR(50) NOT NULL,
+        status        INT DEFAULT 1,
+        criado_em     DATETIME DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_relogio_matricula (relogio_id, matricula),
+        INDEX idx_matricula (matricula),
+        INDEX idx_relogio_id (relogio_id)
+      )
+    `);
+    console.log('Tabela relogio_funcionario verificada/criada com sucesso');
 
     console.log('Pool de conexões MySQL criado com sucesso');
   } catch (error) {
@@ -1742,6 +1773,82 @@ app.delete('/api/empresas-config/:id', async (req, res) => {
   } catch (e) {
     console.error('Erro ao desativar empresa:', e);
     res.status(500).json({ success: false, error: 'Erro ao desativar empresa' });
+  }
+});
+
+// Endpoint de análise de vínculos relógio x funcionário
+app.post('/api/relogios/analise-vinculo', async (req, res) => {
+  try {
+    const { relogios } = req.body;
+    if (!Array.isArray(relogios) || relogios.length === 0) {
+      return res.status(400).json({ success: false, error: 'Lista de relógios inválida' });
+    }
+
+    let relogiosAtualizados = 0;
+    let vinculosAtivados = 0;
+    let vinculosInativados = 0;
+
+    for (const relogio of relogios) {
+      const { num_serie, descricao, status, data_criacao, matriculas } = relogio;
+      if (!num_serie || !descricao) continue;
+
+      // Upsert do relógio
+      await pool.query(
+        `INSERT INTO relogios (num_serie, descricao, status, data_criacao)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE descricao = VALUES(descricao), status = VALUES(status), data_criacao = VALUES(data_criacao)`,
+        [num_serie, descricao, status ?? 1, data_criacao ?? null]
+      );
+      relogiosAtualizados++;
+
+      // Obter o id do relógio
+      const [rows] = await pool.query('SELECT id FROM relogios WHERE num_serie = ?', [num_serie]);
+      if (rows.length === 0) continue;
+      const relogioId = rows[0].id;
+
+      const matriculasArr = Array.isArray(matriculas) ? matriculas : [];
+
+      // Ativar/inserir vínculos das matrículas enviadas
+      for (const matricula of matriculasArr) {
+        await pool.query(
+          `INSERT INTO relogio_funcionario (relogio_id, matricula, status)
+           VALUES (?, ?, 1)
+           ON DUPLICATE KEY UPDATE status = 1`,
+          [relogioId, matricula]
+        );
+        vinculosAtivados++;
+      }
+
+      // Inativar matrículas que não estão na lista (exceto as excluídas status=-1)
+      if (matriculasArr.length > 0) {
+        const [result] = await pool.query(
+          `UPDATE relogio_funcionario
+           SET status = 2
+           WHERE relogio_id = ? AND matricula NOT IN (?) AND status != -1`,
+          [relogioId, matriculasArr]
+        );
+        vinculosInativados += result.affectedRows || 0;
+      } else {
+        // Se a lista veio vazia, inativar todos (exceto excluídos)
+        const [result] = await pool.query(
+          `UPDATE relogio_funcionario
+           SET status = 2
+           WHERE relogio_id = ? AND status != -1`,
+          [relogioId]
+        );
+        vinculosInativados += result.affectedRows || 0;
+      }
+    }
+
+    res.json({
+      success: true,
+      relogios_atualizados: relogiosAtualizados,
+      vinculos_ativados: vinculosAtivados,
+      vinculos_inativados: vinculosInativados
+    });
+  } catch (error) {
+    console.error('Erro em /api/relogios/analise-vinculo:', error);
+    res.status(500).json({ success: false, error: 'Erro ao processar análise de vínculos' });
   }
 });
 

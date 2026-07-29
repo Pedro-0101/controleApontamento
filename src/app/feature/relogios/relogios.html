@@ -36,6 +36,19 @@
       <lucide-icon name="users" [size]="16"></lucide-icon>
       Funcionários
     </button>
+    <button
+      id="tab-reestruturar"
+      class="tab"
+      role="tab"
+      aria-controls="panel-reestruturar"
+      [attr.aria-selected]="activeTab() === 'reestruturar'"
+      [attr.tabindex]="activeTab() === 'reestruturar' ? 0 : -1"
+      [class.active]="activeTab() === 'reestruturar'"
+      (click)="activeTab.set('reestruturar')"
+    >
+      <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
+      Reestruturar
+    </button>
   </div>
 
   <div
@@ -131,5 +144,242 @@
     [hidden]="activeTab() !== 'funcionarios'"
   >
     <app-relogios-funcionarios />
+  </div>
+
+  <div
+    id="panel-reestruturar"
+    role="tabpanel"
+    aria-labelledby="tab-reestruturar"
+    [hidden]="activeTab() !== 'reestruturar'"
+  >
+    @if (analiseState() === 'idle') {
+      <div class="analyze-idle">
+        <div class="analyze-days">
+          <label for="diasAnalise">Buscar últimos</label>
+          <input
+            type="number"
+            id="diasAnalise"
+            class="dias-input"
+            [value]="diasAnalise()"
+            min="1"
+            max="500"
+            (change)="onDiasAnaliseChange($any($event.target).value)"
+          />
+          <span>dias</span>
+        </div>
+
+        <div class="relogio-selection">
+          <div class="relogio-selection-header">
+            <span class="selection-title">
+              Relógios a analisar ({{ getRelogiosSelecionadosCount() }}/{{ allRelogios().length }})
+            </span>
+            <div class="selection-actions">
+              <button class="btn-link" (click)="selecionarTodosRelogios(true)">
+                {{ searchRelogios() ? 'Selecionar visíveis' : 'Selecionar todos' }}
+              </button>
+              <button class="btn-link" (click)="selecionarTodosRelogios(false)">
+                {{ searchRelogios() ? 'Desmarcar visíveis' : 'Desmarcar todos' }}
+              </button>
+            </div>
+          </div>
+          <div class="relogio-selection-search">
+            <lucide-icon name="search" [size]="14"></lucide-icon>
+            <input
+              type="text"
+              placeholder="Buscar relógio..."
+              [value]="searchRelogios()"
+              (input)="searchRelogios.set($any($event.target).value)"
+            />
+          </div>
+          <div class="relogio-selection-list">
+            @for (relogio of relogiosFiltradosSelecao(); track relogio.numSerie) {
+              <label class="relogio-selection-item" [class.selected]="relogiosSelecionados().has(relogio.numSerie)">
+                <input
+                  type="checkbox"
+                  [checked]="relogiosSelecionados().has(relogio.numSerie)"
+                  (change)="toggleRelogioSelecionado(relogio.numSerie)"
+                />
+                <div class="selection-item-info">
+                  <span class="selection-item-desc">{{ relogio.descricao || 'Sem descrição' }}</span>
+                  <span class="selection-item-sn">SN: {{ relogio.numSerie }}</span>
+                </div>
+              </label>
+            }
+          </div>
+        </div>
+
+        <button
+          class="btn-analyze"
+          [class.disabled]="getRelogiosSelecionadosCount() === 0"
+          [disabled]="getRelogiosSelecionadosCount() === 0"
+          (click)="iniciarAnalise()"
+        >
+          <lucide-icon name="refresh-cw" [size]="20"></lucide-icon>
+          Iniciar Análise de Vínculos
+        </button>
+        <p class="analyze-hint">
+          Irá buscar as marcações dos relógios selecionados nos últimos {{ diasAnalise() }} dias e exibir os funcionários que bateram ponto em cada um.
+        </p>
+      </div>
+    }
+
+    @if (analiseState() === 'analyzing') {
+      <div class="terminal-container">
+        <div class="terminal-header">
+          <span class="terminal-dot red"></span>
+          <span class="terminal-dot yellow"></span>
+          <span class="terminal-dot green"></span>
+          <span class="terminal-title">análise-vínculos</span>
+          <button class="btn-cancel" (click)="cancelarAnalise()">
+            <lucide-icon name="x" [size]="14"></lucide-icon>
+            Cancelar
+          </button>
+        </div>
+        <div class="terminal-body" #logContainer>
+          @for (line of logLines(); track $index) {
+            <div class="log-line">{{ line }}</div>
+          }
+          <div class="log-line cursor-blink">▋</div>
+        </div>
+      </div>
+    }
+
+    @if (analiseState() === 'confirmando' || analiseState() === 'aplicado') {
+      <div class="confirmacao-container">
+        <div class="confirmacao-header">
+          <h2>
+            <lucide-icon name="check-circle" [size]="22"></lucide-icon>
+            Análise Concluída — Revise os vínculos
+          </h2>
+          <div class="confirmacao-actions">
+            <span class="confirmacao-resumo">
+              {{ getTotalSelecionados() }} funcionário(s) selecionado(s) em {{ analiseResultados().length }} relógio(s)
+            </span>
+            <button class="btn-voltar" (click)="voltarAnalise()">
+              <lucide-icon name="chevron-left" [size]="16"></lucide-icon>
+              Voltar
+            </button>
+            <button class="btn-refazer" (click)="iniciarAnalise()">
+              <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
+              Refazer Análise
+            </button>
+            @if (analiseState() === 'confirmando') {
+              <button
+                class="btn-confirm"
+                [class.disabled]="isApplying()"
+                [disabled]="isApplying()"
+                (click)="confirmarVinculacao()"
+              >
+                @if (isApplying()) {
+                  <span class="spinner-inline light"></span>
+                  Aplicando...
+                } @else {
+                  <lucide-icon name="save" [size]="18"></lucide-icon>
+                  Confirmar Vinculação
+                }
+              </button>
+            }
+          </div>
+        </div>
+
+        @if (analiseState() === 'aplicado') {
+          <div class="aplicado-banner">
+            <lucide-icon name="check-circle" [size]="20"></lucide-icon>
+            Vínculos aplicados com sucesso!
+          </div>
+        }
+
+        <div class="confirmacao-terminal">
+          <div class="terminal-header">
+            <span class="terminal-dot red"></span>
+            <span class="terminal-dot yellow"></span>
+            <span class="terminal-dot green"></span>
+            <span class="terminal-title">análise-vínculos — log</span>
+          </div>
+          <div class="terminal-body terminal-body-compact" #logConfirmContainer>
+            @for (line of logLines(); track $index) {
+              <div class="log-line">{{ line }}</div>
+            }
+          </div>
+        </div>
+
+        <div class="confirmacao-lista">
+          @if (analiseResultados().length === 0) {
+            <div class="confirmacao-empty">
+              <lucide-icon name="alert-circle" [size]="24"></lucide-icon>
+              <p>Nenhum resultado de análise disponível.</p>
+              <p class="confirmacao-empty-hint">Verifique se os relógios foram carregados e tente novamente.</p>
+              <button class="btn-voltar" (click)="voltarAnalise()">
+                <lucide-icon name="chevron-left" [size]="16"></lucide-icon>
+                Voltar
+              </button>
+            </div>
+          } @else {
+            @for (resultado of analiseResultados(); track resultado.numSerie) {
+              <div class="relogio-card">
+                <div class="relogio-card-header">
+                  <div class="relogio-card-title">
+                    <lucide-icon name="clock" [size]="18"></lucide-icon>
+                    <strong>{{ resultado.descricao }}</strong>
+                    <span class="relogio-card-sn">(SN: {{ resultado.numSerie }})</span>
+                  </div>
+                  <div class="relogio-card-actions">
+                    @if (resultado.funcionarios.length > 0) {
+                      <button class="btn-link" (click)="selecionarTodosRelogio(resultado.numSerie, true)">
+                        Selecionar todos
+                      </button>
+                      <button class="btn-link" (click)="selecionarTodosRelogio(resultado.numSerie, false)">
+                        Desmarcar todos
+                      </button>
+                    }
+                    <span class="relogio-card-count">
+                      {{ getSelecionadosCount(resultado.numSerie) }}/{{ resultado.funcionarios.length }} selecionados
+                    </span>
+                  </div>
+                </div>
+
+                @if (resultado.funcionarios.length === 0) {
+                  <div class="relogio-card-empty">
+                    Nenhum funcionário bateu neste relógio no período. Os vínculos existentes serão inativados.
+                  </div>
+                } @else {
+                  <table class="confirmacao-table">
+                    <thead>
+                      <tr>
+                        <th class="col-check"></th>
+                        <th>Matrícula</th>
+                        <th>Nome</th>
+                        <th>Última Batida</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (f of resultado.funcionarios; track f.matricula) {
+                        <tr
+                          class="confirmacao-row"
+                          [class.deselected]="!f.selecionado"
+                          (click)="toggleFuncionario(resultado.numSerie, f.matricula)"
+                        >
+                          <td class="col-check">
+                            <input
+                              type="checkbox"
+                              [checked]="f.selecionado"
+                              (click)="$event.stopPropagation()"
+                              (change)="toggleFuncionario(resultado.numSerie, f.matricula)"
+                            />
+                          </td>
+                          <td class="col-matricula">{{ f.matricula }}</td>
+                          <td>{{ f.nome }}</td>
+                          <td class="col-data">{{ f.ultimaBatida | date:'dd/MM/yyyy HH:mm' }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                }
+              </div>
+            }
+          }
+        </div>
+      </div>
+    }
   </div>
 </div>
