@@ -312,6 +312,10 @@ export class Relogios implements OnInit {
         const relogio = relogios[i];
         addLog(`[${i + 1}/${relogios.length}] Buscando: ${relogio.descricao || 'Sem descrição'} (SN: ${relogio.numSerie})`);
 
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 800));
+        }
+
         const marcacoes = await this.marcacaoApiService.getMarcacoesByRelogio(
           relogio.numSerie,
           fmt(inicio),
@@ -402,8 +406,6 @@ export class Relogios implements OnInit {
       this.isAnalyzing.set(false);
       const wasCancelled = this.cancelRequested;
       this.cancelRequested = false;
-
-      console.log('[Reestruturar] Análise finalizada', { wasCancelled, resultadosLength: resultados.length, analiseState: wasCancelled ? 'idle' : 'confirmando' });
 
       if (!wasCancelled) {
         this.analiseResultados.set([...resultados]);

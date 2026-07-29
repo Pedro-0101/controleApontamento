@@ -124,6 +124,7 @@ export class MarcacaoApiService {
         })
           .pipe(
             catchError((error) => {
+              console.error('[MarcacaoApi] Erro HTTP:', error?.status, error?.message || error);
               this.logger.error('MarcacaoApiService [callSelecionaMarcacoes]', 'Erro na chamada HTTP:', error);
               return of([]);
             })
