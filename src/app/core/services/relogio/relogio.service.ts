@@ -1,4 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { LoggerService } from '../logger/logger.service';
 import { environment } from '../../../../environments/environment';
 import { ApiSessionService } from '../apiSession/api-session.service';
@@ -12,6 +14,7 @@ import { MarcacaoDia } from '../../../models/marcacaoDia/marcacao-dia';
 export class RelogioService {
   private loggerService = inject(LoggerService);
   private apiSessionService = inject(ApiSessionService);
+  private http = inject(HttpClient);
 
   private apiUrl = environment.apiUrlListaRelogios;
 
@@ -102,5 +105,76 @@ export class RelogioService {
   public normalizeNumSerie(numSerie: string | undefined | null): string {
     if (!numSerie) return '';
     return numSerie.replace(/\./g, '').replace(/^0+/, '');
+  }
+
+  async getFuncionariosCountFromDB(numSeries?: string[]): Promise<Map<string, number>> {
+    try {
+      let url = '/api/relogios/funcionarios-count';
+      if (numSeries && numSeries.length > 0) {
+        url += '?num_series=' + numSeries.map(ns => encodeURIComponent(ns)).join(',');
+      }
+      const resp = await firstValueFrom(this.http.get<{ success: boolean; counts: Record<string, number> }>(url));
+      if (!resp.success) return new Map();
+      const map = new Map<string, number>();
+      for (const [key, value] of Object.entries(resp.counts)) {
+        map.set(key, value);
+      }
+      return map;
+    } catch (error) {
+      this.loggerService.error('RelogioService', 'Erro ao buscar contagem de funcionários: ' + error);
+      return new Map();
+    }
+  }
+
+  async toggleAtivo(numSerie: string, ativo: boolean): Promise<boolean> {
+    try {
+      const resp = await firstValueFrom(
+        this.http.post<{ success: boolean; message: string }>('/api/relogios/toggle-ativo', { num_serie: numSerie, ativo })
+      );
+      return resp.success;
+    } catch (error) {
+      this.loggerService.error('RelogioService', 'Erro ao alterar status do relógio: ' + error);
+      return false;
+    }
+  }
+
+  async toggleAtivoBulk(numSeries: string[], ativo: boolean): Promise<boolean> {
+    try {
+      const resp = await firstValueFrom(
+        this.http.post<{ success: boolean; atualizados: number; message: string }>('/api/relogios/toggle-ativo-bulk', { num_series: numSeries, ativo })
+      );
+      return resp.success;
+    } catch (error) {
+      this.loggerService.error('RelogioService', 'Erro ao alterar status em lote: ' + error);
+      return false;
+    }
+  }
+
+  async fetchLocalStatus(): Promise<Record<string, boolean>> {
+    try {
+      const resp = await firstValueFrom(
+        this.http.get<{ success: boolean; status: Record<string, boolean> }>('/api/relogios/local-status')
+      );
+      if (!resp.success) return {};
+      return resp.status;
+    } catch (error) {
+      this.loggerService.error('RelogioService', 'Erro ao buscar status local: ' + error);
+      return {};
+    }
+  }
+
+  async mergeLocalStatus(relogios: Relogio[]): Promise<Relogio[]> {
+    try {
+      const statusMap = await this.fetchLocalStatus();
+      for (const r of relogios) {
+        const key = this.normalizeNumSerie(r.numSerie);
+        if (key in statusMap) {
+          r.ativo = statusMap[key];
+        }
+      }
+    } catch {
+      // mantém ativo=true (default) se falhar
+    }
+    return relogios;
   }
 }

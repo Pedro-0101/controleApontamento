@@ -5,6 +5,7 @@ export interface IRelogio {
   descricao: string;
   numSerie: string;
   status: number;
+  ativo: boolean;
 }
 
 export class Relogio implements IRelogio {
@@ -15,6 +16,7 @@ export class Relogio implements IRelogio {
   descricao: string = '';
   numSerie: string = '';
   status: number = 0;
+  ativo: boolean = true;
 
   constructor(data: Partial<IRelogio>) {
     Object.assign(this, data);

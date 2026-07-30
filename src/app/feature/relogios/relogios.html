@@ -65,18 +65,14 @@
     } @else {
       <div class="table-container">
         <div class="filters-row">
-          <div class="dias-input-group">
-            <label for="diasBusca" class="dias-label">Buscar últimos</label>
+          <div class="table-search">
+            <lucide-icon name="search" [size]="14"></lucide-icon>
             <input
-              type="number"
-              id="diasBusca"
-              class="dias-input"
-              [value]="diasBusca()"
-              min="1"
-              max="500"
-              (change)="onDiasBuscaChange($any($event.target).value)"
+              type="text"
+              placeholder="Buscar por série ou descrição..."
+              [value]="searchTableRelogios()"
+              (input)="onSearchTableRelogiosChange($any($event.target).value)"
             />
-            <span class="dias-sufixo">dias</span>
           </div>
           <app-range-slider
             label="Mín. funcionários:"
@@ -87,37 +83,107 @@
           />
         </div>
 
+        @if (checkedCount() > 0) {
+          <div class="bulk-actions-bar">
+            <span class="bulk-actions-count">{{ checkedCount() }} relógio(s) selecionado(s)</span>
+            <div class="bulk-actions-buttons">
+              <button class="btn-bulk-activate" (click)="ativarSelecionados()" [disabled]="isBulkToggling()">
+                @if (isBulkToggling()) {
+                  <span class="spinner-inline light"></span>
+                } @else {
+                  <lucide-icon name="check-circle" [size]="14"></lucide-icon>
+                }
+                Ativar
+              </button>
+              <button class="btn-bulk-deactivate" (click)="desativarSelecionados()" [disabled]="isBulkToggling()">
+                @if (isBulkToggling()) {
+                  <span class="spinner-inline light"></span>
+                } @else {
+                  <lucide-icon name="x-circle" [size]="14"></lucide-icon>
+                }
+                Desativar
+              </button>
+            </div>
+          </div>
+        }
+
         <table class="data-table">
           <thead>
             <tr>
-              <th>Número de Série</th>
-              <th>Descrição</th>
-              <th>Nº Funcionários</th>
-              <th>Data Criação</th>
+              <th class="col-check">
+                <input
+                  type="checkbox"
+                  [checked]="allFilteredChecked()"
+                  (change)="toggleCheckAllFiltered()"
+                />
+              </th>
+              <th class="sortable" (click)="onSortColumn('numSerie')">
+                Número de Série
+                @if (sortColumn() === 'numSerie') {
+                  <lucide-icon [name]="sortDirection() === 'asc' ? 'chevron-up' : 'chevron-down'" [size]="14"></lucide-icon>
+                }
+              </th>
+              <th class="sortable" (click)="onSortColumn('descricao')">
+                Descrição
+                @if (sortColumn() === 'descricao') {
+                  <lucide-icon [name]="sortDirection() === 'asc' ? 'chevron-up' : 'chevron-down'" [size]="14"></lucide-icon>
+                }
+              </th>
+              <th class="sortable" (click)="onSortColumn('funcionarios')">
+                Nº Funcionários
+                @if (sortColumn() === 'funcionarios') {
+                  <lucide-icon [name]="sortDirection() === 'asc' ? 'chevron-up' : 'chevron-down'" [size]="14"></lucide-icon>
+                }
+              </th>
+              <th class="sortable" (click)="onSortColumn('dataCriacao')">
+                Data Criação
+                @if (sortColumn() === 'dataCriacao') {
+                  <lucide-icon [name]="sortDirection() === 'asc' ? 'chevron-up' : 'chevron-down'" [size]="14"></lucide-icon>
+                }
+              </th>
+              <th>Ativo</th>
             </tr>
           </thead>
           <tbody>
             @for (relogio of paginatedRelogios(); track relogio.numSerie) {
-              <tr>
+              <tr [class.row-disabled]="!relogio.ativo">
+                <td class="col-check">
+                  <input
+                    type="checkbox"
+                    [checked]="checkedRelogios().has(relogio.numSerie)"
+                    (click)="$event.stopPropagation()"
+                    (change)="toggleCheckRelogio(relogio.numSerie)"
+                  />
+                </td>
                 <td class="num-serie">
                   <lucide-icon name="clock" [size]="16"></lucide-icon>
                   {{ relogio.numSerie }}
                 </td>
                 <td>{{ relogio.descricao }}</td>
                 <td>
-                  @if (pendingCounts().has(relogio.numSerie)) {
+                  @if (isLoadingCounts()) {
                     <span class="count-loading">
                       <span class="spinner-inline"></span>
                     </span>
                   } @else {
-                    <span class="badge badge-func-count" title="Número de funcionários com marcações nos últimos {{ diasBusca() }} dias">{{ getFuncionariosCount(relogio.numSerie) }}</span>
+                    <span class="badge badge-func-count" title="Funcionários vinculados">{{ getFuncionariosCount(relogio.numSerie) }}</span>
                   }
                 </td>
                 <td>{{ relogio.dataCriacao }}</td>
+                <td class="col-ativo">
+                  <label class="toggle-switch" [class.active]="relogio.ativo">
+                    <input
+                      type="checkbox"
+                      [checked]="relogio.ativo"
+                      (change)="toggleAtivoRelogio(relogio.numSerie)"
+                    />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </td>
               </tr>
             } @empty {
               <tr>
-                <td colspan="4" class="empty-state">
+                <td colspan="6" class="empty-state">
                   <lucide-icon name="clock" [size]="48"></lucide-icon>
                   <p>Nenhum relógio encontrado</p>
                 </td>
@@ -171,7 +237,7 @@
         <div class="relogio-selection">
           <div class="relogio-selection-header">
             <span class="selection-title">
-              Relógios a analisar ({{ getRelogiosSelecionadosCount() }}/{{ allRelogios().length }})
+              Relógios a analisar ({{ getRelogiosSelecionadosCount() }}/{{ totalRelogiosAtivos() }})
             </span>
             <div class="selection-actions">
               <button class="btn-link" (click)="selecionarTodosRelogios(true)">
@@ -304,6 +370,21 @@
         </div>
 
         <div class="confirmacao-lista">
+          <div class="confirmacao-search">
+            <lucide-icon name="search" [size]="14"></lucide-icon>
+            <input
+              type="text"
+              placeholder="Filtrar funcionários por matrícula ou nome..."
+              [value]="searchFuncionarioConfirmacao()"
+              (input)="searchFuncionarioConfirmacao.set($any($event.target).value)"
+            />
+            @if (searchFuncionarioConfirmacao()) {
+              <button class="btn-search-clear" (click)="searchFuncionarioConfirmacao.set('')">
+                <lucide-icon name="x" [size]="14"></lucide-icon>
+              </button>
+            }
+          </div>
+
           @if (analiseResultados().length === 0) {
             <div class="confirmacao-empty">
               <lucide-icon name="alert-circle" [size]="24"></lucide-icon>
@@ -315,7 +396,7 @@
               </button>
             </div>
           } @else {
-            @for (resultado of analiseResultados(); track resultado.numSerie) {
+            @for (resultado of analiseResultadosFiltrados(); track resultado.numSerie) {
               <div class="relogio-card">
                 <div class="relogio-card-header">
                   <div class="relogio-card-title">

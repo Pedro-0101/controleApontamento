@@ -46,9 +46,22 @@ export class Relogios implements OnInit {
   isLoading = signal(true);
 
   funcionariosPorRelogio = signal<Map<string, number>>(new Map());
-  pendingCounts = signal<Set<string>>(new Set());
+  isLoadingCounts = signal(false);
   minFuncionariosFilter = signal(0);
-  diasBusca = signal(7);
+  maxFuncionariosFilter = signal(50);
+  searchTableRelogios = signal('');
+  sortColumn = signal<'numSerie' | 'descricao' | 'funcionarios' | 'dataCriacao' | null>(null);
+  sortDirection = signal<'asc' | 'desc'>('asc');
+  checkedRelogios = signal<Set<string>>(new Set());
+  isBulkToggling = signal(false);
+
+  allFilteredChecked = computed(() => {
+    const filtered = this.filteredRelogios();
+    if (filtered.length === 0) return false;
+    return filtered.every(r => this.checkedRelogios().has(r.numSerie));
+  });
+
+  checkedCount = computed(() => this.checkedRelogios().size);
 
   logLines = signal<string[]>([]);
   isAnalyzing = signal(false);
@@ -60,17 +73,63 @@ export class Relogios implements OnInit {
   diasAnalise = signal(30);
   private cancelRequested = false;
 
+  searchFuncionarioConfirmacao = signal('');
+
   readonly maxFuncionariosSlider = 50;
+
+  totalRelogiosAtivos = computed(() => this.allRelogios().filter(r => r.ativo).length);
 
   filteredRelogios = computed(() => {
     let result = this.allRelogios();
     const countMap = this.funcionariosPorRelogio();
 
+    const search = this.searchTableRelogios().toLowerCase().trim();
+    if (search) {
+      result = result.filter(r =>
+        r.descricao.toLowerCase().includes(search) ||
+        r.numSerie.toLowerCase().includes(search)
+      );
+    }
+
     const min = this.minFuncionariosFilter();
-    if (min > 0) {
+    const max = this.maxFuncionariosFilter();
+    if (min > 0 || max < this.maxFuncionariosSlider) {
       result = result.filter(r => {
         const key = this.relogioService.normalizeNumSerie(r.numSerie);
-        return (countMap.get(key) ?? 0) >= min;
+        const count = countMap.get(key) ?? 0;
+        return count >= min && count <= max;
+      });
+    }
+
+    const col = this.sortColumn();
+    if (col) {
+      const dir = this.sortDirection() === 'asc' ? 1 : -1;
+      result = [...result].sort((a, b) => {
+        let va: any, vb: any;
+        switch (col) {
+          case 'numSerie':
+            va = this.relogioService.normalizeNumSerie(a.numSerie);
+            vb = this.relogioService.normalizeNumSerie(b.numSerie);
+            break;
+          case 'descricao':
+            va = a.descricao.toLowerCase();
+            vb = b.descricao.toLowerCase();
+            break;
+          case 'funcionarios':
+            va = countMap.get(this.relogioService.normalizeNumSerie(a.numSerie)) ?? 0;
+            vb = countMap.get(this.relogioService.normalizeNumSerie(b.numSerie)) ?? 0;
+            break;
+          case 'dataCriacao':
+            va = a.dataCriacao || '';
+            vb = b.dataCriacao || '';
+            break;
+          default:
+            return 0;
+        }
+        if (typeof va === 'string' && typeof vb === 'string') {
+          return va.localeCompare(vb) * dir;
+        }
+        return ((va as number) - (vb as number)) * dir;
       });
     }
 
@@ -90,15 +149,16 @@ export class Relogios implements OnInit {
 
   async ngOnInit() {
     await this.loadRelogios();
-    this.loadCountForPage();
+    this.loadFuncionariosCount();
   }
 
   async loadRelogios() {
     this.isLoading.set(true);
     try {
       const relogios = await this.relogioService.updateRelogios();
+      await this.relogioService.mergeLocalStatus(relogios);
       this.allRelogios.set(relogios);
-      this.relogiosSelecionados.set(new Set(relogios.map(r => r.numSerie)));
+      this.relogiosSelecionados.set(new Set(relogios.filter(r => r.ativo).map(r => r.numSerie)));
     } catch (error) {
       console.error('Erro ao carregar relógios:', error);
     } finally {
@@ -106,84 +166,143 @@ export class Relogios implements OnInit {
     }
   }
 
-  private async loadCountForPage() {
-    const relogios = this.paginatedRelogios();
-    if (relogios.length === 0) return;
-
-    const existing = this.funcionariosPorRelogio();
-
-    const toFetch = relogios.filter(r => !existing.has(this.relogioService.normalizeNumSerie(r.numSerie)));
-    if (toFetch.length === 0) return;
-
-    const pending = new Set(this.pendingCounts());
-    for (const r of toFetch) pending.add(r.numSerie);
-    this.pendingCounts.set(pending);
-
-    const hoje = new Date();
-    const inicio = new Date(hoje);
-    inicio.setDate(inicio.getDate() - this.diasBusca());
-
-    const fmt = (d: Date) =>
-      `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-
+  private async loadFuncionariosCount() {
+    this.isLoadingCounts.set(true);
     try {
-      const newMap = new Map(existing);
-
-      for (const relogio of toFetch) {
-        const marcacoes = await this.marcacaoApiService.getMarcacoesByRelogio(
-          relogio.numSerie,
-          fmt(inicio),
-          fmt(hoje)
-        );
-
-        const matriculasUnicas = new Set<string>();
-        for (const m of marcacoes) {
-          const mat = m.matriculaFuncionario?.trim();
-          if (mat) matriculasUnicas.add(mat);
-        }
-
-        const key = this.relogioService.normalizeNumSerie(relogio.numSerie);
-        newMap.set(key, matriculasUnicas.size);
-      }
-
-      this.funcionariosPorRelogio.set(newMap);
+      const counts = await this.relogioService.getFuncionariosCountFromDB();
+      this.funcionariosPorRelogio.set(counts);
     } catch (error) {
-      console.error('[Relogios] Erro ao carregar contagem:', error);
+      console.error('[Relogios] Erro ao carregar contagem do banco:', error);
     } finally {
-      const done = new Set(this.pendingCounts());
-      for (const r of toFetch) done.delete(r.numSerie);
-      this.pendingCounts.set(done);
+      this.isLoadingCounts.set(false);
     }
   }
 
-  onDiasBuscaChange(dias: string) {
-    const valor = parseInt(dias, 10);
-    if (isNaN(valor) || valor < 1) {
-      this.diasBusca.set(1);
-    } else if (valor > 500) {
-      this.diasBusca.set(500);
+  async toggleAtivoRelogio(numSerie: string) {
+    const relogio = this.allRelogios().find(r => r.numSerie === numSerie);
+    if (!relogio) return;
+
+    const novoAtivo = !relogio.ativo;
+    const ok = await this.relogioService.toggleAtivo(numSerie, novoAtivo);
+    if (!ok) return;
+
+    relogio.ativo = novoAtivo;
+    this.allRelogios.update(relogios => [...relogios]);
+
+    if (!novoAtivo) {
+      this.relogiosSelecionados.update(set => {
+        const novo = new Set(set);
+        novo.delete(numSerie);
+        return novo;
+      });
     } else {
-      this.diasBusca.set(valor);
+      this.relogiosSelecionados.update(set => {
+        const novo = new Set(set);
+        novo.add(numSerie);
+        return novo;
+      });
     }
-    this.funcionariosPorRelogio.set(new Map());
-    this.currentPage.set(1);
-    this.loadCountForPage();
+  }
+
+  toggleCheckRelogio(numSerie: string) {
+    this.checkedRelogios.update(set => {
+      const novo = new Set(set);
+      if (novo.has(numSerie)) {
+        novo.delete(numSerie);
+      } else {
+        novo.add(numSerie);
+      }
+      return novo;
+    });
+  }
+
+  toggleCheckAllFiltered() {
+    if (this.allFilteredChecked()) {
+      this.checkedRelogios.set(new Set());
+    } else {
+      this.checkedRelogios.set(new Set(this.filteredRelogios().map(r => r.numSerie)));
+    }
+  }
+
+  async ativarSelecionados() {
+    const checked = [...this.checkedRelogios()];
+    if (checked.length === 0) return;
+
+    this.isBulkToggling.set(true);
+    try {
+      const ok = await this.relogioService.toggleAtivoBulk(checked, true);
+      if (!ok) return;
+
+      this.allRelogios.update(relogios => {
+        for (const r of relogios) {
+          if (checked.includes(r.numSerie)) r.ativo = true;
+        }
+        return [...relogios];
+      });
+
+      this.relogiosSelecionados.update(set => {
+        const novo = new Set(set);
+        for (const ns of checked) novo.add(ns);
+        return novo;
+      });
+
+      this.checkedRelogios.set(new Set());
+    } finally {
+      this.isBulkToggling.set(false);
+    }
+  }
+
+  async desativarSelecionados() {
+    const checked = [...this.checkedRelogios()];
+    if (checked.length === 0) return;
+
+    this.isBulkToggling.set(true);
+    try {
+      const ok = await this.relogioService.toggleAtivoBulk(checked, false);
+      if (!ok) return;
+
+      this.allRelogios.update(relogios => {
+        for (const r of relogios) {
+          if (checked.includes(r.numSerie)) r.ativo = false;
+        }
+        return [...relogios];
+      });
+
+      this.relogiosSelecionados.update(set => {
+        const novo = new Set(set);
+        for (const ns of checked) novo.delete(ns);
+        return novo;
+      });
+
+      this.checkedRelogios.set(new Set());
+    } finally {
+      this.isBulkToggling.set(false);
+    }
   }
 
   onMinFuncionariosChange(range: RangeValue) {
     this.minFuncionariosFilter.set(range.min);
+    this.maxFuncionariosFilter.set(range.max);
+    this.currentPage.set(1);
+  }
+
+  onSortColumn(col: 'numSerie' | 'descricao' | 'funcionarios' | 'dataCriacao') {
+    if (this.sortColumn() === col) {
+      this.sortDirection.update(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      this.sortColumn.set(col);
+      this.sortDirection.set('asc');
+    }
     this.currentPage.set(1);
   }
 
   onPageChange(page: number) {
     this.currentPage.set(page);
-    this.loadCountForPage();
   }
 
   onItemsPerPageChange(items: number) {
     this.itemsPerPage.set(items);
     this.currentPage.set(1);
-    this.loadCountForPage();
   }
 
   onDiasAnaliseChange(dias: string) {
@@ -228,12 +347,33 @@ export class Relogios implements OnInit {
 
   relogiosFiltradosSelecao = computed(() => {
     const search = this.searchRelogios().toLowerCase().trim();
-    if (!search) return this.allRelogios();
-    return this.allRelogios().filter(r =>
+    let base = this.allRelogios().filter(r => r.ativo);
+    if (!search) return base;
+    return base.filter(r =>
       r.descricao.toLowerCase().includes(search) ||
       r.numSerie.toLowerCase().includes(search)
     );
   });
+
+  analiseResultadosFiltrados = computed(() => {
+    const search = this.searchFuncionarioConfirmacao().toLowerCase().trim();
+    if (!search) return this.analiseResultados();
+
+    return this.analiseResultados()
+      .map(r => ({
+        ...r,
+        funcionarios: r.funcionarios.filter(f =>
+          f.matricula.toLowerCase().includes(search) ||
+          f.nome.toLowerCase().includes(search)
+        )
+      }))
+      .filter(r => r.funcionarios.length > 0);
+  });
+
+  onSearchTableRelogiosChange(value: string) {
+    this.searchTableRelogios.set(value);
+    this.currentPage.set(1);
+  }
 
   async iniciarAnalise() {
     this.isAnalyzing.set(true);
@@ -492,6 +632,7 @@ export class Relogios implements OnInit {
 
       if (resp.success) {
         this.analiseState.set('aplicado');
+        this.loadFuncionariosCount();
         this.logLines.update(lines => [
           ...lines,
           ``,

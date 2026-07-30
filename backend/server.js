@@ -369,6 +369,18 @@ async function initializeDatabase() {
     `);
     console.log('Tabela relogios verificada/criada com sucesso');
 
+    // Adicionar coluna ativo se não existir
+    try {
+      await pool.query(`ALTER TABLE relogios ADD COLUMN ativo TINYINT(1) DEFAULT 1`);
+      console.log('Coluna ativo adicionada à tabela relogios');
+    } catch (e) {
+      if (e.code === 'ER_DUP_FIELDNAME') {
+        console.log('Coluna ativo já existe na tabela relogios');
+      } else {
+        console.error('Erro ao adicionar coluna ativo:', e.message);
+      }
+    }
+
     // Criar tabela de relacionamento relogio x funcionario se não existir
     await pool.query(`
       CREATE TABLE IF NOT EXISTS relogio_funcionario (
@@ -1849,6 +1861,115 @@ app.post('/api/relogios/analise-vinculo', async (req, res) => {
   } catch (error) {
     console.error('Erro em /api/relogios/analise-vinculo:', error);
     res.status(500).json({ success: false, error: 'Erro ao processar análise de vínculos' });
+  }
+});
+
+// Endpoint para buscar contagem de funcionários vinculados por relógio
+app.get('/api/relogios/funcionarios-count', async (req, res) => {
+  try {
+    const numSeriesParam = req.query.num_series;
+    const numSeries = numSeriesParam ? numSeriesParam.split(',') : null;
+
+    let query;
+    let params = [];
+
+    if (numSeries && numSeries.length > 0) {
+      query = `
+        SELECT r.num_serie, COUNT(rf.id) as total
+        FROM relogios r
+        LEFT JOIN relogio_funcionario rf ON r.id = rf.relogio_id AND rf.status = 1
+        WHERE r.num_serie IN (?)
+        GROUP BY r.num_serie
+      `;
+      params = [numSeries];
+    } else {
+      query = `
+        SELECT r.num_serie, COUNT(rf.id) as total
+        FROM relogios r
+        LEFT JOIN relogio_funcionario rf ON r.id = rf.relogio_id AND rf.status = 1
+        GROUP BY r.num_serie
+      `;
+    }
+
+    const [rows] = await pool.query(query, params);
+
+    const counts = {};
+    for (const row of rows) {
+      counts[row.num_serie] = row.total;
+    }
+
+    res.json({ success: true, counts });
+  } catch (error) {
+    console.error('Erro em /api/relogios/funcionarios-count:', error);
+    res.status(500).json({ success: false, error: 'Erro ao buscar contagem de funcionários' });
+  }
+});
+
+// Endpoint para ativar/desativar um relógio
+app.post('/api/relogios/toggle-ativo', async (req, res) => {
+  try {
+    const { num_serie, ativo } = req.body;
+    if (!num_serie) {
+      return res.status(400).json({ success: false, error: 'num_serie é obrigatório' });
+    }
+
+    await pool.query(
+      `INSERT INTO relogios (num_serie, descricao, ativo) VALUES (?, '', ?)
+       ON DUPLICATE KEY UPDATE ativo = VALUES(ativo)`,
+      [num_serie, ativo ? 1 : 0]
+    );
+
+    res.json({ success: true, message: ativo ? 'Relógio ativado' : 'Relógio desativado' });
+  } catch (error) {
+    console.error('Erro em /api/relogios/toggle-ativo:', error);
+    res.status(500).json({ success: false, error: 'Erro ao alterar status do relógio' });
+  }
+});
+
+// Endpoint para ativar/desativar múltiplos relógios em lote
+app.post('/api/relogios/toggle-ativo-bulk', async (req, res) => {
+  try {
+    const { num_series, ativo } = req.body;
+    if (!Array.isArray(num_series) || num_series.length === 0) {
+      return res.status(400).json({ success: false, error: 'num_series deve ser um array não vazio' });
+    }
+
+    const valor = ativo ? 1 : 0;
+    await pool.query(
+      'UPDATE relogios SET ativo = ? WHERE num_serie IN (?)',
+      [valor, num_series]
+    );
+
+    // Upsert para relógios que ainda não existem na tabela local
+    for (const ns of num_series) {
+      await pool.query(
+        `INSERT INTO relogios (num_serie, descricao, ativo) VALUES (?, '', ?)
+         ON DUPLICATE KEY UPDATE ativo = VALUES(ativo)`,
+        [ns, valor]
+      );
+    }
+
+    res.json({ success: true, atualizados: num_series.length, message: ativo ? 'Relógios ativados' : 'Relógios desativados' });
+  } catch (error) {
+    console.error('Erro em /api/relogios/toggle-ativo-bulk:', error);
+    res.status(500).json({ success: false, error: 'Erro ao alterar status dos relógios' });
+  }
+});
+
+// Endpoint para buscar status local dos relógios (ativo)
+app.get('/api/relogios/local-status', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT num_serie, ativo FROM relogios');
+
+    const statusMap = {};
+    for (const row of rows) {
+      statusMap[row.num_serie] = row.ativo === 1;
+    }
+
+    res.json({ success: true, status: statusMap });
+  } catch (error) {
+    console.error('Erro em /api/relogios/local-status:', error);
+    res.status(500).json({ success: false, error: 'Erro ao buscar status dos relógios' });
   }
 });
 
