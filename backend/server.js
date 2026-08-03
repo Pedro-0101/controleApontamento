@@ -1973,6 +1973,34 @@ app.get('/api/relogios/local-status', async (req, res) => {
   }
 });
 
+// Endpoint para listar funcionários vinculados a um relógio específico
+app.get('/api/relogios/:numSerie/funcionarios', async (req, res) => {
+  try {
+    const { numSerie } = req.params;
+    if (!numSerie) {
+      return res.status(400).json({ success: false, error: 'numSerie é obrigatório' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT q.matricula, q.nome, q.cargo,
+              e.nome AS empresa, l.nome AS local
+       FROM relogios r
+       INNER JOIN relogio_funcionario rf ON r.id = rf.relogio_id AND rf.status = 1
+       INNER JOIN qrcod_2023 q ON rf.matricula = q.matricula
+       LEFT JOIN empresas e ON q.empresa_id = e.id
+       LEFT JOIN locais l ON q.local_id = l.id
+       WHERE r.num_serie = ?
+       ORDER BY q.nome ASC`,
+      [numSerie]
+    );
+
+    res.json({ success: true, funcionarios: rows });
+  } catch (error) {
+    console.error('Erro em /api/relogios/:numSerie/funcionarios:', error);
+    res.status(500).json({ success: false, error: 'Erro ao buscar funcionários do relógio' });
+  }
+});
+
 // Inicializar servidor
 async function startServer() {
   await initializeDatabase();

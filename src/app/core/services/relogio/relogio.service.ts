@@ -163,6 +163,18 @@ export class RelogioService {
     }
   }
 
+  async getFuncionariosByRelogio(numSerie: string): Promise<any[]> {
+    try {
+      const resp = await firstValueFrom(
+        this.http.get<{ success: boolean; funcionarios: any[] }>(`/api/relogios/${encodeURIComponent(numSerie)}/funcionarios`)
+      );
+      return resp.success ? resp.funcionarios : [];
+    } catch (error) {
+      this.loggerService.error('RelogioService', 'Erro ao buscar funcionários do relógio: ' + error);
+      return [];
+    }
+  }
+
   async mergeLocalStatus(relogios: Relogio[]): Promise<Relogio[]> {
     try {
       const statusMap = await this.fetchLocalStatus();

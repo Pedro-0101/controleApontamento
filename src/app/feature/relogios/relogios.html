@@ -142,6 +142,7 @@
                 }
               </th>
               <th>Ativo</th>
+              <th class="col-acoes">Funcionários</th>
             </tr>
           </thead>
           <tbody>
@@ -180,10 +181,20 @@
                     <span class="toggle-slider"></span>
                   </label>
                 </td>
+                <td class="col-acoes">
+                  <button
+                    class="btn-funcionarios"
+                    title="Ver funcionários vinculados"
+                    (click)="openFuncionariosModal(relogio.numSerie, relogio.descricao || 'Sem descrição')"
+                  >
+                    <lucide-icon name="users" [size]="14"></lucide-icon>
+                    Ver
+                  </button>
+                </td>
               </tr>
             } @empty {
               <tr>
-                <td colspan="6" class="empty-state">
+                <td colspan="7" class="empty-state">
                   <lucide-icon name="clock" [size]="48"></lucide-icon>
                   <p>Nenhum relógio encontrado</p>
                 </td>
@@ -202,6 +213,14 @@
       </div>
     }
   </div>
+
+  @if (selectedRelogioNumSerie()) {
+    <app-modal-relogio-funcionarios
+      [numSerie]="selectedRelogioNumSerie()!"
+      [descricao]="selectedRelogioDescricao()!"
+      (close)="closeFuncionariosModal()"
+    ></app-modal-relogio-funcionarios>
+  }
 
   <div
     id="panel-funcionarios"

@@ -1,0 +1,109 @@
+<div class="modal-overlay" (click)="close.emit()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <h3>
+          <lucide-icon name="clock" [size]="20"></lucide-icon>
+          Funcionários do Relógio
+        </h3>
+        <span class="modal-subtitle">SN: {{ numSerie() }} — {{ descricao() }}</span>
+      </div>
+      <button class="btn-close" (click)="close.emit()">
+        <lucide-icon name="x" [size]="20"></lucide-icon>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      @if (isLoading()) {
+        <div class="loading-container">
+          <div class="spinner"></div>
+          <p>Carregando funcionários...</p>
+        </div>
+      } @else {
+        <div class="filters-row">
+          <div class="table-search">
+            <lucide-icon name="search" [size]="14"></lucide-icon>
+            <input
+              type="text"
+              placeholder="Buscar por matrícula, nome, empresa, local ou cargo..."
+              [value]="searchText()"
+              (input)="onSearchChange($any($event.target).value)"
+            />
+          </div>
+          <span class="func-count-badge">
+            <lucide-icon name="users" [size]="14"></lucide-icon>
+            {{ filteredFuncionarios().length }} funcionário(s)
+          </span>
+        </div>
+
+        @if (paginatedFuncionarios().length === 0) {
+          <div class="empty-state">
+            <lucide-icon name="users" [size]="48"></lucide-icon>
+            <p>Nenhum funcionário encontrado</p>
+          </div>
+        } @else {
+          <table class="func-table data-table">
+            <thead>
+              <tr>
+                <th class="sortable col-matricula" (click)="onSort('matricula')">
+                  Matrícula
+                  @if (sortColumn() === 'matricula') {
+                    <lucide-icon [name]="sortDirection() === 'asc' ? 'chevron-up' : 'chevron-down'" [size]="14"></lucide-icon>
+                  }
+                </th>
+                <th class="sortable" (click)="onSort('nome')">
+                  Nome
+                  @if (sortColumn() === 'nome') {
+                    <lucide-icon [name]="sortDirection() === 'asc' ? 'chevron-up' : 'chevron-down'" [size]="14"></lucide-icon>
+                  }
+                </th>
+                <th class="sortable" (click)="onSort('empresa')">
+                  Empresa
+                  @if (sortColumn() === 'empresa') {
+                    <lucide-icon [name]="sortDirection() === 'asc' ? 'chevron-up' : 'chevron-down'" [size]="14"></lucide-icon>
+                  }
+                </th>
+                <th class="sortable" (click)="onSort('local')">
+                  Local
+                  @if (sortColumn() === 'local') {
+                    <lucide-icon [name]="sortDirection() === 'asc' ? 'chevron-up' : 'chevron-down'" [size]="14"></lucide-icon>
+                  }
+                </th>
+                <th class="sortable" (click)="onSort('cargo')">
+                  Cargo
+                  @if (sortColumn() === 'cargo') {
+                    <lucide-icon [name]="sortDirection() === 'asc' ? 'chevron-up' : 'chevron-down'" [size]="14"></lucide-icon>
+                  }
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (func of paginatedFuncionarios(); track func.matricula) {
+                <tr>
+                  <td class="col-matricula">{{ func.matricula }}</td>
+                  <td class="funcionario-nome">
+                    <lucide-icon name="user" [size]="16"></lucide-icon>
+                    {{ func.nome | titleCaseCustom }}
+                  </td>
+                  <td>{{ func.empresa ? (func.empresa | titleCaseCustom) : '—' }}</td>
+                  <td>{{ func.local ? (func.local | titleCaseCustom) : '—' }}</td>
+                  <td>{{ func.cargo ? (func.cargo | titleCaseCustom) : '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          <app-pagination
+            [totalItems]="filteredFuncionarios().length"
+            [itemsPerPage]="itemsPerPage()"
+            [currentPage]="currentPage()"
+            (pageChange)="onPageChange($event)"
+            (itemsPerPageChange)="onItemsPerPageChange($event)"
+          ></app-pagination>
+        }
+      }
+    </div>
+
+    <div class="modal-footer"></div>
+  </div>
+</div>

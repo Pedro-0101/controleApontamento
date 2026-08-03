@@ -932,3 +932,42 @@ th.sortable lucide-icon {
   margin-left: 4px;
   color: var(--color-primary);
 }
+
+.col-acoes {
+  width: 100px;
+  text-align: center;
+}
+
+th.col-acoes {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-funcionarios {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-funcionarios:hover {
+  background: var(--color-primary-light, #e8f0fe);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.btn-funcionarios lucide-icon {
+  flex-shrink: 0;
+}

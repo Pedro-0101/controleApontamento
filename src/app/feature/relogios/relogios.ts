@@ -10,6 +10,7 @@ import { Relogio } from '../../models/relogio/relogio';
 import { Pagination } from '../../shared/pagination/pagination';
 import { RangeSlider, RangeValue } from '../../shared/range-slider/range-slider';
 import { RelogiosFuncionarios } from './relogios-funcionarios/relogios-funcionarios';
+import { ModalRelogioFuncionarios } from './modal-relogio-funcionarios/modal-relogio-funcionarios';
 
 interface FuncionarioAnalise {
   matricula: string;
@@ -29,7 +30,7 @@ interface RelogioAnalise {
 @Component({
   selector: 'app-relogios',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, Pagination, RangeSlider, RelogiosFuncionarios],
+  imports: [CommonModule, LucideAngularModule, Pagination, RangeSlider, RelogiosFuncionarios, ModalRelogioFuncionarios],
   templateUrl: './relogios.html',
   styleUrl: './relogios.css'
 })
@@ -74,6 +75,9 @@ export class Relogios implements OnInit {
   private cancelRequested = false;
 
   searchFuncionarioConfirmacao = signal('');
+
+  selectedRelogioNumSerie = signal<string | null>(null);
+  selectedRelogioDescricao = signal<string | null>(null);
 
   readonly maxFuncionariosSlider = 50;
 
@@ -604,6 +608,16 @@ export class Relogios implements OnInit {
     this.analiseState.set('idle');
     this.analiseResultados.set([]);
     this.logLines.set([]);
+  }
+
+  openFuncionariosModal(numSerie: string, descricao: string) {
+    this.selectedRelogioNumSerie.set(numSerie);
+    this.selectedRelogioDescricao.set(descricao);
+  }
+
+  closeFuncionariosModal() {
+    this.selectedRelogioNumSerie.set(null);
+    this.selectedRelogioDescricao.set(null);
   }
 
   async confirmarVinculacao() {
