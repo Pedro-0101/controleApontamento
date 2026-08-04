@@ -91,6 +91,24 @@
   color: var(--color-gray-400);
 }
 
+.filter-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-700);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.filter-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
 .badge-func-count {
   background: var(--color-primary-light, #e8f0fe);
   color: var(--color-primary, #1a73e8);

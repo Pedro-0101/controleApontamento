@@ -74,6 +74,14 @@
               (input)="onSearchTableRelogiosChange($any($event.target).value)"
             />
           </div>
+          <label class="filter-checkbox">
+            <input
+              type="checkbox"
+              [checked]="somenteAtivos()"
+              (change)="somenteAtivos.set($any($event.target).checked); currentPage.set(1)"
+            />
+            <span>Somente ativos</span>
+          </label>
           <app-range-slider
             label="Mín. funcionários:"
             [min]="0"

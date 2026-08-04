@@ -175,6 +175,48 @@ export class RelogioService {
     }
   }
 
+  async removerFuncionarioDoRelogio(numSerie: string, matricula: string): Promise<{ success: boolean; apiVinculado: boolean; apiMessage: string }> {
+    try {
+      const tokens = this.apiSessionService.getAllTokens();
+      const resp = await firstValueFrom(
+        this.http.post<{ success: boolean; message: string; apiVinculado: boolean; apiMessage: string }>(
+          `/api/relogios/${encodeURIComponent(numSerie)}/funcionarios/remover`,
+          { matricula, tokens }
+        )
+      );
+      if (resp.apiVinculado) {
+        this.loggerService.info('RelogioService', `Desvinculação API OK — matrícula ${matricula} removida do relógio ${numSerie}`);
+      } else {
+        this.loggerService.warn('RelogioService', `Desvinculação API falhou — matrícula ${matricula} do relógio ${numSerie}: ${resp.apiMessage}`);
+      }
+      return { success: resp.success, apiVinculado: resp.apiVinculado ?? false, apiMessage: resp.apiMessage ?? '' };
+    } catch (error) {
+      this.loggerService.error('RelogioService', 'Erro ao remover funcionário do relógio: ' + error);
+      return { success: false, apiVinculado: false, apiMessage: 'Erro de comunicação com o servidor' };
+    }
+  }
+
+  async adicionarFuncionarioAoRelogio(numSerie: string, matricula: string): Promise<{ success: boolean; apiVinculado: boolean; apiMessage: string }> {
+    try {
+      const tokens = this.apiSessionService.getAllTokens();
+      const resp = await firstValueFrom(
+        this.http.post<{ success: boolean; message: string; apiVinculado: boolean; apiMessage: string }>(
+          `/api/relogios/${encodeURIComponent(numSerie)}/funcionarios/adicionar`,
+          { matricula, tokens }
+        )
+      );
+      if (resp.apiVinculado) {
+        this.loggerService.info('RelogioService', `Vinculação API OK — matrícula ${matricula} adicionada ao relógio ${numSerie}`);
+      } else {
+        this.loggerService.warn('RelogioService', `Vinculação API falhou — matrícula ${matricula} ao relógio ${numSerie}: ${resp.apiMessage}`);
+      }
+      return { success: resp.success, apiVinculado: resp.apiVinculado ?? false, apiMessage: resp.apiMessage ?? '' };
+    } catch (error) {
+      this.loggerService.error('RelogioService', 'Erro ao adicionar funcionário ao relógio: ' + error);
+      return { success: false, apiVinculado: false, apiMessage: 'Erro de comunicação com o servidor' };
+    }
+  }
+
   async mergeLocalStatus(relogios: Relogio[]): Promise<Relogio[]> {
     try {
       const statusMap = await this.fetchLocalStatus();

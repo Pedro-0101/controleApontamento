@@ -166,3 +166,200 @@ app-pagination {
   display: block;
   padding: 0 var(--spacing-2xl) var(--spacing-md);
 }
+
+.btn-add-func {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-add-func:hover {
+  opacity: 0.9;
+}
+
+.btn-add-func lucide-icon {
+  display: flex;
+}
+
+.add-form-row {
+  padding: var(--spacing-sm) var(--spacing-2xl);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-alt, #f8fafc);
+}
+
+.add-form-fields {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.add-matricula-input {
+  flex: 1;
+  max-width: 220px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-700);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.add-matricula-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.15);
+}
+
+.btn-confirm-add {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.btn-confirm-add:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-confirm-add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-confirm-add lucide-icon {
+  display: flex;
+}
+
+.btn-cancel-add {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-gray-500);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.btn-cancel-add:hover {
+  border-color: var(--color-gray-400);
+  color: var(--color-gray-700);
+}
+
+.btn-cancel-add lucide-icon {
+  display: flex;
+}
+
+.add-error {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-error, #dc2626);
+  font-size: var(--font-size-xs);
+}
+
+.feedback-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px var(--spacing-2xl);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.feedback-banner lucide-icon {
+  flex-shrink: 0;
+}
+
+.feedback-success {
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.feedback-success lucide-icon {
+  color: #059669;
+}
+
+.feedback-error {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.feedback-error lucide-icon {
+  color: #dc2626;
+}
+
+.col-acoes {
+  width: 60px;
+  text-align: center;
+}
+
+.btn-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-gray-400);
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.btn-remove:hover {
+  color: var(--color-error, #dc2626);
+  border-color: rgba(220, 38, 38, 0.2);
+  background: rgba(220, 38, 38, 0.06);
+}
+
+.btn-remove lucide-icon {
+  display: flex;
+}
+
+.spinner-inline {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-gray-200);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+}
+
+.spinner-inline.light {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

@@ -51,6 +51,7 @@ export class Relogios implements OnInit {
   minFuncionariosFilter = signal(0);
   maxFuncionariosFilter = signal(50);
   searchTableRelogios = signal('');
+  somenteAtivos = signal(true);
   sortColumn = signal<'numSerie' | 'descricao' | 'funcionarios' | 'dataCriacao' | null>(null);
   sortDirection = signal<'asc' | 'desc'>('asc');
   checkedRelogios = signal<Set<string>>(new Set());
@@ -93,6 +94,10 @@ export class Relogios implements OnInit {
         r.descricao.toLowerCase().includes(search) ||
         r.numSerie.toLowerCase().includes(search)
       );
+    }
+
+    if (this.somenteAtivos()) {
+      result = result.filter(r => r.ativo);
     }
 
     const min = this.minFuncionariosFilter();

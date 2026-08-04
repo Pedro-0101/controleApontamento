@@ -2,6 +2,7 @@ import { Component, EventEmitter, inject, input, OnInit, Output, signal, compute
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { RelogioService } from '../../../core/services/relogio/relogio.service';
+import { EmployeeService } from '../../../core/services/employee/employee.service';
 import { Pagination } from '../../../shared/pagination/pagination';
 import { TitleCaseCustomPipe } from '../../../shared/pipes/title-case-custom.pipe';
 
@@ -24,6 +25,7 @@ type SortColumn = 'matricula' | 'nome' | 'empresa' | 'local' | 'cargo';
 })
 export class ModalRelogioFuncionarios implements OnInit {
   private relogioService = inject(RelogioService);
+  private employeeService = inject(EmployeeService);
 
   numSerie = input.required<string>();
   descricao = input.required<string>();
@@ -37,6 +39,22 @@ export class ModalRelogioFuncionarios implements OnInit {
   itemsPerPage = signal(10);
   sortColumn = signal<SortColumn | null>(null);
   sortDirection = signal<'asc' | 'desc'>('asc');
+
+  showAddForm = signal(false);
+  novaMatricula = signal('');
+  isAdding = signal(false);
+  addError = signal('');
+  isRemoving = signal<Set<string>>(new Set());
+  feedbackMessage = signal('');
+  feedbackType = signal<'success' | 'error'>('success');
+  private feedbackTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private showFeedback(message: string, type: 'success' | 'error') {
+    this.feedbackMessage.set(message);
+    this.feedbackType.set(type);
+    if (this.feedbackTimer) clearTimeout(this.feedbackTimer);
+    this.feedbackTimer = setTimeout(() => this.feedbackMessage.set(''), 5000);
+  }
 
   filteredFuncionarios = computed(() => {
     let result = this.allFuncionarios();
@@ -102,5 +120,84 @@ export class ModalRelogioFuncionarios implements OnInit {
   onItemsPerPageChange(items: number) {
     this.itemsPerPage.set(items);
     this.currentPage.set(1);
+  }
+
+  toggleAddForm() {
+    this.showAddForm.update(v => !v);
+    this.novaMatricula.set('');
+    this.addError.set('');
+  }
+
+  cancelarAdd() {
+    this.showAddForm.set(false);
+    this.novaMatricula.set('');
+    this.addError.set('');
+  }
+
+  async adicionarFuncionario() {
+    const matricula = this.novaMatricula().trim();
+    if (!matricula) return;
+
+    this.isAdding.set(true);
+    this.addError.set('');
+
+    try {
+      const result = await this.relogioService.adicionarFuncionarioAoRelogio(this.numSerie(), matricula);
+      if (!result.success) {
+        this.addError.set('Erro ao adicionar funcionário');
+        return;
+      }
+
+      this.showFeedback(
+        result.apiVinculado ? result.apiMessage : result.apiMessage || 'Funcionário adicionado apenas localmente',
+        result.apiVinculado ? 'success' : 'error'
+      );
+
+      const emp = await this.employeeService.getEmployeeByMatricula(matricula);
+      const novo: FuncionarioRelogio = {
+        matricula,
+        nome: emp?.nome ?? '',
+        empresa: emp?.empresa ?? '',
+        local: emp?.local ?? '',
+        cargo: emp?.cargo ?? ''
+      };
+
+      this.allFuncionarios.update(list => {
+        const filtered = list.filter(f => f.matricula !== matricula);
+        return [...filtered, novo];
+      });
+
+      this.showAddForm.set(false);
+      this.novaMatricula.set('');
+    } catch {
+      this.addError.set('Erro ao adicionar funcionário');
+    } finally {
+      this.isAdding.set(false);
+    }
+  }
+
+  async removerFuncionario(func: FuncionarioRelogio) {
+    this.isRemoving.update(set => {
+      const novo = new Set(set);
+      novo.add(func.matricula);
+      return novo;
+    });
+
+    try {
+      const result = await this.relogioService.removerFuncionarioDoRelogio(this.numSerie(), func.matricula);
+      if (result.success) {
+        this.allFuncionarios.update(list => list.filter(f => f.matricula !== func.matricula));
+      }
+      this.showFeedback(
+        result.apiVinculado ? result.apiMessage : result.apiMessage || 'Funcionário removido apenas localmente',
+        result.apiVinculado ? 'success' : 'error'
+      );
+    } finally {
+      this.isRemoving.update(set => {
+        const novo = new Set(set);
+        novo.delete(func.matricula);
+        return novo;
+      });
+    }
   }
 }

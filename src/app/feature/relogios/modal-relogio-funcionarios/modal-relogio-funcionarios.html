@@ -30,11 +30,52 @@
               (input)="onSearchChange($any($event.target).value)"
             />
           </div>
+          <button class="btn-add-func" (click)="toggleAddForm()">
+            <lucide-icon name="plus" [size]="14"></lucide-icon>
+            Adicionar
+          </button>
           <span class="func-count-badge">
             <lucide-icon name="users" [size]="14"></lucide-icon>
             {{ filteredFuncionarios().length }} funcionário(s)
           </span>
         </div>
+
+        @if (feedbackMessage()) {
+          <div class="feedback-banner" [class.feedback-error]="feedbackType() === 'error'" [class.feedback-success]="feedbackType() === 'success'">
+            <lucide-icon [name]="feedbackType() === 'success' ? 'check-circle' : 'alert-circle'" [size]="16"></lucide-icon>
+            {{ feedbackMessage() }}
+          </div>
+        }
+
+        @if (showAddForm()) {
+          <div class="add-form-row">
+            <div class="add-form-fields">
+              <input
+                type="text"
+                class="add-matricula-input"
+                placeholder="Matrícula do funcionário"
+                [value]="novaMatricula()"
+                (input)="novaMatricula.set($any($event.target).value)"
+                (keydown.enter)="adicionarFuncionario()"
+              />
+              <button class="btn-confirm-add" (click)="adicionarFuncionario()" [disabled]="isAdding() || !novaMatricula().trim()">
+                @if (isAdding()) {
+                  <span class="spinner-inline light"></span>
+                } @else {
+                  <lucide-icon name="check" [size]="14"></lucide-icon>
+                }
+                Confirmar
+              </button>
+              <button class="btn-cancel-add" (click)="cancelarAdd()">
+                <lucide-icon name="x" [size]="14"></lucide-icon>
+                Cancelar
+              </button>
+            </div>
+            @if (addError()) {
+              <span class="add-error">{{ addError() }}</span>
+            }
+          </div>
+        }
 
         @if (paginatedFuncionarios().length === 0) {
           <div class="empty-state">
@@ -75,6 +116,7 @@
                     <lucide-icon [name]="sortDirection() === 'asc' ? 'chevron-up' : 'chevron-down'" [size]="14"></lucide-icon>
                   }
                 </th>
+                <th class="col-acoes">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -88,6 +130,20 @@
                   <td>{{ func.empresa ? (func.empresa | titleCaseCustom) : '—' }}</td>
                   <td>{{ func.local ? (func.local | titleCaseCustom) : '—' }}</td>
                   <td>{{ func.cargo ? (func.cargo | titleCaseCustom) : '—' }}</td>
+                  <td class="col-acoes">
+                    <button
+                      class="btn-remove"
+                      title="Remover funcionário do relógio"
+                      [disabled]="isRemoving().has(func.matricula)"
+                      (click)="removerFuncionario(func)"
+                    >
+                      @if (isRemoving().has(func.matricula)) {
+                        <span class="spinner-inline"></span>
+                      } @else {
+                        <lucide-icon name="trash-2" [size]="14"></lucide-icon>
+                      }
+                    </button>
+                  </td>
                 </tr>
               }
             </tbody>
