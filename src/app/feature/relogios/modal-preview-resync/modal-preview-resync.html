@@ -1,0 +1,173 @@
+<div class="modal-overlay" (click)="close.emit()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <h3>
+          <lucide-icon name="eye" [size]="20"></lucide-icon>
+          Prévia da Resincronização
+        </h3>
+        <span class="modal-subtitle">
+          {{ numSeries().length }} relógio(s) selecionado(s)
+        </span>
+      </div>
+      <button class="btn-close" (click)="close.emit()">
+        <lucide-icon name="x" [size]="20"></lucide-icon>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      @if (isLoading()) {
+        <div class="loading-container">
+          <div class="spinner"></div>
+          <p>Analisando alterações...</p>
+        </div>
+      } @else if (error()) {
+        <div class="empty-state">
+          <lucide-icon name="alert-circle" [size]="48"></lucide-icon>
+          <p>{{ error() }}</p>
+        </div>
+      } @else if (!temAlteracoes()) {
+        <div class="empty-state">
+          <lucide-icon name="check-circle" [size]="48"></lucide-icon>
+          <p>Nenhuma alteração necessária</p>
+          <p class="hint">Todos os relógios já estão sincronizados.</p>
+        </div>
+      } @else {
+        <div class="preview-summary">
+          <div class="summary-card add">
+            <lucide-icon name="plus-circle" [size]="22"></lucide-icon>
+            <div class="summary-info">
+              <span class="summary-number">{{ totalAdicionadosCount() }}</span>
+              <span class="summary-label">enviados p/ vinculação</span>
+            </div>
+          </div>
+          <div class="summary-card remove">
+            <lucide-icon name="minus-circle" [size]="22"></lucide-icon>
+            <div class="summary-info">
+              <span class="summary-number">{{ totalRemovidosCount() }}</span>
+              <span class="summary-label">enviados p/ desvinculação</span>
+            </div>
+          </div>
+        </div>
+
+        @if (erroList().length > 0) {
+          <div class="erro-list">
+            @for (erro of erroList(); track erro) {
+              <div class="erro-item">
+                <lucide-icon name="alert-triangle" [size]="14"></lucide-icon>
+                {{ erro }}
+              </div>
+            }
+          </div>
+        }
+
+        <div class="filters-row">
+          <label class="filter-checkbox">
+            <input type="checkbox" [checked]="showAdicionados()" (change)="toggleShowAdicionados()" />
+            <lucide-icon name="plus-circle" [size]="14"></lucide-icon>
+              Vinculação ({{ totalAdicionadosCount() }})
+          </label>
+          <label class="filter-checkbox">
+            <input type="checkbox" [checked]="showRemovidos()" (change)="toggleShowRemovidos()" />
+            <lucide-icon name="minus-circle" [size]="14"></lucide-icon>
+            Desvinculação ({{ totalRemovidosCount() }})
+          </label>
+          <span class="relogio-count-badge">
+            <lucide-icon name="clock" [size]="14"></lucide-icon>
+            {{ previewData().length }} relógio(s)
+          </span>
+        </div>
+
+        <div class="preview-list">
+          @for (relogio of previewData(); track relogio.numSerie) {
+            <div class="relogio-card">
+              <div class="relogio-card-header">
+                <div class="relogio-card-title">
+                  <lucide-icon name="clock" [size]="16"></lucide-icon>
+                  <strong>{{ getDescricao(relogio.numSerie) }}</strong>
+                  <span class="relogio-card-sn">SN: {{ relogio.numSerie }}</span>
+                </div>
+                <div class="relogio-card-badges">
+                  @if (relogio.aAdicionar.length > 0) {
+                    <span class="badge badge-add">+{{ relogio.aAdicionar.length }} vinc.</span>
+                  }
+                  @if (relogio.aRemover.length > 0) {
+                    <span class="badge badge-remove">-{{ relogio.aRemover.length }} desv.</span>
+                  }
+                </div>
+              </div>
+
+              <div class="relogio-card-body">
+                @if (showAdicionados() && relogio.aAdicionar.length > 0) {
+                  <div class="section">
+                    <div class="section-header add">
+                      <lucide-icon name="plus-circle" [size]="14"></lucide-icon>
+                      Serão vinculados ({{ relogio.aAdicionar.length }})
+                    </div>
+                    <table class="preview-table">
+                      <thead>
+                        <tr>
+                          <th>Matrícula</th>
+                          <th>Nome</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (f of relogio.aAdicionar; track f.matricula) {
+                          <tr class="row-add">
+                            <td class="col-matricula">{{ f.matricula }}</td>
+                            <td class="col-nome">{{ f.nome || '—' }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+
+                @if (showRemovidos() && relogio.aRemover.length > 0) {
+                  <div class="section">
+                    <div class="section-header remove">
+                      <lucide-icon name="minus-circle" [size]="14"></lucide-icon>
+                      Serão desvinculados ({{ relogio.aRemover.length }})
+                    </div>
+                    <table class="preview-table">
+                      <thead>
+                        <tr>
+                          <th>Matrícula</th>
+                          <th>Nome</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (f of relogio.aRemover; track f.matricula) {
+                          <tr class="row-remove">
+                            <td class="col-matricula">{{ f.matricula }}</td>
+                            <td class="col-nome">{{ f.nome || '—' }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+
+                @if (relogio.aAdicionar.length === 0 && relogio.aRemover.length === 0) {
+                  <div class="section-empty">Já sincronizado</div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" (click)="close.emit()">Cancelar</button>
+      @if (temAlteracoes()) {
+        <button class="btn-confirm" (click)="confirmarResync.emit()">
+          <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
+          Confirmar Resincronização
+        </button>
+      } @else {
+        <button class="btn-cancel" (click)="close.emit()">Fechar</button>
+      }
+    </div>
+  </div>
+</div>

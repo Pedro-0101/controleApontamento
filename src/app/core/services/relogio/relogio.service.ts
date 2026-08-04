@@ -158,6 +158,22 @@ export class RelogioService {
     }
   }
 
+  async previewResyncRelogios(numSeries: string[]): Promise<{ success: boolean; totalAdicionados: number; totalRemovidos: number; erros: string[]; porRelogio: { num_serie: string; aAdicionar: { matricula: string; nome: string }[]; aRemover: { matricula: string; nome: string }[] }[]; message: string }> {
+    try {
+      const tokens = this.apiSessionService.getAllTokens();
+      const resp = await firstValueFrom(
+        this.http.post<{ success: boolean; totalAdicionados: number; totalRemovidos: number; erros: string[]; porRelogio: { num_serie: string; aAdicionar: { matricula: string; nome: string }[]; aRemover: { matricula: string; nome: string }[] }[]; message: string }>(
+          '/api/relogios/resync/preview',
+          { numSeries, tokens }
+        )
+      );
+      return resp;
+    } catch (error) {
+      this.loggerService.error('RelogioService', 'Erro ao gerar prévia de resync: ' + error);
+      return { success: false, totalAdicionados: 0, totalRemovidos: 0, erros: [], porRelogio: [], message: 'Erro de comunicação com o servidor' };
+    }
+  }
+
   async toggleAtivo(numSerie: string, ativo: boolean): Promise<boolean> {
     try {
       const resp = await firstValueFrom(

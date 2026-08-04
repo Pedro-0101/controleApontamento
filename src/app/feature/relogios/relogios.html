@@ -111,7 +111,7 @@
                 }
                 Desativar
               </button>
-              <button class="btn-bulk-resync" (click)="resyncSelecionados()" [disabled]="isResyncing()">
+              <button class="btn-bulk-resync" (click)="openPreviewResync()" [disabled]="isResyncing()">
                 @if (isResyncing()) {
                   <span class="spinner-inline light"></span>
                 } @else {
@@ -236,6 +236,15 @@
       [descricao]="selectedRelogioDescricao()!"
       (close)="closeFuncionariosModal()"
     ></app-modal-relogio-funcionarios>
+  }
+
+  @if (showPreviewModal()) {
+    <app-modal-preview-resync
+      [numSeries]="checkedSeries()"
+      [descricoes]="descricoesRelogios()"
+      (close)="closePreviewResync()"
+      (confirmarResync)="onConfirmResync()"
+    ></app-modal-preview-resync>
   }
 
   <div

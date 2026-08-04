@@ -903,6 +903,26 @@ th.col-check {
   cursor: not-allowed;
 }
 
+.btn-bulk-preview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  background: transparent;
+  color: #6366f1;
+  border: 1px solid #6366f1;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.btn-bulk-preview:hover {
+  background: #6366f1;
+  color: #fff;
+}
+
 .toggle-switch {
   position: relative;
   display: inline-block;

@@ -11,6 +11,7 @@ import { Pagination } from '../../shared/pagination/pagination';
 import { RangeSlider, RangeValue } from '../../shared/range-slider/range-slider';
 import { RelogiosFuncionarios } from './relogios-funcionarios/relogios-funcionarios';
 import { ModalRelogioFuncionarios } from './modal-relogio-funcionarios/modal-relogio-funcionarios';
+import { ModalPreviewResync } from './modal-preview-resync/modal-preview-resync';
 
 interface FuncionarioAnalise {
   matricula: string;
@@ -30,7 +31,7 @@ interface RelogioAnalise {
 @Component({
   selector: 'app-relogios',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, Pagination, RangeSlider, RelogiosFuncionarios, ModalRelogioFuncionarios],
+  imports: [CommonModule, LucideAngularModule, Pagination, RangeSlider, RelogiosFuncionarios, ModalRelogioFuncionarios, ModalPreviewResync],
   templateUrl: './relogios.html',
   styleUrl: './relogios.css'
 })
@@ -57,6 +58,7 @@ export class Relogios implements OnInit {
   checkedRelogios = signal<Set<string>>(new Set());
   isBulkToggling = signal(false);
   isResyncing = signal(false);
+  showPreviewModal = signal(false);
 
   allFilteredChecked = computed(() => {
     const filtered = this.filteredRelogios();
@@ -65,6 +67,16 @@ export class Relogios implements OnInit {
   });
 
   checkedCount = computed(() => this.checkedRelogios().size);
+
+  checkedSeries = computed(() => [...this.checkedRelogios()]);
+
+  descricoesRelogios = computed(() => {
+    const map = new Map<string, string>();
+    for (const r of this.allRelogios()) {
+      map.set(r.numSerie, r.descricao || 'Sem descrição');
+    }
+    return map;
+  });
 
   logLines = signal<string[]>([]);
   isAnalyzing = signal(false);
@@ -640,6 +652,19 @@ export class Relogios implements OnInit {
   closeFuncionariosModal() {
     this.selectedRelogioNumSerie.set(null);
     this.selectedRelogioDescricao.set(null);
+  }
+
+  openPreviewResync() {
+    this.showPreviewModal.set(true);
+  }
+
+  closePreviewResync() {
+    this.showPreviewModal.set(false);
+  }
+
+  async onConfirmResync() {
+    this.showPreviewModal.set(false);
+    await this.resyncSelecionados();
   }
 
   async confirmarVinculacao() {
