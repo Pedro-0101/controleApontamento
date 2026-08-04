@@ -107,6 +107,38 @@ export class RelogioService {
     return numSerie.replace(/\./g, '').replace(/^0+/, '');
   }
 
+  async resyncRelogios(numSeries: string[]): Promise<{ success: boolean; totalAdicionados: number; totalRemovidos: number; erros: string[]; message: string }> {
+    try {
+      const tokens = this.apiSessionService.getAllTokens();
+      const resp = await firstValueFrom(
+        this.http.post<{ success: boolean; totalAdicionados: number; totalRemovidos: number; erros: string[]; message: string }>(
+          '/api/relogios/resync',
+          { numSeries, tokens }
+        )
+      );
+      return resp;
+    } catch (error) {
+      this.loggerService.error('RelogioService', 'Erro ao resincronizar relógios: ' + error);
+      return { success: false, totalAdicionados: 0, totalRemovidos: 0, erros: [], message: 'Erro de comunicação com o servidor' };
+    }
+  }
+
+  async gerenciarFuncionariosDoRelogio(numSerie: string, matriculas: string[]): Promise<{ success: boolean; adicionados: number; removidos: number; apiVinculado: boolean; apiMessage: string }> {
+    try {
+      const tokens = this.apiSessionService.getAllTokens();
+      const resp = await firstValueFrom(
+        this.http.post<{ success: boolean; adicionados: number; removidos: number; apiVinculado: boolean; apiMessage: string }>(
+          `/api/relogios/${encodeURIComponent(numSerie)}/funcionarios/gerenciar`,
+          { matriculas, tokens }
+        )
+      );
+      return resp;
+    } catch (error) {
+      this.loggerService.error('RelogioService', 'Erro ao gerenciar funcionários do relógio: ' + error);
+      return { success: false, adicionados: 0, removidos: 0, apiVinculado: false, apiMessage: 'Erro de comunicação com o servidor' };
+    }
+  }
+
   async getFuncionariosCountFromDB(numSeries?: string[]): Promise<Map<string, number>> {
     try {
       let url = '/api/relogios/funcionarios-count';

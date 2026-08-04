@@ -68,6 +68,8 @@ import {
   Plug,
   LoaderCircle,
   Check,
+  UserCog,
+  Link,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -144,6 +146,8 @@ export const appConfig: ApplicationConfig = {
       Plug,
       LoaderCircle,
       Check,
+      UserCog,
+      Link,
     }))
   ]
 };

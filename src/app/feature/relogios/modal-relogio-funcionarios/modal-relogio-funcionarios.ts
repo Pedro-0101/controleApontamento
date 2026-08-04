@@ -1,9 +1,11 @@
-import { Component, EventEmitter, inject, input, OnInit, Output, signal, computed } from '@angular/core';
+import { Component, EventEmitter, inject, input, OnInit, Output, signal, computed, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { RelogioService } from '../../../core/services/relogio/relogio.service';
 import { EmployeeService } from '../../../core/services/employee/employee.service';
+import { Employee } from '../../../models/employee/employee';
 import { Pagination } from '../../../shared/pagination/pagination';
+import { MultiSelectDropdown } from '../../../shared/multi-select-dropdown/multi-select-dropdown';
 import { TitleCaseCustomPipe } from '../../../shared/pipes/title-case-custom.pipe';
 
 export interface FuncionarioRelogio {
@@ -19,7 +21,7 @@ type SortColumn = 'matricula' | 'nome' | 'empresa' | 'local' | 'cargo';
 @Component({
   selector: 'app-modal-relogio-funcionarios',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, Pagination, TitleCaseCustomPipe],
+  imports: [CommonModule, LucideAngularModule, Pagination, MultiSelectDropdown, TitleCaseCustomPipe],
   templateUrl: './modal-relogio-funcionarios.html',
   styleUrl: './modal-relogio-funcionarios.css'
 })
@@ -40,14 +42,26 @@ export class ModalRelogioFuncionarios implements OnInit {
   sortColumn = signal<SortColumn | null>(null);
   sortDirection = signal<'asc' | 'desc'>('asc');
 
-  showAddForm = signal(false);
-  novaMatricula = signal('');
-  isAdding = signal(false);
-  addError = signal('');
-  isRemoving = signal<Set<string>>(new Set());
   feedbackMessage = signal('');
   feedbackType = signal<'success' | 'error'>('success');
   private feedbackTimer: ReturnType<typeof setTimeout> | null = null;
+
+  showGerenciar = signal(false);
+  allEmployees = signal<Employee[]>([]);
+  isLoadingGerenciar = signal(true);
+  vinculadosSet = signal<Set<string>>(new Set());
+  gerenciarSearchText = signal('');
+  somenteAtivos = signal(true);
+  selectedEmpresas = signal<string[]>([]);
+  selectedLocais = signal<string[]>([]);
+  gerenciarCurrentPage = signal(1);
+  gerenciarItemsPerPage = signal(15);
+  gerenciarSortColumn = signal<SortColumn | null>(null);
+  gerenciarSortDirection = signal<'asc' | 'desc'>('asc');
+  isSaving = signal(false);
+
+  @ViewChild('empresaDropdown') empresaDropdown!: MultiSelectDropdown;
+  @ViewChild('localDropdown') localDropdown!: MultiSelectDropdown;
 
   private showFeedback(message: string, type: 'success' | 'error') {
     this.feedbackMessage.set(message);
@@ -88,6 +102,80 @@ export class ModalRelogioFuncionarios implements OnInit {
     return filtered.slice(start, start + this.itemsPerPage());
   });
 
+  filteredEmployees = computed(() => {
+    let result = this.allEmployees();
+    const search = this.gerenciarSearchText().toLowerCase().trim();
+    if (search) {
+      result = result.filter(e =>
+        e.matricula.toLowerCase().includes(search) ||
+        e.nome.toLowerCase().includes(search) ||
+        (e.empresa || '').toLowerCase().includes(search) ||
+        (e.local || '').toLowerCase().includes(search) ||
+        (e.cargo || '').toLowerCase().includes(search)
+      );
+    }
+
+    if (this.somenteAtivos()) {
+      result = result.filter(e => e.ativo === 1);
+    }
+
+    const empresas = this.selectedEmpresas();
+    if (empresas.length > 0) {
+      result = result.filter(e => empresas.includes(e.empresa));
+    }
+
+    const locais = this.selectedLocais();
+    if (locais.length > 0) {
+      result = result.filter(e => locais.includes(e.local));
+    }
+
+    const col = this.gerenciarSortColumn();
+    if (col) {
+      const dir = this.gerenciarSortDirection() === 'asc' ? 1 : -1;
+      result = [...result].sort((a, b) => {
+        let va: string = '';
+        let vb: string = '';
+        if (col === 'matricula') { va = a.matricula; vb = b.matricula; }
+        else if (col === 'nome') { va = a.nome; vb = b.nome; }
+        else if (col === 'empresa') { va = a.empresa; vb = b.empresa; }
+        else if (col === 'local') { va = a.local; vb = b.local; }
+        else if (col === 'cargo') { va = a.cargo; vb = b.cargo; }
+        return (va || '').localeCompare(vb || '', 'pt-BR', { numeric: true, sensitivity: 'base' }) * dir;
+      });
+    }
+
+    return result;
+  });
+
+  paginatedEmployees = computed(() => {
+    const filtered = this.filteredEmployees();
+    const start = (this.gerenciarCurrentPage() - 1) * this.gerenciarItemsPerPage();
+    return filtered.slice(start, start + this.gerenciarItemsPerPage());
+  });
+
+  vinculadosCount = computed(() => this.vinculadosSet().size);
+
+  empresaOptions = computed(() => {
+    const empresas = [...new Set(
+      this.allEmployees().map(e => e.empresa).filter(e => !!e)
+    )].sort();
+    return empresas.map(e => ({ nome: e }));
+  });
+
+  localOptions = computed(() => {
+    const locais = [...new Set(
+      this.allEmployees().map(e => e.local).filter(l => !!l)
+    )].sort();
+    return locais.map(l => ({ nome: l }));
+  });
+
+  allSelectedInPage = computed(() => {
+    const page = this.paginatedEmployees();
+    if (page.length === 0) return false;
+    const vinc = this.vinculadosSet();
+    return page.every(e => vinc.has(e.matricula));
+  });
+
   async ngOnInit() {
     this.isLoading.set(true);
     try {
@@ -122,64 +210,86 @@ export class ModalRelogioFuncionarios implements OnInit {
     this.currentPage.set(1);
   }
 
-  toggleAddForm() {
-    this.showAddForm.update(v => !v);
-    this.novaMatricula.set('');
-    this.addError.set('');
-  }
-
-  cancelarAdd() {
-    this.showAddForm.set(false);
-    this.novaMatricula.set('');
-    this.addError.set('');
-  }
-
-  async adicionarFuncionario() {
-    const matricula = this.novaMatricula().trim();
-    if (!matricula) return;
-
-    this.isAdding.set(true);
-    this.addError.set('');
-
+  async openGerenciar() {
+    this.showGerenciar.set(true);
+    this.isLoadingGerenciar.set(true);
     try {
-      const result = await this.relogioService.adicionarFuncionarioAoRelogio(this.numSerie(), matricula);
+      const [employees, vinculados] = await Promise.all([
+        this.employeeService.getAllEmployees(),
+        this.relogioService.getFuncionariosByRelogio(this.numSerie())
+      ]);
+      this.allEmployees.set(employees);
+      const employeeMatriculas = new Set(employees.map(e => e.matricula));
+      this.vinculadosSet.set(new Set(
+        vinculados.map((v: FuncionarioRelogio) => v.matricula).filter(m => employeeMatriculas.has(m))
+      ));
+    } finally {
+      this.isLoadingGerenciar.set(false);
+    }
+  }
+
+  fecharGerenciar() {
+    this.showGerenciar.set(false);
+  }
+
+  toggleVinculo(matricula: string) {
+    this.vinculadosSet.update(set => {
+      const novo = new Set(set);
+      if (novo.has(matricula)) {
+        novo.delete(matricula);
+      } else {
+        novo.add(matricula);
+      }
+      return novo;
+    });
+  }
+
+  toggleSelectAllPage() {
+    const page = this.paginatedEmployees();
+    const vinc = this.vinculadosSet();
+    const allSelected = page.every(e => vinc.has(e.matricula));
+    this.vinculadosSet.update(set => {
+      const novo = new Set(set);
+      for (const e of page) {
+        if (allSelected) {
+          novo.delete(e.matricula);
+        } else {
+          novo.add(e.matricula);
+        }
+      }
+      return novo;
+    });
+  }
+
+  async salvarGerenciamento() {
+    this.isSaving.set(true);
+    try {
+      const matriculas = Array.from(this.vinculadosSet());
+      const result = await this.relogioService.gerenciarFuncionariosDoRelogio(this.numSerie(), matriculas);
       if (!result.success) {
-        this.addError.set('Erro ao adicionar funcionário');
+        this.showFeedback('Erro ao salvar alterações', 'error');
         return;
       }
-
       this.showFeedback(
-        result.apiVinculado ? result.apiMessage : result.apiMessage || 'Funcionário adicionado apenas localmente',
+        result.apiVinculado
+          ? `Sincronizado: ${result.adicionados} adicionado(s), ${result.removidos} removido(s)`
+          : result.apiMessage || `Salvo localmente: ${result.adicionados} adicionado(s), ${result.removidos} removido(s)`,
         result.apiVinculado ? 'success' : 'error'
       );
-
-      const emp = await this.employeeService.getEmployeeByMatricula(matricula);
-      const novo: FuncionarioRelogio = {
-        matricula,
-        nome: emp?.nome ?? '',
-        empresa: emp?.empresa ?? '',
-        local: emp?.local ?? '',
-        cargo: emp?.cargo ?? ''
-      };
-
-      this.allFuncionarios.update(list => {
-        const filtered = list.filter(f => f.matricula !== matricula);
-        return [...filtered, novo];
-      });
-
-      this.showAddForm.set(false);
-      this.novaMatricula.set('');
+      const data = await this.relogioService.getFuncionariosByRelogio(this.numSerie());
+      this.allFuncionarios.set(data);
+      this.showGerenciar.set(false);
     } catch {
-      this.addError.set('Erro ao adicionar funcionário');
+      this.showFeedback('Erro ao salvar alterações', 'error');
     } finally {
-      this.isAdding.set(false);
+      this.isSaving.set(false);
     }
   }
 
   async removerFuncionario(func: FuncionarioRelogio) {
-    this.isRemoving.update(set => {
+    this.vinculadosSet.update(set => {
       const novo = new Set(set);
-      novo.add(func.matricula);
+      novo.delete(func.matricula);
       return novo;
     });
 
@@ -193,11 +303,45 @@ export class ModalRelogioFuncionarios implements OnInit {
         result.apiVinculado ? 'success' : 'error'
       );
     } finally {
-      this.isRemoving.update(set => {
-        const novo = new Set(set);
-        novo.delete(func.matricula);
-        return novo;
-      });
     }
+  }
+
+  onGerenciarSearchChange(value: string) {
+    this.gerenciarSearchText.set(value);
+    this.gerenciarCurrentPage.set(1);
+  }
+
+  toggleSomenteAtivos() {
+    this.somenteAtivos.update(v => !v);
+    this.gerenciarCurrentPage.set(1);
+  }
+
+  onEmpresaFilterChange(selected: string[]) {
+    this.selectedEmpresas.set(selected);
+    this.gerenciarCurrentPage.set(1);
+  }
+
+  onLocalFilterChange(selected: string[]) {
+    this.selectedLocais.set(selected);
+    this.gerenciarCurrentPage.set(1);
+  }
+
+  onGerenciarSort(col: SortColumn) {
+    if (this.gerenciarSortColumn() === col) {
+      this.gerenciarSortDirection.update(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      this.gerenciarSortColumn.set(col);
+      this.gerenciarSortDirection.set('asc');
+    }
+    this.gerenciarCurrentPage.set(1);
+  }
+
+  onGerenciarPageChange(page: number) {
+    this.gerenciarCurrentPage.set(page);
+  }
+
+  onGerenciarItemsPerPageChange(items: number) {
+    this.gerenciarItemsPerPage.set(items);
+    this.gerenciarCurrentPage.set(1);
   }
 }

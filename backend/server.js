@@ -2174,6 +2174,211 @@ app.post('/api/relogios/:numSerie/funcionarios/adicionar', async (req, res) => {
   }
 });
 
+app.post('/api/relogios/:numSerie/funcionarios/gerenciar', async (req, res) => {
+  try {
+    const { numSerie } = req.params;
+    const { matriculas } = req.body;
+    if (!numSerie || !Array.isArray(matriculas)) {
+      return res.status(400).json({ success: false, error: 'numSerie e matriculas (array) são obrigatórios' });
+    }
+
+    const [relogioRows] = await pool.query('SELECT id FROM relogios WHERE num_serie = ?', [numSerie]);
+    if (relogioRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Relógio não encontrado' });
+    }
+
+    const relogioId = relogioRows[0].id;
+
+    const [currentRows] = await pool.query(
+      'SELECT matricula FROM relogio_funcionario WHERE relogio_id = ? AND status = 1',
+      [relogioId]
+    );
+    const currentSet = new Set(currentRows.map(r => r.matricula));
+    const desiredSet = new Set(matriculas);
+
+    const toAdd = matriculas.filter(m => !currentSet.has(m));
+    const toRemove = [...currentSet].filter(m => !desiredSet.has(m));
+
+    let adicionados = 0;
+    let removidos = 0;
+
+    if (toAdd.length > 0) {
+      const values = toAdd.map(m => [relogioId, m, 1]);
+      await pool.query(
+        `INSERT INTO relogio_funcionario (relogio_id, matricula, status)
+         VALUES ?
+         ON DUPLICATE KEY UPDATE status = 1`,
+        [values]
+      );
+      adicionados = toAdd.length;
+    }
+
+    if (toRemove.length > 0) {
+      await pool.query(
+        'UPDATE relogio_funcionario SET status = 0 WHERE relogio_id = ? AND matricula IN (?)',
+        [relogioId, toRemove]
+      );
+      removidos = toRemove.length;
+    }
+
+    let apiOk = false;
+    let apiMessage = '';
+    let tokens = req.body.tokens || [];
+    if (!Array.isArray(tokens) || tokens.length === 0) {
+      tokens = await getActiveTokens();
+    }
+
+    if (tokens.length === 0) {
+      apiMessage = 'Nenhum token disponível — sincronização não enviada ao Ponto Certificado';
+    } else {
+      const lstFuncRel = [];
+      for (const m of toAdd) {
+        lstFuncRel.push({ MatriculaFuncionario: m, NumSerieRelogio: numSerie, Status: true });
+      }
+      for (const m of toRemove) {
+        lstFuncRel.push({ MatriculaFuncionario: m, NumSerieRelogio: numSerie, Status: false });
+      }
+
+      if (lstFuncRel.length === 0) {
+        apiOk = true;
+        apiMessage = 'Nenhuma alteração a sincronizar com o Ponto Certificado';
+      } else {
+        for (const token of tokens) {
+          try {
+            const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/vinculaFuncionarioRelogio', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ lstFuncRel, tokenAcesso: token })
+            });
+            const body = await r.json().catch(() => ({ d: null }));
+            const raw = body.d;
+            if (r.ok && Array.isArray(raw)) {
+              apiOk = true;
+              apiMessage = 'Sincronização enviada com sucesso ao Ponto Certificado';
+              break;
+            }
+          } catch (e) {
+            // token inválido, tenta próximo
+          }
+        }
+        if (!apiOk) {
+          apiMessage = 'Falha ao enviar sincronização ao Ponto Certificado';
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Sincronização local concluída',
+      adicionados,
+      removidos,
+      apiVinculado: apiOk,
+      apiMessage
+    });
+  } catch (error) {
+    console.error('Erro em gerenciar funcionários do relógio:', error);
+    res.status(500).json({ success: false, error: 'Erro ao gerenciar funcionários do relógio' });
+  }
+});
+
+app.post('/api/relogios/resync', async (req, res) => {
+  try {
+    const { numSeries, tokens: clientTokens } = req.body;
+    if (!numSeries || !Array.isArray(numSeries) || numSeries.length === 0) {
+      return res.status(400).json({ success: false, error: 'numSeries (array) é obrigatório' });
+    }
+
+    let tokens = clientTokens || [];
+    if (!Array.isArray(tokens) || tokens.length === 0) {
+      tokens = await getActiveTokens();
+    }
+    if (tokens.length === 0) {
+      return res.json({ success: false, error: 'Nenhum token disponível' });
+    }
+
+    const token = tokens[0];
+    const hoje = new Date();
+    const inicio = new Date(hoje);
+    inicio.setDate(inicio.getDate() - 30);
+    const fmt = (d) =>
+      `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    const dataInicio = fmt(inicio);
+    const dataFim = fmt(hoje);
+    const now = new Date();
+
+    let totalAdicionados = 0;
+    let totalRemovidos = 0;
+    const erros = [];
+
+    for (const numSerie of numSeries) {
+      const [relogioRows] = await pool.query('SELECT id FROM relogios WHERE num_serie = ?', [numSerie]);
+      if (relogioRows.length === 0) {
+        erros.push(`Relógio ${numSerie}: não encontrado`);
+        continue;
+      }
+      const relogioId = relogioRows[0].id;
+
+      let apiMatriculas = new Set();
+      try {
+        const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/SelecionaMarcacoes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ numSerieRelogio: numSerie, dataInicio: dataInicio + ' 00:00:00', dataFim: dataFim + ' 23:59:59', tokenAcesso: token })
+        });
+        if (r.ok) {
+          const data = await r.json();
+          const marcacoes = data.d || [];
+          for (const m of marcacoes) {
+            if (m.matriculaFuncionario) apiMatriculas.add(String(m.matriculaFuncionario).trim());
+          }
+        }
+      } catch (e) {
+        erros.push(`Relógio ${numSerie}: erro na API`);
+        continue;
+      }
+
+      const [localRows] = await pool.query(
+        'SELECT matricula FROM relogio_funcionario WHERE relogio_id = ? AND status = 1',
+        [relogioId]
+      );
+      const localSet = new Set(localRows.map(r => r.matricula));
+
+      const toAdd = [...apiMatriculas].filter(m => !localSet.has(m));
+      const toRemove = [...localSet].filter(m => !apiMatriculas.has(m));
+
+      if (toAdd.length > 0) {
+        const values = toAdd.map(m => [relogioId, m, 1]);
+        await pool.query(
+          `INSERT INTO relogio_funcionario (relogio_id, matricula, status)
+           VALUES ?
+           ON DUPLICATE KEY UPDATE status = 1, atualizado_em = ?`,
+          [values, now]
+        );
+      }
+      if (toRemove.length > 0) {
+        await pool.query(
+          'UPDATE relogio_funcionario SET status = 0, atualizado_em = ? WHERE relogio_id = ? AND matricula IN (?)',
+          [now, relogioId, toRemove]
+        );
+      }
+
+      totalAdicionados += toAdd.length;
+      totalRemovidos += toRemove.length;
+    }
+
+    res.json({
+      success: true,
+      totalAdicionados,
+      totalRemovidos,
+      erros,
+      message: `Sincronização concluída: ${totalAdicionados} adicionados, ${totalRemovidos} removidos em ${numSeries.length} relógio(s)`
+    });
+  } catch (error) {
+    console.error('Erro em resync de relógios:', error);
+    res.status(500).json({ success: false, error: 'Erro ao sincronizar relógios' });
+  }
+});
+
 // Inicializar servidor
 async function startServer() {
   await initializeDatabase();

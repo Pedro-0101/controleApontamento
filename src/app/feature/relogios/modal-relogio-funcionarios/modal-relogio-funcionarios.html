@@ -30,9 +30,9 @@
               (input)="onSearchChange($any($event.target).value)"
             />
           </div>
-          <button class="btn-add-func" (click)="toggleAddForm()">
-            <lucide-icon name="plus" [size]="14"></lucide-icon>
-            Adicionar
+          <button class="btn-gerenciar" (click)="openGerenciar()">
+            <lucide-icon name="user-cog" [size]="14"></lucide-icon>
+            Gerenciar Funcionários
           </button>
           <span class="func-count-badge">
             <lucide-icon name="users" [size]="14"></lucide-icon>
@@ -44,36 +44,6 @@
           <div class="feedback-banner" [class.feedback-error]="feedbackType() === 'error'" [class.feedback-success]="feedbackType() === 'success'">
             <lucide-icon [name]="feedbackType() === 'success' ? 'check-circle' : 'alert-circle'" [size]="16"></lucide-icon>
             {{ feedbackMessage() }}
-          </div>
-        }
-
-        @if (showAddForm()) {
-          <div class="add-form-row">
-            <div class="add-form-fields">
-              <input
-                type="text"
-                class="add-matricula-input"
-                placeholder="Matrícula do funcionário"
-                [value]="novaMatricula()"
-                (input)="novaMatricula.set($any($event.target).value)"
-                (keydown.enter)="adicionarFuncionario()"
-              />
-              <button class="btn-confirm-add" (click)="adicionarFuncionario()" [disabled]="isAdding() || !novaMatricula().trim()">
-                @if (isAdding()) {
-                  <span class="spinner-inline light"></span>
-                } @else {
-                  <lucide-icon name="check" [size]="14"></lucide-icon>
-                }
-                Confirmar
-              </button>
-              <button class="btn-cancel-add" (click)="cancelarAdd()">
-                <lucide-icon name="x" [size]="14"></lucide-icon>
-                Cancelar
-              </button>
-            </div>
-            @if (addError()) {
-              <span class="add-error">{{ addError() }}</span>
-            }
           </div>
         }
 
@@ -134,14 +104,9 @@
                     <button
                       class="btn-remove"
                       title="Remover funcionário do relógio"
-                      [disabled]="isRemoving().has(func.matricula)"
                       (click)="removerFuncionario(func)"
                     >
-                      @if (isRemoving().has(func.matricula)) {
-                        <span class="spinner-inline"></span>
-                      } @else {
-                        <lucide-icon name="trash-2" [size]="14"></lucide-icon>
-                      }
+                      <lucide-icon name="trash-2" [size]="14"></lucide-icon>
                     </button>
                   </td>
                 </tr>
@@ -162,4 +127,182 @@
 
     <div class="modal-footer"></div>
   </div>
+
+  @if (showGerenciar()) {
+    <div class="gerenciar-overlay" (click)="fecharGerenciar()">
+      <div class="gerenciar-modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <h3>
+              <lucide-icon name="user-cog" [size]="20"></lucide-icon>
+              Gerenciar Funcionários
+            </h3>
+            <span class="modal-subtitle">SN: {{ numSerie() }} — {{ descricao() }}</span>
+          </div>
+          <button class="btn-close" (click)="fecharGerenciar()">
+            <lucide-icon name="x" [size]="20"></lucide-icon>
+          </button>
+        </div>
+
+        <div class="modal-body gerenciar-body">
+          @if (isLoadingGerenciar()) {
+            <div class="loading-container">
+              <div class="spinner"></div>
+              <p>Carregando funcionários...</p>
+            </div>
+          } @else {
+            <div class="gerenciar-filters">
+              <div class="table-search">
+                <lucide-icon name="search" [size]="14"></lucide-icon>
+                <input
+                  type="text"
+                  placeholder="Buscar por matrícula, nome, empresa, local ou cargo..."
+                  [value]="gerenciarSearchText()"
+                  (input)="onGerenciarSearchChange($any($event.target).value)"
+                />
+              </div>
+              <label class="gerenciar-checkbox">
+                <input
+                  type="checkbox"
+                  [checked]="somenteAtivos()"
+                  (change)="toggleSomenteAtivos()"
+                />
+                Somente ativos
+              </label>
+              <div class="gerenciar-dropdown">
+                <app-multi-select-dropdown
+                  #empresaDropdown
+                  [options]="empresaOptions()"
+                  [valueProp]="'nome'"
+                  [placeholder]="'Empresas...'"
+                  [searchPlaceholder]="'Buscar empresas...'"
+                  (selectionChange)="onEmpresaFilterChange($event)"
+                ></app-multi-select-dropdown>
+              </div>
+              <div class="gerenciar-dropdown">
+                <app-multi-select-dropdown
+                  #localDropdown
+                  [options]="localOptions()"
+                  [valueProp]="'nome'"
+                  [placeholder]="'Locais...'"
+                  [searchPlaceholder]="'Buscar locais...'"
+                  (selectionChange)="onLocalFilterChange($event)"
+                ></app-multi-select-dropdown>
+              </div>
+              <span class="vinculados-badge">
+                <lucide-icon name="link" [size]="14"></lucide-icon>
+                {{ vinculadosCount() }} vinculado(s)
+              </span>
+            </div>
+
+            <table class="func-table data-table gerenciar-table">
+              <thead>
+                <tr>
+                  <th class="col-check">
+                    <input
+                      type="checkbox"
+                      [checked]="allSelectedInPage()"
+                      (change)="toggleSelectAllPage()"
+                      title="Selecionar todos da página"
+                    />
+                  </th>
+                  <th class="sortable col-matricula" (click)="onGerenciarSort('matricula')">
+                    Matrícula
+                    @if (gerenciarSortColumn() === 'matricula') {
+                      <lucide-icon [name]="gerenciarSortDirection() === 'asc' ? 'chevron-up' : 'chevron-down'" [size]="14"></lucide-icon>
+                    }
+                  </th>
+                  <th class="sortable" (click)="onGerenciarSort('nome')">
+                    Nome
+                    @if (gerenciarSortColumn() === 'nome') {
+                      <lucide-icon [name]="gerenciarSortDirection() === 'asc' ? 'chevron-up' : 'chevron-down'" [size]="14"></lucide-icon>
+                    }
+                  </th>
+                  <th class="sortable" (click)="onGerenciarSort('empresa')">
+                    Empresa
+                    @if (gerenciarSortColumn() === 'empresa') {
+                      <lucide-icon [name]="gerenciarSortDirection() === 'asc' ? 'chevron-up' : 'chevron-down'" [size]="14"></lucide-icon>
+                    }
+                  </th>
+                  <th class="sortable" (click)="onGerenciarSort('local')">
+                    Local
+                    @if (gerenciarSortColumn() === 'local') {
+                      <lucide-icon [name]="gerenciarSortDirection() === 'asc' ? 'chevron-up' : 'chevron-down'" [size]="14"></lucide-icon>
+                    }
+                  </th>
+                  <th class="sortable" (click)="onGerenciarSort('cargo')">
+                    Cargo
+                    @if (gerenciarSortColumn() === 'cargo') {
+                      <lucide-icon [name]="gerenciarSortDirection() === 'asc' ? 'chevron-up' : 'chevron-down'" [size]="14"></lucide-icon>
+                    }
+                  </th>
+                  <th class="col-vinculado">Vinculado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (emp of paginatedEmployees(); track emp.matricula) {
+                  <tr class="gerenciar-row"
+                      [class.vinculado-row]="vinculadosSet().has(emp.matricula)"
+                      (click)="toggleVinculo(emp.matricula)">
+                    <td class="col-check" (click)="$event.stopPropagation()">
+                      <input
+                        type="checkbox"
+                        [checked]="vinculadosSet().has(emp.matricula)"
+                        (change)="toggleVinculo(emp.matricula)"
+                      />
+                    </td>
+                    <td class="col-matricula">{{ emp.matricula }}</td>
+                    <td class="funcionario-nome">
+                      <lucide-icon name="user" [size]="16"></lucide-icon>
+                      {{ emp.nome | titleCaseCustom }}
+                    </td>
+                    <td>{{ emp.empresa ? (emp.empresa | titleCaseCustom) : '—' }}</td>
+                    <td>{{ emp.local ? (emp.local | titleCaseCustom) : '—' }}</td>
+                    <td>{{ emp.cargo ? (emp.cargo | titleCaseCustom) : '—' }}</td>
+                    <td class="col-vinculado">
+                      @if (vinculadosSet().has(emp.matricula)) {
+                        <span class="vinculado-indicator ativo">
+                          <lucide-icon name="check" [size]="14"></lucide-icon>
+                          Vinculado
+                        </span>
+                      } @else {
+                        <span class="vinculado-indicator inativo">Não vinculado</span>
+                      }
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="8" class="empty-state">
+                      <lucide-icon name="users" [size]="48"></lucide-icon>
+                      <p>Nenhum funcionário encontrado</p>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+
+            <app-pagination
+              [totalItems]="filteredEmployees().length"
+              [itemsPerPage]="gerenciarItemsPerPage()"
+              [currentPage]="gerenciarCurrentPage()"
+              (pageChange)="onGerenciarPageChange($event)"
+              (itemsPerPageChange)="onGerenciarItemsPerPageChange($event)"
+            ></app-pagination>
+          }
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-cancel" (click)="fecharGerenciar()" [disabled]="isSaving()">
+            Cancelar
+          </button>
+          <button class="btn-save" (click)="salvarGerenciamento()" [disabled]="isSaving()">
+            @if (isSaving()) {
+              <span class="spinner-inline light"></span>
+            }
+            Salvar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
 </div>

@@ -111,6 +111,14 @@
                 }
                 Desativar
               </button>
+              <button class="btn-bulk-resync" (click)="resyncSelecionados()" [disabled]="isResyncing()">
+                @if (isResyncing()) {
+                  <span class="spinner-inline light"></span>
+                } @else {
+                  <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
+                }
+                Resincronizar
+              </button>
             </div>
           </div>
         }

@@ -56,6 +56,7 @@ export class Relogios implements OnInit {
   sortDirection = signal<'asc' | 'desc'>('asc');
   checkedRelogios = signal<Set<string>>(new Set());
   isBulkToggling = signal(false);
+  isResyncing = signal(false);
 
   allFilteredChecked = computed(() => {
     const filtered = this.filteredRelogios();
@@ -258,6 +259,22 @@ export class Relogios implements OnInit {
       this.checkedRelogios.set(new Set());
     } finally {
       this.isBulkToggling.set(false);
+    }
+  }
+
+  async resyncSelecionados() {
+    const checked = [...this.checkedRelogios()];
+    if (checked.length === 0) return;
+
+    this.isResyncing.set(true);
+    try {
+      const result = await this.relogioService.resyncRelogios(checked);
+      if (result.success) {
+        this.loadFuncionariosCount();
+        this.checkedRelogios.set(new Set());
+      }
+    } finally {
+      this.isResyncing.set(false);
     }
   }
 
