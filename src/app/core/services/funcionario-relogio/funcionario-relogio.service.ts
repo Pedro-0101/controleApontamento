@@ -134,6 +134,7 @@ export class FuncionarioRelogioService {
       pendentes.map(f => this.getRelogiosVinculados(f.matricula))
     );
 
+    let changed = false;
     for (let i = 0; i < pendentes.length; i++) {
       const f = pendentes[i];
       const result = results[i];
@@ -146,6 +147,10 @@ export class FuncionarioRelogioService {
         f.relogiosAtivo = 0;
       }
       this._matriculasContadas.add(f.matricula);
+      changed = true;
+    }
+    if (changed) {
+      this.funcionariosSignal.update(arr => [...arr]);
     }
   }
 

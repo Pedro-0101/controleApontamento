@@ -4,6 +4,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { LucideAngularModule } from 'lucide-angular';
 import { RelogioService } from '../../core/services/relogio/relogio.service';
+import { FuncionarioRelogioService } from '../../core/services/funcionario-relogio/funcionario-relogio.service';
 import { MarcacaoApiService } from '../../core/services/marcacao-api/marcacao-api.service';
 import { EmployeeService } from '../../core/services/employee/employee.service';
 import { Relogio } from '../../models/relogio/relogio';
@@ -37,6 +38,7 @@ interface RelogioAnalise {
 })
 export class Relogios implements OnInit {
   private relogioService = inject(RelogioService);
+  private funcionarioRelogioService = inject(FuncionarioRelogioService);
   private marcacaoApiService = inject(MarcacaoApiService);
   private employeeService = inject(EmployeeService);
   private http = inject(HttpClient);
@@ -161,7 +163,10 @@ export class Relogios implements OnInit {
   }
 
   async ngOnInit() {
-    await this.loadRelogios();
+    await Promise.all([
+      this.loadRelogios(),
+      this.funcionarioRelogioService.load()
+    ]);
     this.loadFuncionariosCount();
   }
 
