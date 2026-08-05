@@ -30,6 +30,7 @@ export class FuncionarioRelogioService {
         this.getApiFuncionarios(),
       ]);
       const merged = this.merge(localFuncionarios, apiFuncionarios);
+      this.enrichApiNames(merged, localFuncionarios);
       this.funcionariosSignal.set(merged);
       this.logger.info('FuncionarioRelogioService', `${merged.length} funcionários carregados (local: ${localFuncionarios.length}, api: ${apiFuncionarios.length})`);
     } catch (error) {
@@ -95,6 +96,18 @@ export class FuncionarioRelogioService {
     }
 
     return Array.from(map.values());
+  }
+
+  private enrichApiNames(merged: FuncionarioRelogio[], local: FuncionarioRelogio[]): void {
+    const localNameMap = new Map<string, string>();
+    for (const f of local) {
+      if (f.nome) localNameMap.set(f.matricula, f.nome);
+    }
+    for (const f of merged) {
+      if (!f.nome && localNameMap.has(f.matricula)) {
+        f.nome = localNameMap.get(f.matricula)!;
+      }
+    }
   }
 
   dedupVinculados(arrays: RelogioVinculado[][]): RelogioVinculado[] {

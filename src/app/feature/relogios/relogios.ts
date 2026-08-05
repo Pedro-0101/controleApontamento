@@ -11,7 +11,7 @@ import { Pagination } from '../../shared/pagination/pagination';
 import { RangeSlider, RangeValue } from '../../shared/range-slider/range-slider';
 import { RelogiosFuncionarios } from './relogios-funcionarios/relogios-funcionarios';
 import { ModalRelogioFuncionarios } from './modal-relogio-funcionarios/modal-relogio-funcionarios';
-import { ModalPreviewResync } from './modal-preview-resync/modal-preview-resync';
+
 
 interface FuncionarioAnalise {
   matricula: string;
@@ -31,7 +31,7 @@ interface RelogioAnalise {
 @Component({
   selector: 'app-relogios',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, Pagination, RangeSlider, RelogiosFuncionarios, ModalRelogioFuncionarios, ModalPreviewResync],
+  imports: [CommonModule, LucideAngularModule, Pagination, RangeSlider, RelogiosFuncionarios, ModalRelogioFuncionarios],
   templateUrl: './relogios.html',
   styleUrl: './relogios.css'
 })
@@ -57,8 +57,7 @@ export class Relogios implements OnInit {
   sortDirection = signal<'asc' | 'desc'>('asc');
   checkedRelogios = signal<Set<string>>(new Set());
   isBulkToggling = signal(false);
-  isResyncing = signal(false);
-  showPreviewModal = signal(false);
+
 
   allFilteredChecked = computed(() => {
     const filtered = this.filteredRelogios();
@@ -68,15 +67,7 @@ export class Relogios implements OnInit {
 
   checkedCount = computed(() => this.checkedRelogios().size);
 
-  checkedSeries = computed(() => [...this.checkedRelogios()]);
 
-  descricoesRelogios = computed(() => {
-    const map = new Map<string, string>();
-    for (const r of this.allRelogios()) {
-      map.set(r.numSerie, r.descricao || 'Sem descrição');
-    }
-    return map;
-  });
 
   logLines = signal<string[]>([]);
   isAnalyzing = signal(false);
@@ -274,21 +265,6 @@ export class Relogios implements OnInit {
     }
   }
 
-  async resyncSelecionados() {
-    const checked = [...this.checkedRelogios()];
-    if (checked.length === 0) return;
-
-    this.isResyncing.set(true);
-    try {
-      const result = await this.relogioService.resyncRelogios(checked);
-      if (result.success) {
-        this.loadFuncionariosCount();
-        this.checkedRelogios.set(new Set());
-      }
-    } finally {
-      this.isResyncing.set(false);
-    }
-  }
 
   async desativarSelecionados() {
     const checked = [...this.checkedRelogios()];
@@ -654,18 +630,6 @@ export class Relogios implements OnInit {
     this.selectedRelogioDescricao.set(null);
   }
 
-  openPreviewResync() {
-    this.showPreviewModal.set(true);
-  }
-
-  closePreviewResync() {
-    this.showPreviewModal.set(false);
-  }
-
-  async onConfirmResync() {
-    this.showPreviewModal.set(false);
-    await this.resyncSelecionados();
-  }
 
   async confirmarVinculacao() {
     this.isApplying.set(true);

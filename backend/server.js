@@ -1859,7 +1859,7 @@ app.post('/api/relogios/analise-vinculo', async (req, res) => {
       if (matriculasArr.length > 0) {
         const [result] = await pool.query(
           `UPDATE relogio_funcionario
-           SET status = 2
+           SET status = 0
            WHERE relogio_id = ? AND matricula NOT IN (?) AND status != -1`,
           [relogioId, matriculasArr]
         );
@@ -1868,7 +1868,7 @@ app.post('/api/relogios/analise-vinculo', async (req, res) => {
         // Se a lista veio vazia, inativar todos (exceto excluídos)
         const [result] = await pool.query(
           `UPDATE relogio_funcionario
-           SET status = 2
+           SET status = 0
            WHERE relogio_id = ? AND status != -1`,
           [relogioId]
         );
@@ -2054,6 +2054,7 @@ app.post('/api/relogios/:numSerie/funcionarios/remover', async (req, res) => {
       apiMessage = 'Nenhum token disponível — a desvinculação não foi enviada ao Ponto Certificado';
     } else {
       for (const token of tokens) {
+        let success = false;
         try {
           const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/vinculaFuncionarioRelogio', {
             method: 'POST',
@@ -2065,13 +2066,37 @@ app.post('/api/relogios/:numSerie/funcionarios/remover', async (req, res) => {
           });
           const body = await r.json().catch(() => ({ d: null }));
           const raw = body.d;
-          if (r.ok && Array.isArray(raw)) {
-            apiOk = true;
-            apiMessage = 'Desvinculação enviada com sucesso ao Ponto Certificado';
-            break;
+          if (r.ok && Array.isArray(raw) && raw.length > 0) {
+            success = true;
           }
         } catch (e) {
           // token inválido, tenta próximo
+        }
+
+        if (!success) {
+          try {
+            const r2 = await fetch('https://integrar.pontocertificado.com.br/Api.svc/VinculaFuncionarioRelogioPorLista', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                vinculosFuncionarioRelogio: [{ MatriculasFuncionarios: [matricula], NumerosSerieRelogios: [numSerie], Vincular: false }],
+                tokenAcesso: token
+              })
+            });
+            const body2 = await r2.json().catch(() => ({ d: null }));
+            const raw2 = body2.d;
+            if (r2.ok && Array.isArray(raw2) && raw2.length > 0) {
+              success = true;
+            }
+          } catch (e) {
+            // token inválido, tenta próximo
+          }
+        }
+
+        if (success) {
+          apiOk = true;
+          apiMessage = 'Desvinculação enviada com sucesso ao Ponto Certificado';
+          break;
         }
       }
       if (!apiOk) {
@@ -2129,7 +2154,7 @@ app.post('/api/relogios/:numSerie/funcionarios/adicionar', async (req, res) => {
           });
           const body = await r.json().catch(() => ({ d: null }));
           const raw = body.d;
-          if (r.ok && Array.isArray(raw)) {
+          if (r.ok && Array.isArray(raw) && raw.length > 0) {
             success = true;
           }
         } catch (e) {
@@ -2148,7 +2173,7 @@ app.post('/api/relogios/:numSerie/funcionarios/adicionar', async (req, res) => {
             });
             const body2 = await r2.json().catch(() => ({ d: null }));
             const raw2 = body2.d;
-            if (r2.ok && Array.isArray(raw2)) {
+            if (r2.ok && Array.isArray(raw2) && raw2.length > 0) {
               success = true;
             }
           } catch (e) {
@@ -2244,6 +2269,7 @@ app.post('/api/relogios/:numSerie/funcionarios/gerenciar', async (req, res) => {
         apiMessage = 'Nenhuma alteração a sincronizar com o Ponto Certificado';
       } else {
         for (const token of tokens) {
+          let success = false;
           try {
             const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/vinculaFuncionarioRelogio', {
               method: 'POST',
@@ -2252,13 +2278,54 @@ app.post('/api/relogios/:numSerie/funcionarios/gerenciar', async (req, res) => {
             });
             const body = await r.json().catch(() => ({ d: null }));
             const raw = body.d;
-            if (r.ok && Array.isArray(raw)) {
-              apiOk = true;
-              apiMessage = 'Sincronização enviada com sucesso ao Ponto Certificado';
-              break;
+            if (r.ok && Array.isArray(raw) && raw.length > 0) {
+              success = true;
             }
           } catch (e) {
             // token inválido, tenta próximo
+          }
+
+          if (!success) {
+            let fallbackOk = true;
+            if (toAdd.length > 0) {
+              try {
+                const r2 = await fetch('https://integrar.pontocertificado.com.br/Api.svc/VinculaFuncionarioRelogioPorLista', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    vinculosFuncionarioRelogio: [{ MatriculasFuncionarios: toAdd, NumerosSerieRelogios: [numSerie], Vincular: true }],
+                    tokenAcesso: token
+                  })
+                });
+                const body2 = await r2.json().catch(() => ({ d: null }));
+                if (!r2.ok || !Array.isArray(body2.d) || body2.d.length === 0) fallbackOk = false;
+              } catch (e) {
+                fallbackOk = false;
+              }
+            }
+            if (toRemove.length > 0) {
+              try {
+                const r3 = await fetch('https://integrar.pontocertificado.com.br/Api.svc/VinculaFuncionarioRelogioPorLista', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    vinculosFuncionarioRelogio: [{ MatriculasFuncionarios: toRemove, NumerosSerieRelogios: [numSerie], Vincular: false }],
+                    tokenAcesso: token
+                  })
+                });
+                const body3 = await r3.json().catch(() => ({ d: null }));
+                if (!r3.ok || !Array.isArray(body3.d) || body3.d.length === 0) fallbackOk = false;
+              } catch (e) {
+                fallbackOk = false;
+              }
+            }
+            success = fallbackOk;
+          }
+
+          if (success) {
+            apiOk = true;
+            apiMessage = 'Sincronização enviada com sucesso ao Ponto Certificado';
+            break;
           }
         }
         if (!apiOk) {
@@ -2322,13 +2389,14 @@ app.post('/api/relogios/resync/preview', async (req, res) => {
         [relogioId]
       );
       const localSet = new Set(localRows.map(r => r.matricula));
+      const todasSet = new Set(todasMatriculas);
 
       const aAdicionar = todasMatriculas
-        .filter(m => localSet.has(m))
+        .filter(m => !localSet.has(m))
         .map(m => ({ matricula: m, nome: funcionarioMap.get(m) || '' }));
 
-      const aRemover = todasMatriculas
-        .filter(m => !localSet.has(m))
+      const aRemover = [...localSet]
+        .filter(m => !todasSet.has(m))
         .map(m => ({ matricula: m, nome: funcionarioMap.get(m) || '' }));
 
       totalAdicionados += aAdicionar.length;
@@ -2395,9 +2463,10 @@ app.post('/api/relogios/resync', async (req, res) => {
         [relogioId]
       );
       const localSet = new Set(localRows.map(r => r.matricula));
+      const todasSet = new Set(todasMatriculas);
 
-      const toAdd = todasMatriculas.filter(m => localSet.has(m));
-      const toRemove = todasMatriculas.filter(m => !localSet.has(m));
+      const toAdd = todasMatriculas.filter(m => !localSet.has(m));
+      const toRemove = [...localSet].filter(m => !todasSet.has(m));
 
       const lstFuncRel = [
         ...toAdd.map(m => ({ MatriculaFuncionario: m, NumSerieRelogio: numSerie, Status: true })),
@@ -2407,6 +2476,7 @@ app.post('/api/relogios/resync', async (req, res) => {
       let apiOk = false;
       if (lstFuncRel.length > 0) {
         for (const token of tokens) {
+          let success = false;
           try {
             const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/vinculaFuncionarioRelogio', {
               method: 'POST',
@@ -2415,13 +2485,54 @@ app.post('/api/relogios/resync', async (req, res) => {
             });
             if (r.ok) {
               const data = await r.json();
-              if (Array.isArray(data.d)) {
-                apiOk = true;
-                break;
+              if (Array.isArray(data.d) && data.d.length > 0) {
+                success = true;
               }
             }
           } catch (e) {
             // tenta próximo token
+          }
+
+          if (!success) {
+            let fallbackOk = true;
+            if (toAdd.length > 0) {
+              try {
+                const r2 = await fetch('https://integrar.pontocertificado.com.br/Api.svc/VinculaFuncionarioRelogioPorLista', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    vinculosFuncionarioRelogio: [{ MatriculasFuncionarios: toAdd, NumerosSerieRelogios: [numSerie], Vincular: true }],
+                    tokenAcesso: token
+                  })
+                });
+                const body2 = await r2.json().catch(() => ({ d: null }));
+                if (!r2.ok || !Array.isArray(body2.d) || body2.d.length === 0) fallbackOk = false;
+              } catch (e) {
+                fallbackOk = false;
+              }
+            }
+            if (toRemove.length > 0) {
+              try {
+                const r3 = await fetch('https://integrar.pontocertificado.com.br/Api.svc/VinculaFuncionarioRelogioPorLista', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    vinculosFuncionarioRelogio: [{ MatriculasFuncionarios: toRemove, NumerosSerieRelogios: [numSerie], Vincular: false }],
+                    tokenAcesso: token
+                  })
+                });
+                const body3 = await r3.json().catch(() => ({ d: null }));
+                if (!r3.ok || !Array.isArray(body3.d) || body3.d.length === 0) fallbackOk = false;
+              } catch (e) {
+                fallbackOk = false;
+              }
+            }
+            success = fallbackOk;
+          }
+
+          if (success) {
+            apiOk = true;
+            break;
           }
         }
       } else {

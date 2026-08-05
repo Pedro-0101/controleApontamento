@@ -879,29 +879,6 @@ th.col-check {
   cursor: not-allowed;
 }
 
-.btn-bulk-resync {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 14px;
-  background: #6366f1;
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.btn-bulk-resync:hover {
-  background: #4f46e5;
-}
-
-.btn-bulk-resync:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
 
 .btn-bulk-preview {
   display: flex;
