@@ -302,3 +302,40 @@
 .vinculo-sem-descricao {
   color: var(--color-gray-400);
 }
+
+.vinculo-col-acoes {
+  width: 120px;
+  text-align: center;
+}
+
+.vinculo-col-funcionarios {
+  width: 100px;
+  text-align: center;
+}
+
+.vinculo-funcionarios-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--color-text-2);
+}
+
+.btn-gerenciar-vinculo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.btn-gerenciar-vinculo:hover {
+  background: var(--color-primary-light, #e8f0fe);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}

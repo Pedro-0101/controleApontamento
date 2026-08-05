@@ -171,6 +171,8 @@
                           <th class="vinculo-col-serie">Número de Série</th>
                           <th>Descrição</th>
                           <th class="vinculo-col-status">Status</th>
+                          <th class="vinculo-col-funcionarios">Vinculados</th>
+                          <th class="vinculo-col-acoes">Ações</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -193,6 +195,19 @@
                               <span class="badge" [class]="getVinculoStatusClass(vinculo)">
                                 {{ getVinculoStatusLabel(vinculo) }}
                               </span>
+                            </td>
+                            <td class="vinculo-col-funcionarios">
+                              <span class="vinculo-funcionarios-count">{{ getFuncionariosCount(vinculo.numSerie) }}</span>
+                            </td>
+                            <td class="vinculo-col-acoes">
+                              <button
+                                class="btn-gerenciar-vinculo"
+                                title="Gerenciar funcionários deste relógio"
+                                (click)="$event.stopPropagation(); onGerenciarRelogio(vinculo)"
+                              >
+                                <lucide-icon name="users" [size]="14"></lucide-icon>
+                                Gerenciar
+                              </button>
                             </td>
                           </tr>
                         }

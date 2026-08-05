@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal, computed, untracked, ViewChild } from '@angular/core';
+import { Component, effect, inject, signal, computed, untracked, ViewChild, Output, EventEmitter, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { FuncionarioRelogioService } from '../../../core/services/funcionario-relogio/funcionario-relogio.service';
@@ -50,6 +50,10 @@ export class RelogiosFuncionarios {
   expandedMatricula = signal<string | null>(null);
   relogiosVinculados = signal<RelogioVinculado[]>([]);
   loadingVinculos = signal(false);
+
+  @Output() openGerenciarRelogio = new EventEmitter<{ numSerie: string; descricao: string }>();
+
+  @Input() funcionariosPorRelogio: Map<string, number> = new Map();
 
   readonly isLoading = this.funcionarioRelogioService.isLoading;
 
@@ -222,5 +226,17 @@ export class RelogiosFuncionarios {
 
   getVinculoStatusLabel(vinculo: RelogioVinculado): string {
     return vinculo.ativo ? 'Ativo' : 'Inativo';
+  }
+
+  onGerenciarRelogio(vinculo: RelogioVinculado) {
+    this.openGerenciarRelogio.emit({
+      numSerie: vinculo.numSerie,
+      descricao: vinculo.descricao || 'Sem descrição'
+    });
+  }
+
+  getFuncionariosCount(numSerie: string): number {
+    const normalized = numSerie.replace(/\./g, '').replace(/^0+/, '');
+    return this.funcionariosPorRelogio.get(normalized) ?? 0;
   }
 }

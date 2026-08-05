@@ -3,6 +3,7 @@ import { LoggerService } from '../logger/logger.service';
 import { environment } from '../../../../environments/environment';
 import { ApiSessionService } from '../apiSession/api-session.service';
 import { EmployeeService } from '../employee/employee.service';
+import { RelogioService } from '../relogio/relogio.service';
 import { FuncionarioRelogio } from '../../../models/funcionario-relogio/funcionario-relogio';
 import { RelogioVinculado } from '../../../models/relogio-vinculado/relogio-vinculado';
 
@@ -13,6 +14,7 @@ export class FuncionarioRelogioService {
   private logger = inject(LoggerService);
   private apiSessionService = inject(ApiSessionService);
   private employeeService = inject(EmployeeService);
+  private relogioService = inject(RelogioService);
 
   private funcionariosSignal = signal<FuncionarioRelogio[]>([]);
   readonly funcionarios = computed(() => this.funcionariosSignal());
@@ -177,7 +179,19 @@ export class FuncionarioRelogioService {
     }));
 
     const vinculados = this.dedupVinculados(results);
+    this.enrichVinculadosDescricao(vinculados);
     this._vinculadosCache.set(cacheKey, vinculados);
     return vinculados;
+  }
+
+  private enrichVinculadosDescricao(vinculados: RelogioVinculado[]): void {
+    for (const v of vinculados) {
+      if (!v.descricao) {
+        const relogio = this.relogioService.getRelogioFromNumSerie(v.numSerie);
+        if (relogio && relogio.descricao !== 'Nao encontrado') {
+          v.descricao = relogio.descricao;
+        }
+      }
+    }
   }
 }

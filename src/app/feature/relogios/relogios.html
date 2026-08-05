@@ -236,7 +236,10 @@
     aria-labelledby="tab-funcionarios"
     [hidden]="activeTab() !== 'funcionarios'"
   >
-    <app-relogios-funcionarios />
+    <app-relogios-funcionarios
+      [funcionariosPorRelogio]="funcionariosPorRelogio()"
+      (openGerenciarRelogio)="openFuncionariosModal($event.numSerie, $event.descricao)"
+    />
   </div>
 
   <div
