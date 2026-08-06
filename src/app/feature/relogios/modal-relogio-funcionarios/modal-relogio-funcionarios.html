@@ -34,6 +34,13 @@
             <lucide-icon name="user-cog" [size]="14"></lucide-icon>
             Gerenciar Funcionários
           </button>
+          <button class="btn-sincronizar-api" (click)="openPreviewSincronizacao()" [disabled]="isSincronizandoApi()">
+            @if (isSincronizandoApi()) {
+              <span class="spinner-inline"></span>
+            }
+            <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
+            Sincronizar API
+          </button>
           <span class="func-count-badge">
             <lucide-icon name="users" [size]="14"></lucide-icon>
             {{ filteredFuncionarios().length }} funcionário(s)
@@ -300,6 +307,103 @@
               <span class="spinner-inline light"></span>
             }
             Salvar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (showPreviewSincronizacao()) {
+    <div class="gerenciar-overlay" (click)="fecharPreviewSincronizacao()">
+      <div class="gerenciar-modal preview-sync-modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <h3>
+              <lucide-icon name="refresh-cw" [size]="20"></lucide-icon>
+              Sincronizar com Ponto Certificado
+            </h3>
+            <span class="modal-subtitle">SN: {{ numSerie() }} — {{ descricao() }}</span>
+          </div>
+          <button class="btn-close" (click)="fecharPreviewSincronizacao()">
+            <lucide-icon name="x" [size]="20"></lucide-icon>
+          </button>
+        </div>
+
+        <div class="modal-body gerenciar-body">
+          @if (isLoadingPreview()) {
+            <div class="loading-container">
+              <div class="spinner"></div>
+              <p>Carregando prévia...</p>
+            </div>
+          } @else {
+            <div class="preview-sync-layout">
+              <div class="preview-sync-col">
+                <div class="preview-sync-col-header vincular">
+                  <lucide-icon name="link" [size]="16"></lucide-icon>
+                  <span>Serão vinculados</span>
+                  <span class="preview-sync-count">{{ previewAVincular().length }}</span>
+                </div>
+                <div class="preview-sync-search">
+                  <lucide-icon name="search" [size]="14"></lucide-icon>
+                  <input
+                    type="text"
+                    placeholder="Buscar..."
+                    [value]="previewSearchVincular()"
+                    (input)="onPreviewSearchVincularChange($any($event.target).value)"
+                  />
+                </div>
+                <div class="preview-sync-list">
+                  @for (f of previewAVincularFiltrado(); track f.matricula) {
+                    <div class="preview-sync-item" (click)="moverParaDesvincular(f)" title="Clique para mover para desvincular">
+                      <span class="preview-sync-matricula">{{ f.matricula }}</span>
+                      <span class="preview-sync-nome">{{ f.nome | titleCaseCustom }}</span>
+                      <lucide-icon name="arrow-right" [size]="14" class="preview-sync-move-icon"></lucide-icon>
+                    </div>
+                  } @empty {
+                    <div class="preview-sync-empty">Nenhum funcionário para vincular</div>
+                  }
+                </div>
+              </div>
+              <div class="preview-sync-col">
+                <div class="preview-sync-col-header desvincular">
+                  <lucide-icon name="unlink" [size]="16"></lucide-icon>
+                  <span>Serão desvinculados</span>
+                  <span class="preview-sync-count">{{ previewADesvincular().length }}</span>
+                </div>
+                <div class="preview-sync-search">
+                  <lucide-icon name="search" [size]="14"></lucide-icon>
+                  <input
+                    type="text"
+                    placeholder="Buscar..."
+                    [value]="previewSearchDesvincular()"
+                    (input)="onPreviewSearchDesvincularChange($any($event.target).value)"
+                  />
+                </div>
+                <div class="preview-sync-list">
+                  @for (f of previewADesvincularFiltrado(); track f.matricula) {
+                    <div class="preview-sync-item" (click)="moverParaVincular(f)" title="Clique para mover para vincular">
+                      <lucide-icon name="arrow-left" [size]="14" class="preview-sync-move-icon"></lucide-icon>
+                      <span class="preview-sync-matricula">{{ f.matricula }}</span>
+                      <span class="preview-sync-nome">{{ f.nome | titleCaseCustom }}</span>
+                    </div>
+                  } @empty {
+                    <div class="preview-sync-empty">Nenhum funcionário para desvincular</div>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-cancel" (click)="fecharPreviewSincronizacao()" [disabled]="isSincronizandoApi()">
+            Cancelar
+          </button>
+          <button class="btn-save" (click)="confirmarSincronizacao()" [disabled]="isSincronizandoApi()">
+            @if (isSincronizandoApi()) {
+              <span class="spinner-inline light"></span>
+            }
+            Confirmar
           </button>
         </div>
       </div>

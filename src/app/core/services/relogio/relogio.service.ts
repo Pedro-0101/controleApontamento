@@ -265,6 +265,40 @@ export class RelogioService {
     }
   }
 
+  async previewSincronizarVinculosApi(numSerie: string): Promise<{ success: boolean; aVincular: { matricula: string; nome: string }[]; aDesvincular: { matricula: string; nome: string }[]; totalVincular: number; totalDesvincular: number }> {
+    try {
+      const resp = await firstValueFrom(
+        this.http.post<{ success: boolean; aVincular: { matricula: string; nome: string }[]; aDesvincular: { matricula: string; nome: string }[]; totalVincular: number; totalDesvincular: number }>(
+          `/api/relogios/${encodeURIComponent(numSerie)}/funcionarios/sincronizar-api/preview`,
+          {}
+        )
+      );
+      return resp;
+    } catch (error) {
+      this.loggerService.error('RelogioService', 'Erro ao gerar prévia da sincronização: ' + error);
+      return { success: false, aVincular: [], aDesvincular: [], totalVincular: 0, totalDesvincular: 0 };
+    }
+  }
+
+  async sincronizarVinculosApi(numSerie: string, matriculasVincular?: string[], matriculasDesvincular?: string[]): Promise<{ success: boolean; vinculadosNaApi: number; desvinculadosNaApi: number; errosVinculacao: number; errosDesvinculacao: number; message: string }> {
+    try {
+      const tokens = this.apiSessionService.getAllTokens();
+      const body: any = { tokens };
+      if (matriculasVincular !== undefined) body.matriculasVincular = matriculasVincular;
+      if (matriculasDesvincular !== undefined) body.matriculasDesvincular = matriculasDesvincular;
+      const resp = await firstValueFrom(
+        this.http.post<{ success: boolean; vinculadosNaApi: number; desvinculadosNaApi: number; errosVinculacao: number; errosDesvinculacao: number; message: string }>(
+          `/api/relogios/${encodeURIComponent(numSerie)}/funcionarios/sincronizar-api`,
+          body
+        )
+      );
+      return resp;
+    } catch (error) {
+      this.loggerService.error('RelogioService', 'Erro ao sincronizar vínculos com a API: ' + error);
+      return { success: false, vinculadosNaApi: 0, desvinculadosNaApi: 0, errosVinculacao: 0, errosDesvinculacao: 0, message: 'Erro de comunicação com o servidor' };
+    }
+  }
+
   async mergeLocalStatus(relogios: Relogio[]): Promise<Relogio[]> {
     try {
       const statusMap = await this.fetchLocalStatus();

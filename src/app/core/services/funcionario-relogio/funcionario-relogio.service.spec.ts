@@ -85,10 +85,12 @@ describe('FuncionarioRelogioService', () => {
   describe('carregarContadores', () => {
     it('should fill relogiosCadastrado and relogiosAtivo from vinculos', async () => {
       const f = makeFuncionario('140000117', 'local');
-      vi.spyOn(service, 'getRelogiosVinculados').mockResolvedValue([
+      const mockMap = new Map<string, RelogioVinculado[]>();
+      mockMap.set('140000117', [
         new RelogioVinculado({ numSerie: '111', status: 1 }),
         new RelogioVinculado({ numSerie: '222', status: 2 })
       ]);
+      vi.spyOn(service, 'getRelogiosVinculadosBatch').mockResolvedValue(mockMap);
 
       await service.carregarContadores([f]);
 
@@ -100,7 +102,7 @@ describe('FuncionarioRelogioService', () => {
       const counted = makeFuncionario('001', 'local');
       counted.relogiosCadastrado = 3;
       const semMatricula = makeFuncionario('', 'local');
-      const spy = vi.spyOn(service, 'getRelogiosVinculados');
+      const spy = vi.spyOn(service, 'getRelogiosVinculadosBatch');
 
       await service.carregarContadores([counted, semMatricula]);
 

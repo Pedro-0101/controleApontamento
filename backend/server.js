@@ -1929,6 +1929,71 @@ app.get('/api/relogios/funcionarios-count', async (req, res) => {
   }
 });
 
+const CONCURRENCY_BATCH = 10;
+
+app.post('/api/relogios/por-matricula/batch', async (req, res) => {
+  try {
+    let { matriculas } = req.body;
+    if (!Array.isArray(matriculas) || matriculas.length === 0) {
+      return res.status(400).json({ success: false, error: 'matriculas (array) é obrigatório' });
+    }
+
+    let tokens = req.body.tokens || [];
+    if (!Array.isArray(tokens) || tokens.length === 0) {
+      tokens = await getActiveTokens();
+    }
+    if (tokens.length === 0) {
+      return res.json({ success: false, erro: 'Nenhum token disponível' });
+    }
+
+    const resultados = {};
+
+    for (let i = 0; i < matriculas.length; i += CONCURRENCY_BATCH) {
+      const chunk = matriculas.slice(i, i + CONCURRENCY_BATCH);
+      const chunkResults = await Promise.all(chunk.map(async matricula => {
+        const tokenResults = await Promise.all(tokens.map(async token => {
+          try {
+            const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/RetornaRelogiosPorMatricula', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ matricula, tokenAcesso: token })
+            });
+            if (!r.ok) return [];
+            const data = await r.json();
+            return (data.d || []).map(d => ({
+              NumSerieRelogio: d.NumSerieRelogio,
+              Status: d.Status
+            }));
+          } catch {
+            return [];
+          }
+        }));
+
+        const seen = new Set();
+        const unique = [];
+        for (const arr of tokenResults) {
+          for (const item of arr) {
+            const ns = item.NumSerieRelogio;
+            if (!ns || seen.has(ns)) continue;
+            seen.add(ns);
+            unique.push(item);
+          }
+        }
+        return { matricula, relogios: unique };
+      }));
+
+      for (const { matricula, relogios } of chunkResults) {
+        resultados[matricula] = relogios;
+      }
+    }
+
+    res.json({ success: true, resultados });
+  } catch (error) {
+    console.error('Erro em batch RetornaRelogiosPorMatricula:', error);
+    res.status(500).json({ success: false, error: 'Erro ao buscar relógios por matrícula em lote' });
+  }
+});
+
 // Endpoint para ativar/desativar um relógio
 app.post('/api/relogios/toggle-ativo', async (req, res) => {
   try {
@@ -2345,6 +2410,200 @@ app.post('/api/relogios/:numSerie/funcionarios/gerenciar', async (req, res) => {
   } catch (error) {
     console.error('Erro em gerenciar funcionários do relógio:', error);
     res.status(500).json({ success: false, error: 'Erro ao gerenciar funcionários do relógio' });
+  }
+});
+
+async function sincronizarComApi(numSerieRelogio, lstFuncRel, token) {
+  try {
+    const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/vinculaFuncionarioRelogio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lstFuncRel, tokenAcesso: token })
+    });
+    const body = await r.json().catch(() => ({ d: null }));
+    const raw = body.d;
+    return r.ok && Array.isArray(raw) && raw.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function sincronizarComApiFallback(matriculas, numSerieRelogio, vincular, token) {
+  try {
+    const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/VinculaFuncionarioRelogioPorLista', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vinculosFuncionarioRelogio: [{ MatriculasFuncionarios: matriculas, NumerosSerieRelogios: [numSerieRelogio], Vincular: vincular }],
+        tokenAcesso: token
+      })
+    });
+    const body = await r.json().catch(() => ({ d: null }));
+    const raw = body.d;
+    return r.ok && Array.isArray(raw) && raw.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function processarLoteApi(lstFuncRel, matriculasVinculadas, matriculasDesvinculadas, numSerieRelogio, tokens) {
+  let vinculadosOk = false;
+  let desvinculadosOk = false;
+
+  for (const token of tokens) {
+    if (!vinculadosOk && lstFuncRel.some(f => f.Status === true)) {
+      const apenasVincular = lstFuncRel.filter(f => f.Status === true);
+      let ok = await sincronizarComApi(numSerieRelogio, lstFuncRel, token);
+      if (!ok) {
+        ok = await sincronizarComApiFallback(matriculasVinculadas, numSerieRelogio, true, token);
+      }
+      vinculadosOk = ok;
+    }
+
+    if (!desvinculadosOk && lstFuncRel.some(f => f.Status === false)) {
+      const apenasDesvincular = lstFuncRel.filter(f => f.Status === false);
+      let ok = await sincronizarComApi(numSerieRelogio, lstFuncRel, token);
+      if (!ok) {
+        let fallbackOk = true;
+        if (matriculasVinculadas.length > 0) {
+          fallbackOk = await sincronizarComApiFallback(matriculasVinculadas, numSerieRelogio, true, token);
+        }
+        if (fallbackOk && matriculasDesvinculadas.length > 0) {
+          fallbackOk = await sincronizarComApiFallback(matriculasDesvinculadas, numSerieRelogio, false, token);
+        }
+        ok = fallbackOk;
+      }
+      desvinculadosOk = ok;
+    }
+
+    if (vinculadosOk || desvinculadosOk) break;
+  }
+
+  return { vinculadosOk, desvinculadosOk };
+}
+
+app.post('/api/relogios/:numSerie/funcionarios/sincronizar-api/preview', async (req, res) => {
+  try {
+    const { numSerie } = req.params;
+    if (!numSerie) {
+      return res.status(400).json({ success: false, error: 'numSerie é obrigatório' });
+    }
+
+    const [relogioRows] = await pool.query('SELECT id FROM relogios WHERE num_serie = ?', [numSerie]);
+    if (relogioRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Relógio não encontrado' });
+    }
+    const relogioId = relogioRows[0].id;
+
+    const [vinculadasRows] = await pool.query(
+      `SELECT rf.matricula, q.nome
+       FROM relogio_funcionario rf
+       INNER JOIN qrcod_2023 q ON rf.matricula = q.matricula
+       WHERE rf.relogio_id = ? AND rf.status = 1
+       ORDER BY q.nome ASC`,
+      [relogioId]
+    );
+
+    const [naoVinculadasRows] = await pool.query(
+      `SELECT q.matricula, q.nome
+       FROM qrcod_2023 q
+       WHERE q.matricula NOT IN (
+         SELECT matricula FROM relogio_funcionario WHERE relogio_id = ? AND status = 1
+       )
+       ORDER BY q.nome ASC`,
+      [relogioId]
+    );
+
+    res.json({
+      success: true,
+      aVincular: vinculadasRows.map(r => ({ matricula: r.matricula, nome: r.nome })),
+      aDesvincular: naoVinculadasRows.map(r => ({ matricula: r.matricula, nome: r.nome })),
+      totalVincular: vinculadasRows.length,
+      totalDesvincular: naoVinculadasRows.length
+    });
+  } catch (error) {
+    console.error('Erro em preview sincronizar-api:', error);
+    res.status(500).json({ success: false, error: 'Erro ao gerar prévia da sincronização' });
+  }
+});
+
+const TAMANHO_LOTE = 50;
+
+app.post('/api/relogios/:numSerie/funcionarios/sincronizar-api', async (req, res) => {
+  try {
+    const { numSerie } = req.params;
+    let { tokens, matriculasVincular, matriculasDesvincular } = req.body;
+    if (!numSerie) {
+      return res.status(400).json({ success: false, error: 'numSerie é obrigatório' });
+    }
+    if (!Array.isArray(tokens) || tokens.length === 0) {
+      tokens = await getActiveTokens();
+    }
+    if (tokens.length === 0) {
+      return res.json({ success: false, message: 'Nenhum token disponível' });
+    }
+
+    const [relogioRows] = await pool.query('SELECT id FROM relogios WHERE num_serie = ?', [numSerie]);
+    if (relogioRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Relógio não encontrado' });
+    }
+
+    let vinculadasLocal;
+    let naoVinculadasLocal;
+
+    if (Array.isArray(matriculasVincular) && Array.isArray(matriculasDesvincular)) {
+      vinculadasLocal = matriculasVincular;
+      naoVinculadasLocal = matriculasDesvincular;
+    } else {
+      const relogioId = relogioRows[0].id;
+      const [vinculadasRows] = await pool.query(
+        'SELECT matricula FROM relogio_funcionario WHERE relogio_id = ? AND status = 1',
+        [relogioId]
+      );
+      vinculadasLocal = vinculadasRows.map(r => r.matricula);
+      const vinculadasSet = new Set(vinculadasLocal);
+      const [todasRows] = await pool.query('SELECT matricula FROM qrcod_2023');
+      naoVinculadasLocal = todasRows.map(r => r.matricula).filter(m => !vinculadasSet.has(m));
+    }
+
+    let totalVinculados = 0;
+    let totalDesvinculados = 0;
+    let errosVinculacao = 0;
+    let errosDesvinculacao = 0;
+
+    for (let i = 0; i < vinculadasLocal.length; i += TAMANHO_LOTE) {
+      const loteVinculadas = vinculadasLocal.slice(i, i + TAMANHO_LOTE);
+      const lstFuncRel = loteVinculadas.map(m => ({ MatriculaFuncionario: m, NumSerieRelogio: numSerie, Status: true }));
+      const { vinculadosOk } = await processarLoteApi(lstFuncRel, loteVinculadas, [], numSerie, tokens);
+      if (vinculadosOk) {
+        totalVinculados += loteVinculadas.length;
+      } else {
+        errosVinculacao += loteVinculadas.length;
+      }
+    }
+
+    for (let i = 0; i < naoVinculadasLocal.length; i += TAMANHO_LOTE) {
+      const loteDesvinculadas = naoVinculadasLocal.slice(i, i + TAMANHO_LOTE);
+      const lstFuncRel = loteDesvinculadas.map(m => ({ MatriculaFuncionario: m, NumSerieRelogio: numSerie, Status: false }));
+      const { desvinculadosOk } = await processarLoteApi(lstFuncRel, [], loteDesvinculadas, numSerie, tokens);
+      if (desvinculadosOk) {
+        totalDesvinculados += loteDesvinculadas.length;
+      } else {
+        errosDesvinculacao += loteDesvinculadas.length;
+      }
+    }
+
+    res.json({
+      success: true,
+      vinculadosNaApi: totalVinculados,
+      desvinculadosNaApi: totalDesvinculados,
+      errosVinculacao,
+      errosDesvinculacao,
+      message: `Sincronização concluída: ${totalVinculados} vinculado(s), ${totalDesvinculados} desvinculado(s)${errosVinculacao > 0 || errosDesvinculacao > 0 ? `, ${errosVinculacao + errosDesvinculacao} erro(s)` : ''}`
+    });
+  } catch (error) {
+    console.error('Erro em sincronizar-api:', error);
+    res.status(500).json({ success: false, error: 'Erro ao sincronizar vínculos com a API' });
   }
 });
 

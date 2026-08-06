@@ -60,6 +60,31 @@ export class ModalRelogioFuncionarios implements OnInit {
   gerenciarSortDirection = signal<'asc' | 'desc'>('asc');
   isSaving = signal(false);
 
+  isSincronizandoApi = signal(false);
+
+  showPreviewSincronizacao = signal(false);
+  isLoadingPreview = signal(false);
+  previewAVincular = signal<{ matricula: string; nome: string }[]>([]);
+  previewADesvincular = signal<{ matricula: string; nome: string }[]>([]);
+  previewSearchVincular = signal('');
+  previewSearchDesvincular = signal('');
+
+  previewAVincularFiltrado = computed(() => {
+    const search = this.previewSearchVincular().toLowerCase().trim();
+    if (!search) return this.previewAVincular();
+    return this.previewAVincular().filter(f =>
+      f.matricula.toLowerCase().includes(search) || f.nome.toLowerCase().includes(search)
+    );
+  });
+
+  previewADesvincularFiltrado = computed(() => {
+    const search = this.previewSearchDesvincular().toLowerCase().trim();
+    if (!search) return this.previewADesvincular();
+    return this.previewADesvincular().filter(f =>
+      f.matricula.toLowerCase().includes(search) || f.nome.toLowerCase().includes(search)
+    );
+  });
+
   @ViewChild('empresaDropdown') empresaDropdown!: MultiSelectDropdown;
   @ViewChild('localDropdown') localDropdown!: MultiSelectDropdown;
 
@@ -303,6 +328,72 @@ export class ModalRelogioFuncionarios implements OnInit {
         result.apiVinculado ? 'success' : 'error'
       );
     } finally {
+    }
+  }
+
+  async openPreviewSincronizacao() {
+    this.showPreviewSincronizacao.set(true);
+    this.isLoadingPreview.set(true);
+    this.previewAVincular.set([]);
+    this.previewADesvincular.set([]);
+    try {
+      const result = await this.relogioService.previewSincronizarVinculosApi(this.numSerie());
+      if (result.success) {
+        this.previewAVincular.set(result.aVincular);
+        this.previewADesvincular.set(result.aDesvincular);
+      }
+    } finally {
+      this.isLoadingPreview.set(false);
+    }
+  }
+
+  fecharPreviewSincronizacao() {
+    this.showPreviewSincronizacao.set(false);
+  }
+
+  onPreviewSearchVincularChange(value: string) {
+    this.previewSearchVincular.set(value);
+  }
+
+  onPreviewSearchDesvincularChange(value: string) {
+    this.previewSearchDesvincular.set(value);
+  }
+
+  moverParaDesvincular(func: { matricula: string; nome: string }) {
+    this.previewAVincular.update(list => list.filter(f => f.matricula !== func.matricula));
+    this.previewADesvincular.update(list => {
+      const novo = [...list, func];
+      novo.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }));
+      return novo;
+    });
+  }
+
+  moverParaVincular(func: { matricula: string; nome: string }) {
+    this.previewADesvincular.update(list => list.filter(f => f.matricula !== func.matricula));
+    this.previewAVincular.update(list => {
+      const novo = [...list, func];
+      novo.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }));
+      return novo;
+    });
+  }
+
+  async confirmarSincronizacao() {
+    this.showPreviewSincronizacao.set(false);
+    this.isSincronizandoApi.set(true);
+    try {
+      const matriculasVincular = this.previewAVincular().map(f => f.matricula);
+      const matriculasDesvincular = this.previewADesvincular().map(f => f.matricula);
+      const result = await this.relogioService.sincronizarVinculosApi(this.numSerie(), matriculasVincular, matriculasDesvincular);
+      this.showFeedback(
+        result.message,
+        result.success ? 'success' : 'error'
+      );
+      if (result.success) {
+        const data = await this.relogioService.getFuncionariosByRelogio(this.numSerie());
+        this.allFuncionarios.set(data);
+      }
+    } finally {
+      this.isSincronizandoApi.set(false);
     }
   }
 

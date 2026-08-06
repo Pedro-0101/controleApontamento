@@ -1,4 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { LoggerService } from '../logger/logger.service';
 import { environment } from '../../../../environments/environment';
 import { ApiSessionService } from '../apiSession/api-session.service';
@@ -15,6 +17,7 @@ export class FuncionarioRelogioService {
   private apiSessionService = inject(ApiSessionService);
   private employeeService = inject(EmployeeService);
   private relogioService = inject(RelogioService);
+  private http = inject(HttpClient);
 
   private funcionariosSignal = signal<FuncionarioRelogio[]>([]);
   readonly funcionarios = computed(() => this.funcionariosSignal());
@@ -132,28 +135,68 @@ export class FuncionarioRelogioService {
 
     if (pendentes.length === 0) return;
 
-    const results = await Promise.allSettled(
-      pendentes.map(f => this.getRelogiosVinculados(f.matricula))
-    );
+    const matriculas = pendentes.map(f => f.matricula);
+    const resultMap = await this.getRelogiosVinculadosBatch(matriculas);
 
     let changed = false;
-    for (let i = 0; i < pendentes.length; i++) {
-      const f = pendentes[i];
-      const result = results[i];
-      if (result.status === 'fulfilled') {
-        const vinculados = result.value;
-        f.relogiosCadastrado = vinculados.length;
-        f.relogiosAtivo = vinculados.filter(v => v.ativo).length;
-      } else {
-        f.relogiosCadastrado = 0;
-        f.relogiosAtivo = 0;
-      }
+    for (const f of pendentes) {
+      const vinculados = resultMap.get(f.matricula) || [];
+      f.relogiosCadastrado = vinculados.length;
+      f.relogiosAtivo = vinculados.filter(v => v.ativo).length;
       this._matriculasContadas.add(f.matricula);
       changed = true;
     }
     if (changed) {
       this.funcionariosSignal.update(arr => [...arr]);
     }
+  }
+
+  async getRelogiosVinculadosBatch(matriculas: string[]): Promise<Map<string, RelogioVinculado[]>> {
+    const result = new Map<string, RelogioVinculado[]>();
+
+    const pendentes = matriculas.filter(m => {
+      const cacheKey = m.trim();
+      if (this._vinculadosCache.has(cacheKey)) {
+        result.set(m, this._vinculadosCache.get(cacheKey)!);
+        return false;
+      }
+      return true;
+    });
+
+    if (pendentes.length > 0) {
+      try {
+        const resp = await firstValueFrom(
+          this.http.post<{ success: boolean; resultados: Record<string, { NumSerieRelogio: string; Status: number }[]> }>(
+            '/api/relogios/por-matricula/batch',
+            { matriculas: pendentes }
+          )
+        );
+        if (resp.success && resp.resultados) {
+          for (const [matricula, relogios] of Object.entries(resp.resultados)) {
+            const vinculados = relogios.map((r: any) => RelogioVinculado.fromApiJson(r));
+            this.enrichVinculadosDescricao(vinculados);
+            this._vinculadosCache.set(matricula, vinculados);
+          }
+        }
+      } catch (error) {
+        this.logger.error('FuncionarioRelogioService', 'Erro ao buscar relógios em lote:', error);
+        for (const m of pendentes) {
+          if (!this._vinculadosCache.has(m.trim())) {
+            this._vinculadosCache.set(m.trim(), []);
+          }
+        }
+      }
+    }
+
+    for (const matricula of matriculas) {
+      const cacheKey = matricula.trim();
+      const cached = this._vinculadosCache.get(cacheKey);
+      if (cached !== undefined) {
+        result.set(matricula, cached);
+      }
+    }
+
+    return result;
   }
 
   async getRelogiosVinculados(matricula: string): Promise<RelogioVinculado[]> {
