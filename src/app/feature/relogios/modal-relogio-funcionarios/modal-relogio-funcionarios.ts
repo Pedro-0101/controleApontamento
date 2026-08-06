@@ -1,4 +1,4 @@
-import { Component, EventEmitter, inject, input, OnInit, Output, signal, computed, ViewChild } from '@angular/core';
+import { Component, EventEmitter, inject, input, OnInit, Output, signal, computed, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { RelogioService } from '../../../core/services/relogio/relogio.service';
@@ -28,6 +28,7 @@ type SortColumn = 'matricula' | 'nome' | 'empresa' | 'local' | 'cargo';
 export class ModalRelogioFuncionarios implements OnInit {
   private relogioService = inject(RelogioService);
   private employeeService = inject(EmployeeService);
+  private cdr = inject(ChangeDetectorRef);
 
   numSerie = input.required<string>();
   descricao = input.required<string>();
@@ -66,24 +67,10 @@ export class ModalRelogioFuncionarios implements OnInit {
   isLoadingPreview = signal(false);
   previewAVincular = signal<{ matricula: string; nome: string }[]>([]);
   previewADesvincular = signal<{ matricula: string; nome: string }[]>([]);
+  previewAVincularSlice = signal<{ matricula: string; nome: string }[]>([]);
+  previewADesvincularSlice = signal<{ matricula: string; nome: string }[]>([]);
   previewSearchVincular = signal('');
   previewSearchDesvincular = signal('');
-
-  previewAVincularFiltrado = computed(() => {
-    const search = this.previewSearchVincular().toLowerCase().trim();
-    if (!search) return this.previewAVincular();
-    return this.previewAVincular().filter(f =>
-      f.matricula.toLowerCase().includes(search) || f.nome.toLowerCase().includes(search)
-    );
-  });
-
-  previewADesvincularFiltrado = computed(() => {
-    const search = this.previewSearchDesvincular().toLowerCase().trim();
-    if (!search) return this.previewADesvincular();
-    return this.previewADesvincular().filter(f =>
-      f.matricula.toLowerCase().includes(search) || f.nome.toLowerCase().includes(search)
-    );
-  });
 
   @ViewChild('empresaDropdown') empresaDropdown!: MultiSelectDropdown;
   @ViewChild('localDropdown') localDropdown!: MultiSelectDropdown;
@@ -336,14 +323,22 @@ export class ModalRelogioFuncionarios implements OnInit {
     this.isLoadingPreview.set(true);
     this.previewAVincular.set([]);
     this.previewADesvincular.set([]);
+    this.previewAVincularSlice.set([]);
+    this.previewADesvincularSlice.set([]);
+    let result: any;
     try {
-      const result = await this.relogioService.previewSincronizarVinculosApi(this.numSerie());
+      result = await this.relogioService.previewSincronizarVinculosApi(this.numSerie());
       if (result.success) {
         this.previewAVincular.set(result.aVincular);
         this.previewADesvincular.set(result.aDesvincular);
       }
     } finally {
       this.isLoadingPreview.set(false);
+      if (result?.success) {
+        this.previewAVincularSlice.set(result.aVincular.slice(0, 200));
+        this.previewADesvincularSlice.set(result.aDesvincular.slice(0, 200));
+      }
+      setTimeout(() => this.cdr.detectChanges());
     }
   }
 
@@ -353,10 +348,22 @@ export class ModalRelogioFuncionarios implements OnInit {
 
   onPreviewSearchVincularChange(value: string) {
     this.previewSearchVincular.set(value);
+    const search = value.toLowerCase().trim();
+    const source = this.previewAVincular();
+    const result = search
+      ? source.filter(f => f.matricula.toLowerCase().includes(search) || f.nome.toLowerCase().includes(search))
+      : source;
+    this.previewAVincularSlice.set(result.slice(0, 200));
   }
 
   onPreviewSearchDesvincularChange(value: string) {
     this.previewSearchDesvincular.set(value);
+    const search = value.toLowerCase().trim();
+    const source = this.previewADesvincular();
+    const result = search
+      ? source.filter(f => f.matricula.toLowerCase().includes(search) || f.nome.toLowerCase().includes(search))
+      : source;
+    this.previewADesvincularSlice.set(result.slice(0, 200));
   }
 
   moverParaDesvincular(func: { matricula: string; nome: string }) {

@@ -353,11 +353,11 @@
                   />
                 </div>
                 <div class="preview-sync-list">
-                  @for (f of previewAVincularFiltrado(); track f.matricula) {
+                  @for (f of previewAVincularSlice(); track f.matricula) {
                     <div class="preview-sync-item" (click)="moverParaDesvincular(f)" title="Clique para mover para desvincular">
                       <span class="preview-sync-matricula">{{ f.matricula }}</span>
                       <span class="preview-sync-nome">{{ f.nome | titleCaseCustom }}</span>
-                      <lucide-icon name="arrow-right" [size]="14" class="preview-sync-move-icon"></lucide-icon>
+                      <span class="preview-sync-move-icon">→</span>
                     </div>
                   } @empty {
                     <div class="preview-sync-empty">Nenhum funcionário para vincular</div>
@@ -380,11 +380,11 @@
                   />
                 </div>
                 <div class="preview-sync-list">
-                  @for (f of previewADesvincularFiltrado(); track f.matricula) {
+                  @for (f of previewADesvincularSlice(); track f.matricula) {
                     <div class="preview-sync-item" (click)="moverParaVincular(f)" title="Clique para mover para vincular">
-                      <lucide-icon name="arrow-left" [size]="14" class="preview-sync-move-icon"></lucide-icon>
                       <span class="preview-sync-matricula">{{ f.matricula }}</span>
                       <span class="preview-sync-nome">{{ f.nome | titleCaseCustom }}</span>
+                      <span class="preview-sync-move-icon">←</span>
                     </div>
                   } @empty {
                     <div class="preview-sync-empty">Nenhum funcionário para desvincular</div>

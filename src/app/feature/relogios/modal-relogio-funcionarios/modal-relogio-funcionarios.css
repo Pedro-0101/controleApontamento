@@ -535,6 +535,15 @@ app-pagination {
   font-size: var(--font-size-sm);
   font-weight: 600;
   margin-bottom: var(--spacing-sm);
+  min-height: 40px;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.preview-sync-col-header > span:first-of-type {
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .preview-sync-col-header.vincular {
