@@ -1,0 +1,195 @@
+<div class="page-container">
+  <!-- Topo com filtros compactos -->
+  <div class="topbar">
+    <div class="topbar-title">
+      <h1>Faltas</h1>
+      <p>Faltas confirmadas do mês atual — todas as empresas</p>
+    </div>
+
+    <div class="topbar-filters">
+      <div class="filter-item">
+        <label class="filter-label" for="filtroInicio">Início</label>
+        <input
+          type="date"
+          id="filtroInicio"
+          class="input-text input-compact"
+          [ngModel]="dataInicio()" (ngModelChange)="dataInicio.set($event)"
+          [max]="dataFim()"
+        >
+      </div>
+
+      <div class="filter-item">
+        <label class="filter-label" for="filtroFim">Fim</label>
+        <input
+          type="date"
+          id="filtroFim"
+          class="input-text input-compact"
+          [ngModel]="dataFim()" (ngModelChange)="dataFim.set($event)"
+          [min]="dataInicio()"
+        >
+      </div>
+
+      <div class="filter-item">
+        <label class="filter-label">Empresa</label>
+        <app-multi-select-dropdown
+          [compact]="true"
+          [options]="companyOptions()"
+          [placeholder]="'Todas'"
+          [searchPlaceholder]="'Buscar empresas...'"
+          (selectionChange)="onCompanySelectionChange($event)"
+        />
+      </div>
+
+      <div class="filter-item">
+        <label class="filter-label">Local</label>
+        <app-multi-select-dropdown
+          [compact]="true"
+          [options]="locationOptions()"
+          [placeholder]="'Todos'"
+          [searchPlaceholder]="'Buscar locais...'"
+          (selectionChange)="onLocationSelectionChange($event)"
+        />
+      </div>
+
+      <div class="filter-actions">
+        <button
+          class="btn btn-primary btn-compact"
+          (click)="gerarDashboard()"
+          [disabled]="isLoading() || !dataInicio() || !dataFim()"
+          title="Gerar dashboard"
+        >
+          @if (isLoading()) {
+            <div class="spinner" style="width: 14px; height: 14px;"></div>
+          } @else {
+            <lucide-icon name="layout-dashboard" [size]="14"></lucide-icon>
+          }
+          Gerar
+        </button>
+        <button
+          class="btn btn-outline btn-compact btn-clear"
+          (click)="limparFiltros()"
+          [disabled]="isLoading()"
+          title="Limpar filtros"
+        >
+          <lucide-icon name="x" [size]="14"></lucide-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Conteúdo do dashboard -->
+  @if (isLoading()) {
+    <div class="loading-container">
+      <div class="spinner"></div>
+      <p>Carregando faltas...</p>
+    </div>
+  } @else if (hasGenerated()) {
+    <!-- KPIs -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-warning">
+          <lucide-icon name="users" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Funcionários com falta</span>
+          <span class="kpi-value">{{ numeroFuncionariosComFalta() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-danger">
+          <lucide-icon name="calendar-x" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Total de faltas</span>
+          <span class="kpi-value">{{ totalFaltas() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-danger">
+          <lucide-icon name="trending-up" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Maior número de faltas</span>
+          <span class="kpi-value">{{ maiorNumeroFaltas() }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card" [attr.data-tooltip]="'Média = total de faltas ÷ funcionários com falta no período'">
+        <div class="kpi-icon kpi-icon-info">
+          <lucide-icon name="bar-chart-3" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Média de faltas</span>
+          <span class="kpi-value">{{ mediaFaltas() | number: '1.1-1' }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-icon-warning">
+          <lucide-icon name="building-2" [size]="20"></lucide-icon>
+        </div>
+        <div class="kpi-content">
+          <span class="kpi-label">Empresa com mais faltas</span>
+          <span class="kpi-value kpi-value-text">{{ empresaComMaisFalta()?.nome || '—' }}</span>
+          @if (empresaComMaisFalta(); as emp) {
+            <span class="kpi-sub">{{ emp.faltas }} falta{{ emp.faltas !== 1 ? 's' : '' }}</span>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabela -->
+    <div class="results-card">
+      @if (funcionariosFaltas().length === 0) {
+        <div class="empty-state">
+          <lucide-icon name="check-circle" [size]="48"></lucide-icon>
+          <h3>Nenhuma falta confirmada</h3>
+          <p>Não há faltas confirmadas para os filtros selecionados.</p>
+        </div>
+      } @else {
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Matrícula</th>
+                <th>Empresa</th>
+                <th>Local</th>
+                <th>Faltas</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (f of paginatedFuncionarios; track f.matricula) {
+                <tr>
+                  <td>{{ f.nome | titleCaseCustom }}</td>
+                  <td>{{ f.matricula }}</td>
+                  <td>{{ f.empresa | titleCaseCustom }}</td>
+                  <td>{{ f.local | titleCaseCustom }}</td>
+                  <td class="rank-col">
+                    <span class="badge faltas-badge">{{ f.faltas }}</span>
+                  </td>
+                  <td>
+                    <span class="status-pill status-{{ statusFalta(f.faltas) }}">
+                      {{ statusLabel(statusFalta(f.faltas)) }}
+                    </span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <app-pagination
+          [totalItems]="funcionariosFaltas().length"
+          [itemsPerPage]="itemsPerPage()"
+          [currentPage]="currentPage()"
+          (pageChange)="onPageChange($event)"
+          (itemsPerPageChange)="onItemsPerPageChange($event)"
+        />
+      }
+    </div>
+  }
+</div>

@@ -24,6 +24,11 @@ export const routes: Routes = [
     canActivate: [authGuardGuard]
   },
   {
+    path: "faltas",
+    loadComponent: () => import('./feature/faltas/faltas').then(m => m.Faltas),
+    canActivate: [authGuardGuard]
+  },
+  {
     path: "auditoria",
     loadComponent: () => import('./feature/auditoria/auditoria').then(m => m.Auditoria),
     canActivate: [authGuardGuard]

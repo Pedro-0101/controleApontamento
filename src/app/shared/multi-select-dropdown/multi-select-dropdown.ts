@@ -17,6 +17,7 @@ export class MultiSelectDropdown {
   searchPlaceholder = input<string>('Buscar...');
   disabled = input<boolean>(false);
   initialValue = input<string[]>([]);
+  compact = input<boolean>(false);
 
   // Custom property paths for objects
   labelProp = input<string>('nome');

@@ -22,6 +22,27 @@
   border-color: var(--color-border-strong);
 }
 
+/* ── Variante compacta ──────────────────────────────── */
+
+.multi-select-container.compact .multi-select-header {
+  height: 30px;
+  padding: 0 8px;
+  font-size: 12px;
+  border-radius: 7px;
+}
+
+.multi-select-container.compact .placeholder,
+.multi-select-container.compact .header-label {
+  font-size: 12px;
+}
+
+.multi-select-container.compact .count-badge {
+  font-size: 10px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+}
+
 .multi-select-header.open {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.12);

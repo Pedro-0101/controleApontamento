@@ -42,6 +42,7 @@ export class Sidebar {
     { label: 'Colaboradores',     route: '/colaboradores',              icon: 'users'          },
     { label: 'Relógios',          route: '/relogios',                   icon: 'clock'          },
     { label: 'Relatórios',        route: '/relatorios',                 icon: 'file-text'      },
+    { label: 'Faltas',            route: '/faltas',                     icon: 'calendar-x'     },
     { label: 'Eventos',           route: '/eventos',                    icon: 'calendar'       },
     { label: 'Auditoria',         route: '/auditoria',                  icon: 'shield-check'   },
     { label: 'Empresas da API',   route: '/configuracoes/empresas',     icon: 'building-2'     },

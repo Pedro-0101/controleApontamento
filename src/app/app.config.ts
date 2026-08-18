@@ -71,6 +71,9 @@ import {
   Check,
   UserCog,
   Link,
+  LayoutDashboard,
+  TrendingUp,
+  BarChart3,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -150,6 +153,9 @@ CalendarSearch,
       Check,
       UserCog,
       Link,
+      LayoutDashboard,
+      TrendingUp,
+      BarChart3,
     }))
   ]
 };

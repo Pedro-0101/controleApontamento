@@ -1,4 +1,4 @@
-<div class="multi-select-container">
+<div class="multi-select-container" [class.compact]="compact()">
   <div class="multi-select-header" (click)="toggleDropdown()" [class.disabled]="disabled()">
     <div class="selected-count">
       @if (selectedValues().length === 0) {
