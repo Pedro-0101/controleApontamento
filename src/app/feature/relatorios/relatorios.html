@@ -14,11 +14,15 @@
       <lucide-icon name="utensils" [size]="16"></lucide-icon>
       Não Aptos para VR
     </button>
+    <button class="tipo-tab" [class.ativo]="tipoRelatorio() === 'faltas'" (click)="tipoRelatorio.set('faltas'); limparFiltros()">
+      <lucide-icon name="calendar-x" [size]="16"></lucide-icon>
+      Faltas Confirmadas
+    </button>
   </div>
 
   <!-- Filters Section -->
   <div class="filters-card">
-    <h2>{{ tipoRelatorio() === 'vr' ? 'Filtros — Não Aptos para VR' : 'Filtros do Relatório' }}</h2>
+    <h2>{{ tipoRelatorio() === 'vr' ? 'Filtros — Não Aptos para VR' : (tipoRelatorio() === 'faltas' ? 'Filtros — Faltas Confirmadas' : 'Filtros do Relatório') }}</h2>
 
     <div class="filter-grid">
       <!-- Date Range -->
@@ -160,6 +164,20 @@
           Exportar PDF
         </button>
       }
+      @if (hasGenerated() && tipoRelatorio() === 'faltas' && resultadosFaltas().length > 0) {
+        <button class="btn btn-outline" (click)="exportarFaltasCSV()">
+          <lucide-icon name="download" [size]="16"></lucide-icon>
+          Exportar CSV
+        </button>
+        <button class="btn btn-outline" (click)="exportarFaltasExcel()">
+          <lucide-icon name="file-spreadsheet" [size]="16"></lucide-icon>
+          Exportar Excel
+        </button>
+        <button class="btn btn-outline" (click)="exportarFaltasPDF()">
+          <lucide-icon name="file-code" [size]="16"></lucide-icon>
+          Exportar PDF
+        </button>
+      }
     </div>
   </div>
 
@@ -270,6 +288,68 @@
               </table>
             </div>
           }
+        }
+
+      } @else if (tipoRelatorio() === 'faltas') {
+
+        <!-- ── Resultados Faltas Confirmadas ── -->
+        <div class="summary-section">
+          <div class="summary-item">
+            <lucide-icon name="calendar" [size]="20"></lucide-icon>
+            <div>
+              <span class="summary-label">Período</span>
+              <span class="summary-value">{{ formatDateToDDMMYYYY(dataInicio()) }} a {{ formatDateToDDMMYYYY(dataFim()) }}</span>
+            </div>
+          </div>
+          <div class="summary-item">
+            <lucide-icon name="users" [size]="20"></lucide-icon>
+            <div>
+              <span class="summary-label">Funcionários com falta confirmada</span>
+              <span class="summary-value">{{ resultadosFaltas().length }}</span>
+            </div>
+          </div>
+          <div class="summary-item">
+            <lucide-icon name="calendar-x" [size]="20"></lucide-icon>
+            <div>
+              <span class="summary-label">Total de faltas confirmadas</span>
+              <span class="summary-value faltas-total">{{ totalFaltasConfirmadas }}</span>
+            </div>
+          </div>
+        </div>
+
+        @if (resultadosFaltas().length === 0) {
+          <div class="empty-state">
+            <lucide-icon name="check-circle" [size]="48"></lucide-icon>
+            <h3>Nenhuma falta confirmada</h3>
+            <p>Não há faltas confirmadas no período selecionado.</p>
+          </div>
+        } @else {
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nome</th>
+                  <th>Matrícula</th>
+                  <th>Empresa</th>
+                  <th>Local</th>
+                  <th>Faltas Confirmadas</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of resultadosFaltas(); track r.matricula; let i = $index) {
+                  <tr>
+                    <td class="rank-col">{{ i + 1 }}</td>
+                    <td>{{ r.nome | titleCaseCustom }}</td>
+                    <td>{{ r.matricula }}</td>
+                    <td>{{ r.empresa | titleCaseCustom }}</td>
+                    <td>{{ r.local | titleCaseCustom }}</td>
+                    <td class="rank-col"><span class="badge faltas-badge">{{ r.quantidadeFaltas }}</span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
         }
 
       } @else if (marcacoesPorDia().length === 0) {

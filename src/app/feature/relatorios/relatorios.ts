@@ -18,7 +18,16 @@ import { TitleCaseCustomPipe } from '../../shared/pipes/title-case-custom.pipe';
 import { AdmUnitService } from '../../core/services/admUnits/adm-unit.service';
 import { AdmUnit } from '../../models/admUnit/adm-unit';
 
-type TipoRelatorio = 'espelho' | 'vr';
+type TipoRelatorio = 'espelho' | 'vr' | 'faltas';
+
+interface FaltaConfirmadaResultado {
+  matricula: string;
+  nome: string;
+  empresa: string;
+  cargo: string;
+  local: string;
+  quantidadeFaltas: number;
+}
 
 interface FuncParaPDF {
   matricula: string;
@@ -82,6 +91,7 @@ export class Relatorios {
   tipoRelatorio = signal<TipoRelatorio>('espelho');
   maxPontosManualVR = signal(0);
   resultadosVR = signal<VRResultado[]>([]);
+  resultadosFaltas = signal<FaltaConfirmadaResultado[]>([]);
 
   readonly resultadosVRExperiencia = computed(() => 
     this.resultadosVR().filter(r => r.motivos.some(m => m.tipo === 'menos_90_dias'))
@@ -295,6 +305,7 @@ export class Relatorios {
 
       this.marcacoesPorDia.set(marcacoesPorDia);
       if (this.tipoRelatorio() === 'vr') this.calcularNaoAptosVR();
+      if (this.tipoRelatorio() === 'faltas') this.calcularFaltasConfirmadas();
       this.hasGenerated.set(true);
     } catch (error) {
       console.error('Erro ao gerar relatório:', error);
@@ -313,6 +324,7 @@ export class Relatorios {
     this.marcacoes.set([]);
     this.marcacoesPorDia.set([]);
     this.resultadosVR.set([]);
+    this.resultadosFaltas.set([]);
     this.hasGenerated.set(false);
     this.currentPage.set(1);
     this.periodoGerado = '';
@@ -383,6 +395,10 @@ export class Relatorios {
 
   get totalFuncionariosAnalisados(): number {
     return new Set(this.marcacoesPorDia().map(d => d.matricula)).size;
+  }
+
+  get totalFaltasConfirmadas(): number {
+    return this.resultadosFaltas().reduce((total, r) => total + r.quantidadeFaltas, 0);
   }
 
   // ── VR ────────────────────────────────────────────────────────────────────
@@ -606,6 +622,109 @@ export class Relatorios {
       pontos_manuais:'motivo-manual'
     };
     return map[tipo];
+  }
+
+  // ── Faltas Confirmadas ────────────────────────────────────────────────────
+
+  calcularFaltasConfirmadas(): void {
+    const todos = this.marcacoesPorDia();
+    const porFuncionario = new Map<string, MarcacaoDia[]>();
+    for (const dia of todos) {
+      if (!porFuncionario.has(dia.matricula)) porFuncionario.set(dia.matricula, []);
+      porFuncionario.get(dia.matricula)!.push(dia);
+    }
+
+    const resultados: FaltaConfirmadaResultado[] = [];
+
+    for (const [matricula, dias] of porFuncionario) {
+      const quantidadeFaltas = dias.filter(dia => this.getStatusRelatorio(dia, matricula) === 'Falta Confirmada').length;
+      if (quantidadeFaltas === 0) continue;
+
+      const primeiro = dias[0];
+      resultados.push({
+        matricula,
+        nome: primeiro.nome,
+        empresa: primeiro.empresa || '',
+        cargo: primeiro.cargo || '',
+        local: primeiro.local || '',
+        quantidadeFaltas
+      });
+    }
+
+    resultados.sort((a, b) => b.quantidadeFaltas - a.quantidadeFaltas || a.nome.localeCompare(b.nome));
+    this.resultadosFaltas.set(resultados);
+  }
+
+  private faltasRows() {
+    return this.resultadosFaltas().map(r => ({
+      Nome: r.nome,
+      Matricula: r.matricula,
+      Empresa: r.empresa,
+      Local: r.local,
+      'Faltas Confirmadas': r.quantidadeFaltas
+    }));
+  }
+
+  exportarFaltasCSV(): void {
+    const csv = this.convertToCSV(this.faltasRows());
+    this.downloadFile(csv, `relatorio-faltas-confirmadas-${Date.now()}.csv`, 'text/csv');
+  }
+
+  async exportarFaltasExcel(): Promise<void> {
+    try {
+      const XLSX = await import('xlsx');
+      const ws = XLSX.utils.json_to_sheet(this.faltasRows());
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Faltas Confirmadas');
+      XLSX.writeFile(wb, `relatorio-faltas-confirmadas-${Date.now()}.xlsx`);
+    } catch (e) {
+      console.error('Erro ao exportar Excel de faltas:', e);
+    }
+  }
+
+  async exportarFaltasPDF(): Promise<void> {
+    try {
+      const jsPDF = (await import('jspdf')).default;
+      const autoTable = (await import('jspdf-autotable')).default;
+      const doc = new jsPDF();
+
+      doc.setFontSize(16);
+      doc.text('Relatorio — Faltas Confirmadas', 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Periodo: ${this.periodoGerado}`, 14, 23);
+      doc.text(
+        `Gerado em: ${new Date().toLocaleString('pt-BR')} — ${this.resultadosFaltas().length} funcionario(s) com falta confirmada`,
+        14, 29
+      );
+
+      const body = this.resultadosFaltas().map(r => [
+        this.toTitleCase(r.nome),
+        r.matricula,
+        this.toTitleCase(r.empresa),
+        this.toTitleCase(r.local),
+        String(r.quantidadeFaltas)
+      ]);
+
+      autoTable(doc, {
+        startY: 35,
+        head: [['Nome', 'Matricula', 'Empresa', 'Local', 'Faltas']],
+        body,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [220, 38, 38] },
+        columnStyles: {
+          0: { cellWidth: 55 },
+          1: { cellWidth: 22 },
+          2: { cellWidth: 35 },
+          3: { cellWidth: 35 },
+          4: { cellWidth: 30, halign: 'center' }
+        }
+      });
+
+      doc.save(`relatorio-faltas-confirmadas-${Date.now()}.pdf`);
+    } catch (e) {
+      console.error('Erro ao exportar PDF de faltas:', e);
+    }
   }
 
   exportarCSV() {

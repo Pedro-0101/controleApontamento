@@ -63,6 +63,26 @@
 
 .vr-nao-aptos { color: #dc2626; font-weight: 700; }
 
+/* ── Resultados Faltas Confirmadas ─────────────────── */
+
+.faltas-total { color: #dc2626; font-weight: 700; }
+
+.rank-col {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.faltas-badge {
+  display: inline-block;
+  min-width: 28px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 .motivos-list {
   display: flex;
   flex-wrap: wrap;
