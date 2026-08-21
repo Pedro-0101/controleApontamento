@@ -27,6 +27,7 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th>Logo</th>
               <th>Nome</th>
               <th>Status</th>
               <th>Ações</th>
@@ -35,6 +36,15 @@
           <tbody>
             @for (e of empresas(); track e.id) {
               <tr>
+                <td>
+                  @if (e.logo) {
+                    <img class="empresa-logo" [src]="e.logo" alt="Logo {{ e.nome }}">
+                  } @else {
+                    <span class="logo-placeholder">
+                      <lucide-icon name="building" [size]="16"></lucide-icon>
+                    </span>
+                  }
+                </td>
                 <td><strong>{{ e.nome | titleCaseCustom }}</strong></td>
                 <td>
                   @if (e.ativo) {
@@ -86,6 +96,31 @@
             (keydown.enter)="handleSave()"
             autofocus
           >
+        </div>
+
+        <div class="form-group">
+          <label>Logo</label>
+          <div class="logo-upload">
+            @if (logoData()) {
+              <div class="logo-preview">
+                <img [src]="logoData()" alt="Prévia do logo">
+                <button type="button" class="btn btn-outline btn-sm" (click)="removerLogo()" title="Remover logo">
+                  <lucide-icon name="trash-2" [size]="14"></lucide-icon>
+                  Remover
+                </button>
+              </div>
+            } @else {
+              <div class="logo-placeholder-lg">
+                <lucide-icon name="image" [size]="28"></lucide-icon>
+                <span>Nenhum logo selecionado</span>
+              </div>
+            }
+            <label class="btn btn-outline btn-sm logo-upload-btn">
+              <lucide-icon name="upload" [size]="14"></lucide-icon>
+              {{ logoData() ? 'Trocar imagem' : 'Selecionar imagem' }}
+              <input type="file" accept="image/*" (change)="onLogoSelected($event)" hidden>
+            </label>
+          </div>
         </div>
       </div>
       <div class="modal-footer">

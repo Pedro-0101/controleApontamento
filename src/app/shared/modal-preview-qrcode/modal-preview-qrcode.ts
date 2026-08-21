@@ -39,21 +39,12 @@ export class ModalPreviewQrcode implements OnInit {
       const cards: CardData[] = [];
       for (const emp of this.employees) {
         const qrDataUrl = await QRCode.toDataURL(emp.matricula || 'N/A', { margin: 1, width: 200 });
-        cards.push({ employee: emp, qrDataUrl, logoPath: this.getLogoPath(emp.empresa) });
+        cards.push({ employee: emp, qrDataUrl, logoPath: await this.qrcodeService.resolveLogo(emp.empresa) });
       }
       this.cards.set(cards);
     } finally {
       this.isLoading.set(false);
     }
-  }
-
-  private getLogoPath(company: string): string {
-    const c = company?.toLowerCase() ?? '';
-    if (c.includes('dnp') && !c.includes('mix')) return '/images/DNP.jpeg';
-    if (c.includes('pinhal')) return '/images/Pedreira Pinhal.jpeg';
-    if (c.includes('sao joao') || c.includes('são joão')) return '/images/Pedreira Sao Joao.jpeg';
-    if (c.includes('bofete')) return '/images/Pedreira Bofete.jpeg';
-    return '/images/DNP Mix.jpeg';
   }
 
   async download() {

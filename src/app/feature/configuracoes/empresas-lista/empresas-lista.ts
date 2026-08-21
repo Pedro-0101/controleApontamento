@@ -26,6 +26,7 @@ export class EmpresasLista implements OnInit {
   modalMode  = signal<'create' | 'edit'>('create');
   selected   = signal<Empresa | null>(null);
   nomeInput  = signal('');
+  logoData   = signal<string>('');
 
   async ngOnInit() {
     await this.carregar();
@@ -43,6 +44,7 @@ export class EmpresasLista implements OnInit {
   abrirCriar() {
     this.selected.set(null);
     this.nomeInput.set('');
+    this.logoData.set('');
     this.modalMode.set('create');
     this.showModal.set(true);
   }
@@ -50,12 +52,40 @@ export class EmpresasLista implements OnInit {
   abrirEditar(e: Empresa) {
     this.selected.set(e);
     this.nomeInput.set(e.nome);
+    this.logoData.set(e.logo || '');
     this.modalMode.set('edit');
     this.showModal.set(true);
   }
 
   fecharModal() {
     this.showModal.set(false);
+  }
+
+  onLogoSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      this.toastService.warning('Selecione um arquivo de imagem válido');
+      input.value = '';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      this.toastService.warning('Imagem muito grande (máx. 5 MB)');
+      input.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.logoData.set(String(reader.result || ''));
+    };
+    reader.readAsDataURL(file);
+  }
+
+  removerLogo() {
+    this.logoData.set('');
   }
 
   async handleSave() {
@@ -66,10 +96,10 @@ export class EmpresasLista implements OnInit {
     this.isSaving.set(true);
     try {
       if (this.modalMode() === 'create') {
-        await this.service.criar(this.nomeInput());
+        await this.service.criar(this.nomeInput(), this.logoData() || undefined);
         this.toastService.success('Empresa criada com sucesso!');
       } else {
-        await this.service.atualizar(this.selected()!.id, this.nomeInput(), this.selected()!.ativo);
+        await this.service.atualizar(this.selected()!.id, this.nomeInput(), this.selected()!.ativo, this.logoData() || null);
         this.toastService.success('Empresa atualizada com sucesso!');
       }
       this.showModal.set(false);

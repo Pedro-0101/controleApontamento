@@ -74,6 +74,7 @@ import {
   LayoutDashboard,
   TrendingUp,
   BarChart3,
+  Upload,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -156,6 +157,7 @@ CalendarSearch,
       LayoutDashboard,
       TrendingUp,
       BarChart3,
+      Upload,
     }))
   ]
 };

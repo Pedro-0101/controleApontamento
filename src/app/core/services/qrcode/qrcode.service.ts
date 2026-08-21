@@ -1,25 +1,57 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { jsPDF } from 'jspdf';
 import * as QRCode from 'qrcode';
 import { Employee } from '../../../models/employee/employee';
+import { EmpresaService } from '../empresa/empresa.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class QRCodeService {
 
-  private getLogoPath(company: string): string {
-    const comp = company ? company.toLowerCase() : '';
-    if (comp.includes('dnp') && !comp.includes('mix')) {
+  private empresaService = inject(EmpresaService);
+  private logoMap: Map<string, string> | null = null;
+
+  private normalize(value: string): string {
+    return (value || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  private fallbackLogoPath(company: string): string {
+    const c = this.normalize(company);
+    if (c.includes('dnp') && !c.includes('mix')) {
       return '/images/DNP.jpeg';
-    } else if (comp.includes('pinhal')) {
+    } else if (c.includes('pinhal')) {
       return '/images/Pedreira Pinhal.jpeg';
-    } else if (comp.includes('sao joao') || comp.includes('são joão')) {
+    } else if (c.includes('sao joao')) {
       return '/images/Pedreira Sao Joao.jpeg';
-    } else if (comp.includes('bofete')) {
+    } else if (c.includes('bofete')) {
       return '/images/Pedreira Bofete.jpeg';
+    } else if (c.includes('canaa')) {
+      return '/images/Porto de areia canaa.jpeg';
     } else {
       return '/images/DNP Mix.jpeg';
+    }
+  }
+
+  async resolveLogo(company: string): Promise<string> {
+    const map = await this.getLogoMap();
+    const key = this.normalize(company);
+    const stored = map.get(key);
+    return stored || this.fallbackLogoPath(company);
+  }
+
+  private async getLogoMap(): Promise<Map<string, string>> {
+    if (this.logoMap) return this.logoMap;
+    try {
+      const empresas = await this.empresaService.listar(true);
+      const map = new Map<string, string>();
+      for (const e of empresas) {
+        if (e.logo) map.set(this.normalize(e.nome), e.logo);
+      }
+      this.logoMap = map;
+      return map;
+    } catch {
+      return new Map();
     }
   }
 
@@ -83,7 +115,7 @@ export class QRCodeService {
     doc.rect(x, y, cardWidth, cardHeight);
 
     // 1. Add Logo
-    const logoUrl = this.getLogoPath(employee.empresa);
+    const logoUrl = await this.resolveLogo(employee.empresa);
     try {
       const imgData = await this.getImageData(logoUrl);
       // Adjust logo size to fit width well (90% of card width)

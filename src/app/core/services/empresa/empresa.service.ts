@@ -17,17 +17,17 @@ export class EmpresaService {
     return r.success ? r.empresas : [];
   }
 
-  async criar(nome: string): Promise<Empresa> {
+  async criar(nome: string, logo?: string): Promise<Empresa> {
     const r = await firstValueFrom(
-      this.http.post<{ success: boolean; empresa: Empresa }>(this.apiUrl, { nome })
+      this.http.post<{ success: boolean; empresa: Empresa }>(this.apiUrl, { nome, logo: logo || null })
     );
     if (!r.success) throw new Error('Erro ao criar empresa');
     return r.empresa;
   }
 
-  async atualizar(id: number, nome: string, ativo: number): Promise<Empresa> {
+  async atualizar(id: number, nome: string, ativo: number, logo?: string | null): Promise<Empresa> {
     const r = await firstValueFrom(
-      this.http.put<{ success: boolean; empresa: Empresa }>(`${this.apiUrl}/${id}`, { nome, ativo })
+      this.http.put<{ success: boolean; empresa: Empresa }>(`${this.apiUrl}/${id}`, { nome, ativo, logo })
     );
     if (!r.success) throw new Error('Erro ao atualizar empresa');
     return r.empresa;

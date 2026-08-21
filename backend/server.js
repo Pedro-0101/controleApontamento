@@ -63,7 +63,7 @@ app.use((req, res, next) => {
 });
 
 // 3. Parser de JSON (Apenas para rotas locais)
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Pool de conexões
 let pool;
@@ -181,6 +181,14 @@ async function initializeDatabase() {
     `);
     console.log('Tabela empresas verificada/criada com sucesso');
 
+    // Adicionar coluna logo em empresas se não existir (path ou base64 data URL)
+    try {
+      await pool.query('ALTER TABLE empresas ADD COLUMN logo LONGTEXT NULL');
+      console.log('Coluna logo adicionada à tabela empresas');
+    } catch (e) {
+      if (!e.message?.includes('Duplicate column name')) throw e;
+    }
+
     // Criar tabela de locais
     await pool.query(`
       CREATE TABLE IF NOT EXISTS locais (
@@ -244,6 +252,11 @@ async function initializeDatabase() {
       WHERE q.local_id IS NULL AND q.local IS NOT NULL AND q.local != ''
     `);
     console.log('Migração de empresa_id e local_id concluída');
+
+    // Vincular logo da empresa Porto de Areia Canaã (seed inicial)
+    await pool.query(
+      `UPDATE empresas SET logo = '/images/Porto de areia canaa.jpeg' WHERE nome LIKE '%Porto de Areia%' AND nome LIKE '%Cana%'`
+    );
 
     // Criar tabela de comentários se não existir
     await pool.query(`
@@ -1554,8 +1567,8 @@ app.get('/api/empresas', async (req, res) => {
   try {
     const [rows] = await pool.query(
       all
-        ? 'SELECT id, nome, ativo FROM empresas ORDER BY nome ASC'
-        : 'SELECT id, nome, ativo FROM empresas WHERE ativo = 1 ORDER BY nome ASC'
+        ? 'SELECT id, nome, ativo, logo FROM empresas ORDER BY nome ASC'
+        : 'SELECT id, nome, ativo, logo FROM empresas WHERE ativo = 1 ORDER BY nome ASC'
     );
     res.json({ success: true, empresas: rows });
   } catch (e) {
@@ -1565,11 +1578,11 @@ app.get('/api/empresas', async (req, res) => {
 });
 
 app.post('/api/empresas', async (req, res) => {
-  const { nome } = req.body;
+  const { nome, logo } = req.body;
   if (!nome?.trim()) return res.status(400).json({ success: false, error: 'Nome é obrigatório' });
   try {
-    const [result] = await pool.query('INSERT INTO empresas (nome) VALUES (?)', [nome.trim()]);
-    const [rows] = await pool.query('SELECT id, nome, ativo FROM empresas WHERE id = ?', [result.insertId]);
+    const [result] = await pool.query('INSERT INTO empresas (nome, logo) VALUES (?, ?)', [nome.trim(), logo || null]);
+    const [rows] = await pool.query('SELECT id, nome, ativo, logo FROM empresas WHERE id = ?', [result.insertId]);
     res.json({ success: true, empresa: rows[0], message: 'Empresa criada com sucesso' });
   } catch (e) {
     if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ success: false, error: 'Empresa já cadastrada' });
@@ -1580,11 +1593,16 @@ app.post('/api/empresas', async (req, res) => {
 
 app.put('/api/empresas/:id', async (req, res) => {
   const { id } = req.params;
-  const { nome, ativo } = req.body;
+  const { nome, ativo, logo } = req.body;
   if (!nome?.trim()) return res.status(400).json({ success: false, error: 'Nome é obrigatório' });
   try {
-    await pool.query('UPDATE empresas SET nome = ?, ativo = ? WHERE id = ?', [nome.trim(), ativo !== undefined ? ativo : 1, id]);
-    const [rows] = await pool.query('SELECT id, nome, ativo FROM empresas WHERE id = ?', [id]);
+    if (logo !== undefined) {
+      // null/'' remove o logo; string preenche; undefined mantém o atual
+      await pool.query('UPDATE empresas SET nome = ?, ativo = ?, logo = ? WHERE id = ?', [nome.trim(), ativo !== undefined ? ativo : 1, logo || null, id]);
+    } else {
+      await pool.query('UPDATE empresas SET nome = ?, ativo = ? WHERE id = ?', [nome.trim(), ativo !== undefined ? ativo : 1, id]);
+    }
+    const [rows] = await pool.query('SELECT id, nome, ativo, logo FROM empresas WHERE id = ?', [id]);
     res.json({ success: true, empresa: rows[0], message: 'Empresa atualizada com sucesso' });
   } catch (e) {
     if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ success: false, error: 'Empresa já cadastrada' });

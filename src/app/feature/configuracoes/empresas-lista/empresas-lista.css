@@ -26,3 +26,67 @@
   padding: 4px 10px;
   font-size: 0.78rem;
 }
+
+.empresa-logo {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: var(--color-gray-100);
+  padding: 2px;
+  border: 1px solid var(--color-gray-200);
+}
+
+.logo-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: var(--color-gray-100);
+  color: var(--color-gray-400);
+  border: 1px dashed var(--color-gray-300);
+}
+
+.logo-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.logo-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-preview img {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: var(--color-gray-100);
+  padding: 4px;
+  border: 1px solid var(--color-gray-200);
+}
+
+.logo-placeholder-lg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 90px;
+  border-radius: 8px;
+  border: 1px dashed var(--color-gray-300);
+  color: var(--color-gray-500);
+  background: var(--color-gray-50);
+  font-size: 0.8rem;
+}
+
+.logo-upload-btn {
+  cursor: pointer;
+}
