@@ -45,9 +45,9 @@
               (change)="toggleOption(getValue(option))"
             >
             <div class="option-info">
-              <span class="option-name">{{ getLabel(option) }}</span>
-              @if (getSubLabel(option)) {
-                <span class="option-matricula">{{ getSubLabel(option) }}</span>
+              <span class="option-name">{{ getDisplayLabel(option) }}</span>
+              @if (getDisplaySubLabel(option)) {
+                <span class="option-matricula">{{ getDisplaySubLabel(option) }}</span>
               }
             </div>
           </label>

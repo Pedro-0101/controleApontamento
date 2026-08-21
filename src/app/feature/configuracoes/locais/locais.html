@@ -35,7 +35,7 @@
           <tbody>
             @for (l of locais(); track l.id) {
               <tr>
-                <td><strong>{{ l.nome }}</strong></td>
+                <td><strong>{{ l.nome | titleCaseCustom }}</strong></td>
                 <td>
                   @if (l.ativo) {
                     <span class="badge status-ok">Ativo</span>

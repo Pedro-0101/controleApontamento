@@ -284,7 +284,7 @@
               <div class="ip-item-info">
                 <span class="ip-item-nome">{{ dia.nome }}</span>
                 <span class="ip-item-meta">
-                  {{ dia.empresa || 'Sem empresa' }}
+                  {{ dia.empresa ? (dia.empresa | titleCaseCustom) : 'Sem empresa' }}
                   <span class="ip-item-dot">·</span>
                   {{ formatDataBr(dia.data) }}
                 </span>

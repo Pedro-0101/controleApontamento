@@ -55,7 +55,7 @@
           <select id="empresa" name="empresa" [(ngModel)]="empresaId" class="input-text">
             <option [ngValue]="null">— Selecione —</option>
             @for (e of empresas(); track e.id) {
-              <option [ngValue]="e.id">{{ e.nome }}</option>
+              <option [ngValue]="e.id">{{ e.nome | titleCaseCustom }}</option>
             }
           </select>
         </div>
@@ -65,7 +65,7 @@
           <select id="local" name="local" [(ngModel)]="localId" class="input-text">
             <option [ngValue]="null">— Selecione —</option>
             @for (l of locais(); track l.id) {
-              <option [ngValue]="l.id">{{ l.nome }}</option>
+              <option [ngValue]="l.id">{{ l.nome | titleCaseCustom }}</option>
             }
           </select>
         </div>

@@ -34,6 +34,7 @@
         <app-multi-select-dropdown
           [compact]="true"
           [options]="companyOptions()"
+          [titleCaseLabel]="true"
           [placeholder]="'Todas'"
           [searchPlaceholder]="'Buscar empresas...'"
           (selectionChange)="onCompanySelectionChange($event)"
@@ -45,6 +46,7 @@
         <app-multi-select-dropdown
           [compact]="true"
           [options]="locationOptions()"
+          [titleCaseLabel]="true"
           [placeholder]="'Todos'"
           [searchPlaceholder]="'Buscar locais...'"
           (selectionChange)="onLocationSelectionChange($event)"
@@ -132,7 +134,7 @@
         </div>
         <div class="kpi-content">
           <span class="kpi-label">Empresa com mais faltas</span>
-          <span class="kpi-value kpi-value-text">{{ empresaComMaisFalta()?.nome || '—' }}</span>
+          <span class="kpi-value kpi-value-text">{{ (empresaComMaisFalta()?.nome || '—') | titleCaseCustom }}</span>
           @if (empresaComMaisFalta(); as emp) {
             <span class="kpi-sub">{{ emp.faltas }} falta{{ emp.faltas !== 1 ? 's' : '' }}</span>
           }

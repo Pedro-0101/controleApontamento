@@ -9,11 +9,12 @@ import { EmpresaService } from '../../../core/services/empresa/empresa.service';
 import { LocalService } from '../../../core/services/local/local.service';
 import { Empresa } from '../../../models/empresa/empresa';
 import { LocalModel } from '../../../models/local/local-model';
+import { TitleCaseCustomPipe } from '../../../shared/pipes/title-case-custom.pipe';
 
 @Component({
   selector: 'app-modal-colaborador',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, TitleCaseCustomPipe],
   templateUrl: './modal-colaborador.html',
   styleUrl: './modal-colaborador.css'
 })

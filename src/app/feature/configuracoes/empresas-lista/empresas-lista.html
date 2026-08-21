@@ -35,7 +35,7 @@
           <tbody>
             @for (e of empresas(); track e.id) {
               <tr>
-                <td><strong>{{ e.nome }}</strong></td>
+                <td><strong>{{ e.nome | titleCaseCustom }}</strong></td>
                 <td>
                   @if (e.ativo) {
                     <span class="badge status-ok">Ativa</span>

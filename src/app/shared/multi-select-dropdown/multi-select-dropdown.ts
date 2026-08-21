@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { Employee } from '../../models/employee/employee';
+import { toTitleCase } from '../pipes/title-case-custom.pipe';
 
 @Component({
   selector: 'app-multi-select-dropdown',
@@ -23,6 +24,9 @@ export class MultiSelectDropdown {
   labelProp = input<string>('nome');
   valueProp = input<string>('matricula');
   subLabelProp = input<string | null>('matricula');
+
+  // Quando habilitado, exibe o label em Title Case (apenas visual; o value permanece original)
+  titleCaseLabel = input<boolean>(false);
 
   selectedValues = signal<string[]>([]);
   selectionChange = output<string[]>();
@@ -50,6 +54,11 @@ export class MultiSelectDropdown {
     return opt[this.labelProp()] || '';
   }
 
+  getDisplayLabel(opt: any): string {
+    const label = this.getLabel(opt);
+    return this.titleCaseLabel() ? toTitleCase(label) : label;
+  }
+
   getValue(opt: any): string {
     if (typeof opt === 'string') return opt;
     return opt[this.valueProp()] || '';
@@ -59,6 +68,12 @@ export class MultiSelectDropdown {
     if (typeof opt === 'string') return null;
     const prop = this.subLabelProp();
     return prop ? opt[prop] : null;
+  }
+
+  getDisplaySubLabel(opt: any): string | null {
+    const subLabel = this.getSubLabel(opt);
+    if (!subLabel) return null;
+    return this.titleCaseLabel() ? toTitleCase(subLabel) : subLabel;
   }
 
   constructor() {

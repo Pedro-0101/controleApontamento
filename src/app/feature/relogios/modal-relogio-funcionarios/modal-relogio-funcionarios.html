@@ -181,6 +181,7 @@
                   #empresaDropdown
                   [options]="empresaOptions()"
                   [valueProp]="'nome'"
+                  [titleCaseLabel]="true"
                   [placeholder]="'Empresas...'"
                   [searchPlaceholder]="'Buscar empresas...'"
                   (selectionChange)="onEmpresaFilterChange($event)"
@@ -191,6 +192,7 @@
                   #localDropdown
                   [options]="localOptions()"
                   [valueProp]="'nome'"
+                  [titleCaseLabel]="true"
                   [placeholder]="'Locais...'"
                   [searchPlaceholder]="'Buscar locais...'"
                   (selectionChange)="onLocalFilterChange($event)"

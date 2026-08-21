@@ -11,6 +11,7 @@ import { ToastService } from '../../core/services/toast/toast.service';
 import { AuthService } from '../../core/services/auth/auth.service';
 import { Employee } from '../../models/employee/employee';
 import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-select-dropdown';
+import { TitleCaseCustomPipe } from '../../shared/pipes/title-case-custom.pipe';
 
 /* ── Event-type metadata ─────────────────────────────────────── */
 export interface EventTypeMeta {
@@ -61,7 +62,7 @@ export interface PopoverState {
 @Component({
   selector: 'app-eventos',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, MultiSelectDropdown],
+  imports: [CommonModule, FormsModule, LucideAngularModule, MultiSelectDropdown, TitleCaseCustomPipe],
   templateUrl: './eventos.html',
   styleUrl: './eventos.css'
 })

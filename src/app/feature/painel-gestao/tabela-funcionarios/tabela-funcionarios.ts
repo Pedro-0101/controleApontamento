@@ -10,11 +10,12 @@ import { LinhaTabelaMarcacoes } from './linha-tabela-marcacoes/linha-tabela-marc
 import { ModalExportacaoComponent } from './modal-exportacao/modal-exportacao';
 import { ModalDetalhesMarcacaoComponent } from './modal-detalhes-marcacao/modal-detalhes-marcacao';
 import { ModalPerfilColaborador } from '../../../shared/modal-perfil-colaborador/modal-perfil-colaborador';
+import { TitleCaseCustomPipe } from '../../../shared/pipes/title-case-custom.pipe';
 import { LucideAngularModule } from 'lucide-angular';
 
 @Component({
   selector: 'app-tabela-funcionarios',
-  imports: [LinhaTabelaMarcacoes, ModalExportacaoComponent, ModalDetalhesMarcacaoComponent, ModalPerfilColaborador, LucideAngularModule],
+  imports: [LinhaTabelaMarcacoes, ModalExportacaoComponent, ModalDetalhesMarcacaoComponent, ModalPerfilColaborador, TitleCaseCustomPipe, LucideAngularModule],
   templateUrl: './tabela-funcionarios.html',
   styleUrl: './tabela-funcionarios.css',
 })

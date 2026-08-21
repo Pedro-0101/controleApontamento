@@ -5,11 +5,12 @@ import { LucideAngularModule } from 'lucide-angular';
 import { EmpresaService } from '../../../core/services/empresa/empresa.service';
 import { ToastService } from '../../../core/services/toast/toast.service';
 import { Empresa } from '../../../models/empresa/empresa';
+import { TitleCaseCustomPipe } from '../../../shared/pipes/title-case-custom.pipe';
 
 @Component({
   selector: 'app-empresas-lista',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, TitleCaseCustomPipe],
   templateUrl: './empresas-lista.html',
   styleUrl: './empresas-lista.css',
 })

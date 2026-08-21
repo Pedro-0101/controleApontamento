@@ -5,11 +5,12 @@ import { LucideAngularModule } from 'lucide-angular';
 import { LocalService } from '../../../core/services/local/local.service';
 import { ToastService } from '../../../core/services/toast/toast.service';
 import { LocalModel } from '../../../models/local/local-model';
+import { TitleCaseCustomPipe } from '../../../shared/pipes/title-case-custom.pipe';
 
 @Component({
   selector: 'app-locais',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, TitleCaseCustomPipe],
   templateUrl: './locais.html',
   styleUrl: './locais.css',
 })

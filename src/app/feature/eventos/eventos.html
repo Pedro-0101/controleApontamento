@@ -28,6 +28,7 @@
             <label>Local / Empresa</label>
             <app-multi-select-dropdown
               [options]="companyOptions()"
+              [titleCaseLabel]="true"
               placeholder="Selecione as empresas para filtrar..."
               (selectionChange)="onCompanySelectionChange($event)"
             ></app-multi-select-dropdown>
@@ -101,6 +102,7 @@
         <label>Empresa</label>
         <app-multi-select-dropdown
           [options]="companyOptions()"
+          [titleCaseLabel]="true"
           placeholder="Todas"
           (selectionChange)="onCompanySelectionChange($event)"
         ></app-multi-select-dropdown>
@@ -129,7 +131,7 @@
         >
           <option value="">Todos</option>
           @for (local of locais(); track local) {
-            <option [value]="local">{{ local }}</option>
+            <option [value]="local">{{ local | titleCaseCustom }}</option>
           }
         </select>
       </div>
@@ -210,7 +212,7 @@
                     <span class="emp-mat">#{{ event.matricula_funcionario }}</span>
                   </div>
                 </td>
-                <td>{{ event.empresa || 'N/A' }}</td>
+                <td>{{ event.empresa ? (event.empresa | titleCaseCustom) : 'N/A' }}</td>
                 <td><span class="badge badge-event">{{ event.tipo_evento }}</span></td>
                 <td>{{ formatData(event.data_inicio) }}</td>
                 <td>{{ formatData(event.data_fim) }}</td>
@@ -379,9 +381,9 @@
             class="g-chip"
             [class.active]="activeLocais().has(local)"
             (click)="toggleLocal(local)"
-            [title]="local"
+            [title]="local | titleCaseCustom"
           >
-            {{ local }}
+            {{ local | titleCaseCustom }}
           </div>
         }
 
@@ -479,7 +481,7 @@
                 <div class="g-avatar" [class]="'av-' + row.avatarColor">{{ row.initials }}</div>
                 <div class="g-name-meta">
                   <b>{{ row.emp.nome }}</b>
-                  <span>{{ row.emp.cargo }}{{ row.emp.empresa ? ' · ' + row.emp.empresa : '' }}</span>
+                  <span>{{ row.emp.cargo }}{{ row.emp.empresa ? ' · ' + (row.emp.empresa | titleCaseCustom) : '' }}</span>
                 </div>
               </div>
             } @empty {
@@ -582,7 +584,7 @@
       </div>
       <div class="pop-row">
         <b>Empresa</b>
-        <span>{{ pop.event.empresa || '—' }}</span>
+        <span>{{ pop.event.empresa ? (pop.event.empresa | titleCaseCustom) : '—' }}</span>
       </div>
       @if (pop.event.criado_por) {
         <div class="pop-row">
