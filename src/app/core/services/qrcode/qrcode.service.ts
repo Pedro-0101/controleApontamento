@@ -16,6 +16,8 @@ export class QRCodeService {
       return '/images/Pedreira Pinhal.jpeg';
     } else if (comp.includes('sao joao') || comp.includes('são joão')) {
       return '/images/Pedreira Sao Joao.jpeg';
+    } else if (comp.includes('bofete')) {
+      return '/images/Pedreira Bofete.jpeg';
     } else {
       return '/images/DNP Mix.jpeg';
     }

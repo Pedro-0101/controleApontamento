@@ -52,6 +52,7 @@ export class ModalPreviewQrcode implements OnInit {
     if (c.includes('dnp') && !c.includes('mix')) return '/images/DNP.jpeg';
     if (c.includes('pinhal')) return '/images/Pedreira Pinhal.jpeg';
     if (c.includes('sao joao') || c.includes('são joão')) return '/images/Pedreira Sao Joao.jpeg';
+    if (c.includes('bofete')) return '/images/Pedreira Bofete.jpeg';
     return '/images/DNP Mix.jpeg';
   }
 
