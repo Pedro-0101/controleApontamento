@@ -29,6 +29,11 @@ export const routes: Routes = [
     canActivate: [authGuardGuard]
   },
   {
+    path: "relatorios-agendados",
+    loadComponent: () => import('./feature/relatorios-agendados/relatorios-agendados').then(m => m.RelatoriosAgendados),
+    canActivate: [authGuardGuard]
+  },
+  {
     path: "auditoria",
     loadComponent: () => import('./feature/auditoria/auditoria').then(m => m.Auditoria),
     canActivate: [authGuardGuard]

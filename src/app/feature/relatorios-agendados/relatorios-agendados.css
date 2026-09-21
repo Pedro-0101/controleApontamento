@@ -1,0 +1,164 @@
+.wa-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  margin-bottom: var(--spacing-2xl);
+  transition: border-color var(--transition-fast);
+}
+
+.wa-card.connected {
+  border-color: #22c55e;
+}
+
+.wa-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.wa-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.wa-info strong {
+  display: block;
+  color: var(--color-gray-800);
+}
+
+.icon-ok {
+  color: #22c55e;
+}
+
+.icon-warn {
+  color: #f59e0b;
+}
+
+.wa-status {
+  font-size: var(--font-size-sm);
+}
+
+.wa-status.ok {
+  color: #16a34a;
+}
+
+.wa-status.warn {
+  color: #d97706;
+}
+
+.wa-status.err {
+  color: var(--color-danger, #dc2626);
+}
+
+.wa-qr {
+  margin-top: var(--spacing-xl);
+  text-align: center;
+}
+
+.wa-qr img {
+  width: 280px;
+  height: 280px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  padding: 8px;
+}
+
+.wa-qr p {
+  margin-top: var(--spacing-md);
+  color: var(--color-gray-600);
+  font-size: var(--font-size-sm);
+}
+
+.results-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.row-inativo {
+  opacity: 0.55;
+}
+
+.status-resumo {
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-700);
+}
+
+.muted {
+  color: var(--color-gray-400);
+}
+
+.acoes {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 0.78rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-gray-700);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.chip:hover {
+  border-color: var(--color-primary);
+}
+
+.chip-active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: var(--color-gray-700);
+  cursor: pointer;
+}
+
+.hint {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-gray-500);
+  font-size: var(--font-size-sm);
+}
+
+.modal-lg {
+  max-width: 720px;
+}
+
+textarea.input-text {
+  resize: vertical;
+  min-height: 44px;
+}
+
+/* O estilo global .empty-state lucide-icon adiciona margin-bottom no ícone
+   do botão; aqui removemos para alinhar o "+" com o texto. */
+.empty-state .btn lucide-icon {
+  margin-bottom: 0;
+}

@@ -3,6 +3,8 @@ const mysql = require('mysql2/promise');
 const cors = require('cors');
 const path = require('path');
 const { createProxyMiddleware } = require('http-proxy-middleware');
+const whatsapp = require('./whatsapp');
+const relatorio = require('./relatorio');
 
 const app = express();
 const PORT = 3001;
@@ -51,7 +53,7 @@ app.use((req, res, next) => {
   }
 
   // Lista de prefixos das nossas rotas locais (excluem o /api inicial no teste de string)
-  const localPrefixes = ['/api/auth', '/api/comments', '/api/marcacoes', '/api/employee', '/api/employees', '/api/health', '/api/audit-logs', '/api/empresas-config', '/api/empresas', '/api/locais', '/api/relogios'];
+  const localPrefixes = ['/api/auth', '/api/comments', '/api/marcacoes', '/api/employee', '/api/employees', '/api/health', '/api/audit-logs', '/api/empresas-config', '/api/empresas', '/api/locais', '/api/relogios', '/api/relatorios-agendados', '/api/whatsapp'];
   const isLocal = localPrefixes.some(prefix => req.url.startsWith(prefix));
   
   if (isLocal) {
@@ -340,6 +342,14 @@ async function initializeDatabase() {
     `);
     console.log('Tabela marcacao_desconsiderada verificada/criada com sucesso');
 
+    // Adicionar coluna hora em marcacao_desconsiderada se ainda não existir
+    try {
+      await pool.query('ALTER TABLE marcacao_desconsiderada ADD COLUMN hora TIME NULL AFTER relogio_ns');
+      console.log('Coluna hora adicionada à tabela marcacao_desconsiderada');
+    } catch (e) {
+      if (!e.message?.includes('Duplicate column name')) throw e;
+    }
+
     // Adicionar coluna data_marcacao em audit_log se ainda não existir
     try {
       await pool.query('ALTER TABLE audit_log ADD COLUMN data_marcacao DATE NULL AFTER matricula_funcionario');
@@ -409,6 +419,29 @@ async function initializeDatabase() {
       )
     `);
     console.log('Tabela relogio_funcionario verificada/criada com sucesso');
+
+    // Criar tabela de relatórios agendados (envio por WhatsApp)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS relatorio_agendado (
+        id              INT AUTO_INCREMENT PRIMARY KEY,
+        nome            VARCHAR(255) NOT NULL,
+        status          TEXT NULL,
+        empresa_id      INT NULL,
+        empresa_nome    VARCHAR(255) NULL,
+        local_id        INT NULL,
+        local_nome      VARCHAR(255) NULL,
+        dias_semana     VARCHAR(20) NOT NULL DEFAULT '1,2,3,4,5,6',
+        hora            CHAR(5) NOT NULL DEFAULT '09:00',
+        dia_referencia  TINYINT NOT NULL DEFAULT 0,
+        numeros         TEXT NULL,
+        ativo           TINYINT(1) NOT NULL DEFAULT 1,
+        ultimo_envio    DATETIME NULL,
+        criado_por      VARCHAR(100),
+        criado_em       DATETIME DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em   DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('Tabela relatorio_agendado verificada/criada com sucesso');
 
     console.log('Pool de conexões MySQL criado com sucesso');
   } catch (error) {
@@ -1414,7 +1447,7 @@ app.post('/api/employees/events/batch', async (req, res) => {
 
 // Rota para alternar status de "desconsiderar" de um ponto
 app.post('/api/marcacoes/desconsiderar', async (req, res) => {
-  const { matricula, data, marcacaoId, nsr, relogioNs, criadoPor, desconsiderar } = req.body;
+  const { matricula, data, marcacaoId, nsr, relogioNs, hora, criadoPor, desconsiderar } = req.body;
 
   if (!matricula || !data || (marcacaoId === undefined && nsr === undefined)) {
     return res.status(400).json({ success: false, error: 'Parâmetros insuficientes' });
@@ -1425,9 +1458,9 @@ app.post('/api/marcacoes/desconsiderar', async (req, res) => {
       // Inserir na tabela de desconsiderados
       await pool.query(`
         INSERT IGNORE INTO marcacao_desconsiderada 
-        (matricula_funcionario, data, marcacao_id, nsr, relogio_ns, criado_por)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, [matricula, data, marcacaoId || null, nsr || null, relogioNs || null, criadoPor]);
+        (matricula_funcionario, data, marcacao_id, nsr, relogio_ns, hora, criado_por)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [matricula, data, marcacaoId || null, nsr || null, relogioNs || null, hora || null, criadoPor]);
 
       await createAuditLog(criadoPor, 'IGNORE_POINT', 'marcacao_desconsiderada', null, null, { matricula, data, marcacaoId, nsr, relogioNs });
     } else {
@@ -1464,7 +1497,8 @@ app.post('/api/marcacoes/desconsiderar/batch', async (req, res) => {
         DATE_FORMAT(data, '%Y-%m-%d') as data, 
         marcacao_id, 
         nsr, 
-        relogio_ns
+        relogio_ns,
+        hora
       FROM marcacao_desconsiderada
       WHERE matricula_funcionario IN (${placeholders})
       AND data BETWEEN ? AND ?
@@ -2854,9 +2888,282 @@ app.post('/api/relogios/resync', async (req, res) => {
   }
 });
 
+// ── Relatórios agendados (envio por WhatsApp) ──────────────────────────────
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+function parseJsonArray(value) {
+  if (Array.isArray(value)) return value;
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function serializeJsonArray(value) {
+  if (Array.isArray(value)) return JSON.stringify(value);
+  if (typeof value === 'string') {
+    const s = value.trim();
+    if (s.startsWith('[')) {
+      const parsed = parseJsonArray(s);
+      if (parsed.length > 0) return JSON.stringify(parsed);
+    }
+    return JSON.stringify(s.split(',').map((x) => x.trim()).filter(Boolean));
+  }
+  return JSON.stringify([]);
+}
+
+function serializeDias(value) {
+  const arr = Array.isArray(value) ? value : String(value || '').split(',');
+  return arr.map((n) => parseInt(n, 10)).filter((n) => !isNaN(n)).join(',');
+}
+
+function mapSchedule(row) {
+  return {
+    ...row,
+    status: parseJsonArray(row.status),
+    numeros: parseJsonArray(row.numeros),
+    dias_semana: String(row.dias_semana || '')
+      .split(',')
+      .map((n) => parseInt(n, 10))
+      .filter((n) => !isNaN(n)),
+  };
+}
+
+async function executarAgendamento(schedule, { enviar = true, numerosOverride = null } = {}) {
+  const hoje = new Date();
+  const ref = schedule.dia_referencia
+    ? relatorio.addDays(relatorio.formatYMD(hoje), -Number(schedule.dia_referencia))
+    : relatorio.formatYMD(hoje);
+
+  const report = await relatorio.buildReport(pool, schedule, ref);
+  const message = relatorio.buildMessage(schedule, report);
+
+  let envio = null;
+  if (enviar) {
+    const numeros = numerosOverride && numerosOverride.length ? numerosOverride : schedule.numeros;
+    if (!numeros || numeros.length === 0) {
+      envio = { success: false, error: 'Nenhum número configurado' };
+    } else {
+      const conectado = await whatsapp.ensureReady();
+      if (!conectado) {
+        envio = { success: false, error: 'WhatsApp não está conectado. Escaneie o QR Code na tela de Relatórios Agendados.' };
+      } else {
+        envio = await whatsapp.sendToMany(numeros, message);
+      }
+    }
+  }
+
+  return { report, message, envio };
+}
+
+let schedulerRunning = false;
+const enviadosNoDia = new Set();
+
+async function runDueSchedules() {
+  if (schedulerRunning) return;
+  schedulerRunning = true;
+  try {
+    const now = new Date();
+    const hhmm = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+    const dow = now.getDay();
+    const hoje = relatorio.formatYMD(now);
+
+    const [rows] = await pool.query('SELECT * FROM relatorio_agendado WHERE ativo = 1');
+    for (const row of rows) {
+      const schedule = mapSchedule(row);
+      if (!schedule.dias_semana.includes(dow)) continue;
+      if (schedule.hora !== hhmm) continue;
+
+      const key = `${schedule.id}:${hoje}`;
+      if (enviadosNoDia.has(key)) continue;
+      if (schedule.ultimo_envio && relatorio.formatYMD(new Date(schedule.ultimo_envio)) === hoje) continue;
+
+      try {
+        const { report, envio } = await executarAgendamento(schedule, { enviar: true });
+        const sucesso = Array.isArray(envio) && envio.length > 0 && envio.every((e) => e.success);
+
+        if (sucesso) {
+          enviadosNoDia.add(key);
+          await pool.query('UPDATE relatorio_agendado SET ultimo_envio = NOW() WHERE id = ?', [schedule.id]);
+          console.log(`[Relatórios] "${schedule.nome}" enviado (${report.total} item(ns))`);
+        } else {
+          const erro = Array.isArray(envio)
+            ? envio.find((e) => !e.success)?.error
+            : envio?.error;
+          console.warn(`[Relatórios] "${schedule.nome}" não enviado: ${erro || 'falha desconhecida'}`);
+        }
+      } catch (e) {
+        console.error(`[Relatórios] Erro no agendamento ${schedule.id}:`, e.message);
+      }
+    }
+  } catch (e) {
+    console.error('[Relatórios] Erro ao verificar agendamentos:', e.message);
+  } finally {
+    schedulerRunning = false;
+  }
+}
+
+// GET /api/relatorios-agendados
+app.get('/api/relatorios-agendados', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM relatorio_agendado ORDER BY nome ASC');
+    res.json({ success: true, relatorios: rows.map(mapSchedule) });
+  } catch (e) {
+    console.error('Erro ao listar relatórios agendados:', e);
+    res.status(500).json({ success: false, error: 'Erro ao listar relatórios agendados' });
+  }
+});
+
+// POST /api/relatorios-agendados
+app.post('/api/relatorios-agendados', async (req, res) => {
+  const { nome, status, empresa_id, empresa_nome, local_id, local_nome, dias_semana, hora, dia_referencia, numeros, ativo, criado_por } = req.body;
+  if (!nome || !hora) {
+    return res.status(400).json({ success: false, error: 'Nome e horário são obrigatórios' });
+  }
+  try {
+    const [result] = await pool.query(
+      `INSERT INTO relatorio_agendado
+         (nome, status, empresa_id, empresa_nome, local_id, local_nome, dias_semana, hora, dia_referencia, numeros, ativo, criado_por)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        nome,
+        serializeJsonArray(status),
+        empresa_id || null,
+        empresa_nome || null,
+        local_id || null,
+        local_nome || null,
+        serializeDias(dias_semana) || '1,2,3,4,5,6',
+        hora,
+        dia_referencia || 0,
+        serializeJsonArray(numeros),
+        ativo !== undefined ? (ativo ? 1 : 0) : 1,
+        criado_por || null,
+      ]
+    );
+    const [rows] = await pool.query('SELECT * FROM relatorio_agendado WHERE id = ?', [result.insertId]);
+    res.json({ success: true, relatorio: mapSchedule(rows[0]), message: 'Relatório agendado criado com sucesso' });
+  } catch (e) {
+    console.error('Erro ao criar relatório agendado:', e);
+    res.status(500).json({ success: false, error: 'Erro ao criar relatório agendado' });
+  }
+});
+
+// PUT /api/relatorios-agendados/:id
+app.put('/api/relatorios-agendados/:id', async (req, res) => {
+  const { id } = req.params;
+  const { nome, status, empresa_id, empresa_nome, local_id, local_nome, dias_semana, hora, dia_referencia, numeros, ativo } = req.body;
+  if (!nome || !hora) {
+    return res.status(400).json({ success: false, error: 'Nome e horário são obrigatórios' });
+  }
+  try {
+    await pool.query(
+      `UPDATE relatorio_agendado
+       SET nome = ?, status = ?, empresa_id = ?, empresa_nome = ?, local_id = ?, local_nome = ?,
+           dias_semana = ?, hora = ?, dia_referencia = ?, numeros = ?, ativo = ?
+       WHERE id = ?`,
+      [
+        nome,
+        serializeJsonArray(status),
+        empresa_id || null,
+        empresa_nome || null,
+        local_id || null,
+        local_nome || null,
+        serializeDias(dias_semana) || '1,2,3,4,5,6',
+        hora,
+        dia_referencia || 0,
+        serializeJsonArray(numeros),
+        ativo !== undefined ? (ativo ? 1 : 0) : 1,
+        id,
+      ]
+    );
+    const [rows] = await pool.query('SELECT * FROM relatorio_agendado WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Relatório agendado não encontrado' });
+    }
+    res.json({ success: true, relatorio: mapSchedule(rows[0]), message: 'Relatório agendado atualizado com sucesso' });
+  } catch (e) {
+    console.error('Erro ao atualizar relatório agendado:', e);
+    res.status(500).json({ success: false, error: 'Erro ao atualizar relatório agendado' });
+  }
+});
+
+// DELETE /api/relatorios-agendados/:id
+app.delete('/api/relatorios-agendados/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [result] = await pool.query('DELETE FROM relatorio_agendado WHERE id = ?', [id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: 'Relatório agendado não encontrado' });
+    }
+    res.json({ success: true, message: 'Relatório agendado removido com sucesso' });
+  } catch (e) {
+    console.error('Erro ao remover relatório agendado:', e);
+    res.status(500).json({ success: false, error: 'Erro ao remover relatório agendado' });
+  }
+});
+
+// POST /api/relatorios-agendados/:id/testar — gera e envia agora (ignora dia/hora)
+app.post('/api/relatorios-agendados/:id/testar', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await pool.query('SELECT * FROM relatorio_agendado WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Relatório agendado não encontrado' });
+    }
+    const schedule = mapSchedule(rows[0]);
+    const numerosOverride = parseJsonArray(req.body?.numeros);
+    const { report, message, envio } = await executarAgendamento(schedule, {
+      enviar: true,
+      numerosOverride: numerosOverride.length ? numerosOverride : null,
+    });
+    res.json({ success: true, total: report.total, message, envio });
+  } catch (e) {
+    console.error('Erro ao testar relatório agendado:', e);
+    res.status(500).json({ success: false, error: 'Erro ao testar relatório agendado' });
+  }
+});
+
+// ── WhatsApp ───────────────────────────────────────────────────────────────
+
+app.get('/api/whatsapp/status', async (req, res) => {
+  try {
+    res.json({ success: true, ...(await whatsapp.getStatus()) });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post('/api/whatsapp/conectar', async (req, res) => {
+  try {
+    const result = await whatsapp.init();
+    res.json({ success: result.success, error: result.error, ...(await whatsapp.getStatus()) });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post('/api/whatsapp/desconectar', async (req, res) => {
+  try {
+    await whatsapp.logout();
+    res.json({ success: true, ...(await whatsapp.getStatus()) });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // Inicializar servidor
 async function startServer() {
   await initializeDatabase();
+
+  // Verificador dos agendamentos (a cada 30s)
+  setInterval(runDueSchedules, 30 * 1000);
+  console.log('Agendador de relatórios iniciado (verificação a cada 30s)');
   
   // Servir arquivos estáticos do Angular (Production Build)
   const distPath = path.join(__dirname, '../dist/controleApontamento/browser');

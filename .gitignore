@@ -46,6 +46,10 @@ __screenshots__/
 # Manter apenas arquivos .example como template
 !/src/environments/*.example.ts
 
+# WhatsApp (sessão/pareamento contém credenciais — nunca commitar)
+.wwebjs_auth/
+.wwebjs_cache/
+
 # System files
 .DS_Store
 Thumbs.db
