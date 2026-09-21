@@ -101,7 +101,16 @@ async function init() {
       puppeteer: {
         headless: true,
         ...(executablePath ? { executablePath } : {}),
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+        // Redes com inspeção de SSL (proxy/antivírus) usam um certificado raiz
+        // próprio que o Chrome não confia, causando ERR_CERT_AUTHORITY_INVALID.
+        // Ignoramos a validação de certificado apenas neste navegador interno.
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--ignore-certificate-errors',
+          '--allow-running-insecure-content',
+        ],
       },
     });
 
