@@ -10,6 +10,9 @@
 
 const path = require('path');
 const fs = require('fs');
+const { execFileSync } = require('child_process');
+
+const SESSION_DIR = path.join(__dirname, '.wwebjs_auth', 'session');
 
 /**
  * Procura navegadores Chromium já instalados na máquina (Chrome e Edge) para
@@ -161,6 +164,37 @@ function normalizeNumber(raw) {
   return `${digits}@c.us`;
 }
 
+/**
+ * Encerra navegadores órfãos que ainda estejam usando a pasta de sessão do
+ * WhatsApp e remove arquivos de lock deixados por execuções anteriores.
+ * Sem isso, o puppeteer no Windows acusa "The browser is already running".
+ */
+function prepareSessionDir() {
+  if (process.platform === 'win32') {
+    try {
+      const script =
+        `Get-CimInstance Win32_Process -Filter "Name='chrome.exe' OR Name='msedge.exe'" | ` +
+        `Where-Object { $_.CommandLine -like '*${SESSION_DIR}*' } | ` +
+        `ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
+      execFileSync('powershell', ['-NoProfile', '-Command', script], {
+        stdio: 'ignore',
+        timeout: 15000,
+      });
+    } catch {
+      /* ignora */
+    }
+  }
+
+  const lockFiles = ['lockfile', 'SingletonLock', 'SingletonCookie', 'SingletonSocket'];
+  for (const name of lockFiles) {
+    try {
+      fs.rmSync(path.join(SESSION_DIR, name), { force: true });
+    } catch {
+      /* ignora */
+    }
+  }
+}
+
 async function destroyClient() {
   const c = client;
   client = null;
@@ -189,6 +223,9 @@ async function init() {
   lastError = null;
 
   try {
+    // Remove locks/navegadores órfãos que impediriam a abertura da sessão.
+    prepareSessionDir();
+
     const config = await findWorkingConfig();
     lastBrowserPath = (config && config.executablePath) || null;
     console.log(
@@ -324,13 +361,14 @@ async function logout() {
   } catch {
     /* ignora */
   }
+  // Garante que o navegador seja encerrado, evitando lock na pasta de sessão.
+  await destroyClient();
   ready = false;
   starting = false;
   me = null;
   lastQr = null;
   lastError = null;
   lastFailureAt = 0;
-  client = null;
   return { success: true };
 }
 
