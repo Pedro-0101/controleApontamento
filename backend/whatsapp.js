@@ -12,12 +12,12 @@ const path = require('path');
 const fs = require('fs');
 
 /**
- * Procura um navegador Chromium já instalado na máquina para evitar o
- * download automático do Chromium pelo puppeteer.
+ * Procura navegadores Chromium já instalados na máquina (Chrome e Edge) para
+ * evitar o download automático do Chromium pelo puppeteer.
  */
-function detectBrowserPath() {
+function detectBrowserPaths() {
   if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-    return process.env.PUPPETEER_EXECUTABLE_PATH;
+    return [process.env.PUPPETEER_EXECUTABLE_PATH];
   }
   const candidates = process.platform === 'win32'
     ? [
@@ -31,7 +31,11 @@ function detectBrowserPath() {
         '/usr/bin/chromium-browser',
         '/usr/bin/chromium',
       ];
-  return candidates.find((p) => p && fs.existsSync(p)) || null;
+  return candidates.filter((p) => p && fs.existsSync(p));
+}
+
+function detectBrowserPath() {
+  return detectBrowserPaths()[0] || null;
 }
 
 let Client = null;
@@ -49,6 +53,74 @@ try {
   QRCode = require('qrcode');
 } catch {
   QRCode = null;
+}
+
+let puppeteerLib = null;
+try {
+  puppeteerLib = require('puppeteer');
+} catch {
+  puppeteerLib = null;
+}
+
+// Flags recomendadas para rodar headless em Windows/VM e atrás de proxy com
+// inspeção de SSL (evita ERR_CERT_AUTHORITY_INVALID).
+const BROWSER_ARGS = [
+  '--no-sandbox',
+  '--disable-setuid-sandbox',
+  '--disable-dev-shm-usage',
+  '--disable-gpu',
+  '--no-first-run',
+  '--no-default-browser-check',
+  '--disable-extensions',
+  '--disable-background-networking',
+  '--disable-sync',
+  '--metrics-recording-only',
+  '--mute-audio',
+  '--hide-scrollbars',
+  '--ignore-certificate-errors',
+  '--allow-running-insecure-content',
+];
+
+let workingConfig = null;
+
+/**
+ * Lista configurações de navegador a tentar, em ordem de preferência:
+ * cada navegador instalado (headless novo e antigo) e, por fim, o Chromium
+ * baixado pelo próprio puppeteer.
+ */
+function launchCandidates() {
+  const list = [];
+  for (const exec of detectBrowserPaths()) {
+    list.push({ executablePath: exec, headless: true, args: BROWSER_ARGS });
+    list.push({ executablePath: exec, headless: 'shell', args: BROWSER_ARGS });
+  }
+  list.push({ headless: true, args: BROWSER_ARGS });
+  list.push({ headless: 'shell', args: BROWSER_ARGS });
+  return list;
+}
+
+/**
+ * Testa as configurações até encontrar uma que consiga abrir o navegador.
+ * O resultado fica em cache para as próximas inicializações.
+ */
+async function findWorkingConfig() {
+  if (workingConfig) return workingConfig;
+  const candidates = launchCandidates();
+  if (!puppeteerLib) return candidates[0] || null;
+
+  for (const cfg of candidates) {
+    const label = `headless=${cfg.headless} browser=${cfg.executablePath || 'bundled'}`;
+    try {
+      const browser = await puppeteerLib.launch(cfg);
+      await browser.close();
+      workingConfig = cfg;
+      console.log(`[WhatsApp] Config de navegador OK: ${label}`);
+      return cfg;
+    } catch (e) {
+      console.warn(`[WhatsApp] Config falhou (${label}): ${errText(e)}`);
+    }
+  }
+  return candidates[0] || null;
 }
 
 let client = null;
@@ -117,28 +189,18 @@ async function init() {
   lastError = null;
 
   try {
-    const executablePath = detectBrowserPath();
-    lastBrowserPath = executablePath;
+    const config = await findWorkingConfig();
+    lastBrowserPath = (config && config.executablePath) || null;
     console.log(
-      `[WhatsApp] Iniciando navegador${executablePath ? ` (${executablePath})` : ' (Chromium do puppeteer)'}...`
+      `[WhatsApp] Iniciando navegador${lastBrowserPath ? ` (${lastBrowserPath})` : ' (Chromium do puppeteer)'}...`
     );
 
     client = new Client({
       authStrategy: new LocalAuth({ dataPath: path.join(__dirname, '.wwebjs_auth') }),
+      authTimeoutMs: 120000,
       puppeteer: {
-        headless: true,
-        ...(executablePath ? { executablePath } : {}),
+        ...(config || { headless: true, args: BROWSER_ARGS }),
         dumpio: process.env.WHATSAPP_DEBUG === '1',
-        // Redes com inspeção de SSL (proxy/antivírus) usam um certificado raiz
-        // próprio que o Chrome não confia, causando ERR_CERT_AUTHORITY_INVALID.
-        // Ignoramos a validação de certificado apenas neste navegador interno.
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--ignore-certificate-errors',
-          '--allow-running-insecure-content',
-        ],
       },
     });
 
