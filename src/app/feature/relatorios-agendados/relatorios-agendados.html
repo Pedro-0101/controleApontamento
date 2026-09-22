@@ -31,6 +31,8 @@
             <span class="wa-status err">{{ whatsapp()?.error || 'Integração não instalada' }}</span>
           } @else if (whatsapp()?.starting) {
             <span class="wa-status warn">Iniciando... aguardando leitura do QR Code</span>
+          } @else if (whatsapp()?.error) {
+            <span class="wa-status err">Erro: {{ whatsapp()!.error }}</span>
           } @else {
             <span class="wa-status warn">Desconectado — conecte para poder enviar</span>
           }

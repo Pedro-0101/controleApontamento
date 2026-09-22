@@ -58,6 +58,22 @@ let lastQr = null;
 let lastQrAt = null;
 let lastError = null;
 let me = null;
+let lastBrowserPath = null;
+let lastFailureAt = 0;
+
+function errText(e) {
+  if (e === undefined) return 'erro desconhecido (undefined)';
+  if (e === null) return 'erro desconhecido (null)';
+  if (typeof e === 'string') return e;
+  if (e.message) return e.message;
+  try {
+    const s = JSON.stringify(e);
+    if (s && s !== '{}') return s;
+  } catch {
+    /* ignora */
+  }
+  return String(e);
+}
 
 function isAvailable() {
   return !!Client;
@@ -73,6 +89,17 @@ function normalizeNumber(raw) {
   return `${digits}@c.us`;
 }
 
+async function destroyClient() {
+  const c = client;
+  client = null;
+  if (!c) return;
+  try {
+    await c.destroy();
+  } catch {
+    /* ignora */
+  }
+}
+
 async function init() {
   if (!Client) {
     return { success: false, error: loadError || 'Integração indisponível' };
@@ -80,15 +107,10 @@ async function init() {
   if (ready) return { success: true, status: 'ready' };
   if (starting) return { success: true, status: 'starting' };
 
-  // Já existe uma instância (ex.: desconectada) — tenta reconectar sem recriar.
+  // Instância anterior que não chegou a ficar pronta: descarta e recria do zero,
+  // evitando erros ao reinicializar um cliente já quebrado.
   if (client) {
-    starting = true;
-    lastError = null;
-    client.initialize().catch((e) => {
-      starting = false;
-      lastError = e.message;
-    });
-    return { success: true, status: 'starting' };
+    await destroyClient();
   }
 
   starting = true;
@@ -96,11 +118,17 @@ async function init() {
 
   try {
     const executablePath = detectBrowserPath();
+    lastBrowserPath = executablePath;
+    console.log(
+      `[WhatsApp] Iniciando navegador${executablePath ? ` (${executablePath})` : ' (Chromium do puppeteer)'}...`
+    );
+
     client = new Client({
       authStrategy: new LocalAuth({ dataPath: path.join(__dirname, '.wwebjs_auth') }),
       puppeteer: {
         headless: true,
         ...(executablePath ? { executablePath } : {}),
+        dumpio: process.env.WHATSAPP_DEBUG === '1',
         // Redes com inspeção de SSL (proxy/antivírus) usam um certificado raiz
         // próprio que o Chrome não confia, causando ERR_CERT_AUTHORITY_INVALID.
         // Ignoramos a validação de certificado apenas neste navegador interno.
@@ -134,7 +162,7 @@ async function init() {
     client.on('auth_failure', (msg) => {
       starting = false;
       ready = false;
-      lastError = `Falha de autenticação: ${msg}`;
+      lastError = `Falha de autenticação: ${errText(msg)}`;
       console.error('[WhatsApp]', lastError);
     });
 
@@ -142,21 +170,28 @@ async function init() {
       ready = false;
       starting = false;
       me = null;
-      lastError = `Desconectado: ${reason}`;
+      lastError = `Desconectado: ${errText(reason)}`;
       console.warn('[WhatsApp]', lastError);
     });
 
-    client.initialize().catch((e) => {
+    client.initialize().catch(async (e) => {
       starting = false;
-      lastError = e.message;
-      console.error('[WhatsApp] Erro ao inicializar:', e.message);
+      ready = false;
+      lastFailureAt = Date.now();
+      lastError = errText(e);
+      console.error('[WhatsApp] Erro ao inicializar:', lastError);
+      if (e && e.stack) console.error(e.stack);
+      await destroyClient();
     });
 
     return { success: true, status: 'starting' };
   } catch (e) {
     starting = false;
-    lastError = e.message;
-    return { success: false, error: e.message };
+    lastFailureAt = Date.now();
+    lastError = errText(e);
+    console.error('[WhatsApp] Erro ao criar cliente:', lastError);
+    await destroyClient();
+    return { success: false, error: lastError };
   }
 }
 
@@ -178,13 +213,19 @@ async function getStatus() {
     qrDataUrl,
     qrAt: lastQrAt,
     me,
+    browserPath: lastBrowserPath,
     error: lastError || loadError,
   };
 }
 
+// Aguarda um tempo antes de tentar reconectar sozinho após uma falha,
+// evitando abrir vários navegadores seguidos. O botão "Conectar" ignora isso.
+const RETRY_COOLDOWN_MS = 60 * 1000;
+
 async function ensureReady() {
   if (ready) return true;
   if (!Client) return false;
+  if (Date.now() - lastFailureAt < RETRY_COOLDOWN_MS) return false;
   if (!client || !starting) {
     await init();
   }
@@ -203,7 +244,7 @@ async function sendMessage(number, text) {
     await client.sendMessage(chatId, text);
     return { success: true };
   } catch (e) {
-    return { success: false, error: e.message };
+    return { success: false, error: errText(e) };
   }
 }
 
@@ -225,6 +266,8 @@ async function logout() {
   starting = false;
   me = null;
   lastQr = null;
+  lastError = null;
+  lastFailureAt = 0;
   client = null;
   return { success: true };
 }
