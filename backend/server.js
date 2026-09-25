@@ -1498,7 +1498,7 @@ app.post('/api/marcacoes/desconsiderar/batch', async (req, res) => {
         marcacao_id, 
         nsr, 
         relogio_ns,
-        hora
+        TIME_FORMAT(hora, '%H:%i:%s') as hora
       FROM marcacao_desconsiderada
       WHERE matricula_funcionario IN (${placeholders})
       AND data BETWEEN ? AND ?

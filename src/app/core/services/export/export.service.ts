@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { MarcacaoDia } from '../../../models/marcacaoDia/marcacao-dia';
+import { DateHelper } from '../../helpers/dateHelper';
 
 export type ExportFormat = 'csv' | 'excel' | 'pdf' | 'print';
 
@@ -52,7 +53,7 @@ export class ExportService {
           case 'nome': obj['Nome'] = item.nome; break;
           case 'data': obj['Data'] = item.getDataFormatada(); break;
           case 'diaSemana': obj['Dia Semana'] = item.getDiaSemana(); break;
-          case 'marcacoes': obj['Marcações'] = item.getMarcacoesFormatadas(); break;
+          case 'marcacoes': obj['Marcações'] = this.formatMarcacoesComDesconsiderados(item); break;
           case 'almoco': {
             const ativas = item.marcacoes.filter(m => !m.desconsiderado);
             if (ativas.length !== 4) {
@@ -79,6 +80,16 @@ export class ExportService {
     });
   }
 
+  private formatMarcacoesComDesconsiderados(item: MarcacaoDia): string {
+    return (item.marcacoes || [])
+      .map(m => {
+        const hora = DateHelper.getStringTime(m.dataMarcacao);
+        const manual = m.numSerieRelogio === 'MANUAL' ? '*' : '';
+        return m.desconsiderado ? `[${hora}${manual}]` : `${hora}${manual}`;
+      })
+      .join(' - ');
+  }
+
   private exportToCSV(data: any[], fileName: string) {
     const ws = XLSX.utils.json_to_sheet(data);
     const csv = XLSX.utils.sheet_to_csv(ws);
@@ -98,6 +109,14 @@ export class ExportService {
 
   private exportToPDF(data: any[], fields: string[], fileName: string) {
     const doc = new jsPDF('l', 'mm', 'a4');
+
+    if (data.length === 0) {
+      doc.setFontSize(12);
+      doc.text('Nenhum registro encontrado para o período/filtros selecionados.', 14, 15);
+      doc.save(`${fileName}.pdf`);
+      return;
+    }
+
     const head = [Object.keys(data[0])];
     const body = data.map(obj => Object.values(obj));
 
@@ -109,12 +128,19 @@ export class ExportService {
       headStyles: { fillColor: [41, 128, 185] }
     });
 
+    const temDesconsiderados = data.some(row => String(row['Marcações'] ?? '').includes('['));
+    if (temDesconsiderados) {
+      doc.setFontSize(8);
+      doc.text('Marcações entre colchetes [HH:MM] foram desconsideradas/canceladas.', 14, (doc as any).lastAutoTable.finalY + 6);
+    }
+
     doc.save(`${fileName}.pdf`);
   }
 
   private printTable(data: any[], fields: string[]) {
-    const headers = Object.keys(data[0]);
+    const headers = data.length > 0 ? Object.keys(data[0]) : [];
     const rows = data.map(obj => Object.values(obj));
+    const temDesconsiderados = data.some(row => String(row['Marcações'] ?? '').includes('['));
 
     const html = `
       <html>
@@ -125,6 +151,7 @@ export class ExportService {
             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
             th { background-color: #f2f2f2; }
             h2 { text-align: center; }
+            .legenda { margin-top: 10px; font-size: 12px; color: #555; }
           </style>
         </head>
         <body>
@@ -137,6 +164,7 @@ export class ExportService {
               ${rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}
             </tbody>
           </table>
+          ${temDesconsiderados ? '<p class="legenda">Marcações entre colchetes [HH:MM] foram desconsideradas/canceladas.</p>' : ''}
           <script>
             window.onload = function() { window.print(); window.close(); }
           </script>

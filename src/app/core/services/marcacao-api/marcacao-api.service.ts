@@ -193,7 +193,7 @@ export class MarcacaoApiService {
       idLocal: apiData.IdLocal || 0,
       lstRespostas: apiData.LstRespostas || [],
       matriculaFuncionario: apiData.MatriculaFuncionario || '',
-      nsr: apiData.NSR || 0,
+      nsr: apiData.NSR || apiData.nsr || 0,
       nomeLocal: apiData.NomeLocal,
       numSerieRelogio: apiData.NumSerieRelogio || '',
       pis: apiData.PIS || '',

@@ -570,21 +570,30 @@ export class MarcacaoService {
           events.sort((a: any, b: any) => (b.id || 0) - (a.id || 0));
         }
 
-        // Map para acesso rápido: matricula:data -> ignoredPointsSet
-        const ignoredPointsMap = new Map<string, Set<string>>();
+        // Map para acesso rápido: matricula:data -> lista de pontos desconsiderados
+        // Cada registro é consumido (used) uma única vez no match, evitando que um
+        // mesmo ponto desconsiderado marque vários pontos ou que um ponto errado
+        // "absorva" o registro de outro.
+        interface PontoDesconsiderado {
+          nsr: string;
+          relogio: string;
+          hora: string | null;
+          manualId: number | null;
+          used: boolean;
+        }
+        const ignoredPointsMap = new Map<string, PontoDesconsiderado[]>();
         ignoredPoints.forEach((p: any) => {
-          const parts = p.data.split('-');
+          const parts = String(p.data).split('-');
           const dataFormatada = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : p.data;
           const key = `${String(p.matricula_funcionario).trim()}:${dataFormatada}`;
-          if (!ignoredPointsMap.has(key)) ignoredPointsMap.set(key, new Set());
-
-          if (p.marcacao_id) {
-            ignoredPointsMap.get(key)?.add(`manual:${p.marcacao_id}`);
-          } else {
-            const nsr = p.nsr !== null && p.nsr !== undefined ? p.nsr : '';
-            const relogio_ns = p.relogio_ns !== null && p.relogio_ns !== undefined ? p.relogio_ns : '';
-            ignoredPointsMap.get(key)?.add(`auto:${nsr}:${relogio_ns}`);
-          }
+          if (!ignoredPointsMap.has(key)) ignoredPointsMap.set(key, []);
+          ignoredPointsMap.get(key)!.push({
+            nsr: p.nsr != null && Number(p.nsr) !== 0 ? String(p.nsr) : '',
+            relogio: p.relogio_ns != null ? String(p.relogio_ns) : '',
+            hora: p.hora ? String(p.hora) : null,
+            manualId: p.marcacao_id != null ? Number(p.marcacao_id) : null,
+            used: false,
+          });
         });
 
         // Map para acesso rápido: matricula:data -> comentarios[]
@@ -694,14 +703,38 @@ export class MarcacaoService {
           }
 
           // Marcar pontos como desconsiderados
-          const dayIgnoredSet = ignoredPointsMap.get(key);
-          if (dayIgnoredSet) {
+          const entries = ignoredPointsMap.get(key);
+          if (entries) {
             md.marcacoes.forEach(m => {
-              const mKey = m.numSerieRelogio === 'MANUAL'
-                ? `manual:${m.id}`
-                : `auto:${m.nsr || ''}:${m.numSerieRelogio || ''}`;
+              const isManual = m.numSerieRelogio === 'MANUAL';
+              const mHora = `${String(m.dataMarcacao.getHours()).padStart(2, '0')}:${String(m.dataMarcacao.getMinutes()).padStart(2, '0')}:${String(m.dataMarcacao.getSeconds()).padStart(2, '0')}`;
+              const mNsr = m.nsr != null && Number(m.nsr) !== 0 ? String(m.nsr) : '';
 
-              if (dayIgnoredSet.has(mKey)) {
+              const entry = entries.find(e => {
+                if (e.used) return false;
+
+                // Ponto manual: casa pelo id em ponto_manual
+                if (isManual) return e.manualId != null && e.manualId === Number(m.id);
+                if (e.manualId != null) return false;
+
+                // 1) NSR: identificador mais confiável do ponto
+                if (mNsr && e.nsr && mNsr === e.nsr) return true;
+
+                // 2) Relógio + hora (quando o NSR não bate)
+                if (e.relogio && e.relogio === m.numSerieRelogio) {
+                  if (e.hora && e.hora === mHora) return true;
+                  // 3) Registro legado sem NSR e sem hora: só casa se for o único
+                  //    ponto desconsiderado daquele relógio no dia
+                  if (!e.nsr && !e.hora) {
+                    const doRelogio = entries.filter(x => !x.used && x.relogio === m.numSerieRelogio && !x.nsr && !x.hora);
+                    if (doRelogio.length === 1) return true;
+                  }
+                }
+                return false;
+              });
+
+              if (entry) {
+                entry.used = true;
                 m.desconsiderado = true;
               }
             });
@@ -948,12 +981,16 @@ export class MarcacaoService {
 
   async toggleDesconsiderarStatus(m: Marcacao, matricula: string, data: string, desconsiderar: boolean): Promise<void> {
     const criadoPor = this.authService._userName() || 'Sistema';
+    const hora = m.numSerieRelogio !== 'MANUAL'
+      ? `${String(m.dataMarcacao.getHours()).padStart(2, '0')}:${String(m.dataMarcacao.getMinutes()).padStart(2, '0')}:${String(m.dataMarcacao.getSeconds()).padStart(2, '0')}`
+      : undefined;
     const body = {
       matricula,
       data: DateHelper.toIsoDate(data),
       marcacaoId: m.numSerieRelogio === 'MANUAL' ? m.id : undefined,
       nsr: m.numSerieRelogio !== 'MANUAL' ? m.nsr : undefined,
       relogioNs: m.numSerieRelogio !== 'MANUAL' ? m.numSerieRelogio : undefined,
+      hora,
       desconsiderar,
       criadoPor
     };

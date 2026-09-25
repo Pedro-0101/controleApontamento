@@ -868,6 +868,20 @@ export class Relatorios {
     return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   }
 
+  /**
+   * Formata as marcações do dia para o PDF: HH:MM, com '*' para pontos manuais.
+   * Pontos desconsiderados são sinalizados pela flag `desconsiderado` (o PDF
+   * os desenha riscados e em cinza).
+   */
+  formatarMarcacoesDia(dia: MarcacaoDia) {
+    return (dia.marcacoes || []).map(m => {
+      const hora = this.formatHora(m.dataMarcacao);
+      const manual = m.numSerieRelogio === 'MANUAL';
+      const desconsiderado = !!m.desconsiderado;
+      return { hora, manual, desconsiderado, label: `${hora}${manual ? '*' : ''}` };
+    });
+  }
+
   private buildFuncionariosParaPDF(): FuncParaPDF[] {
     const agrupado = this.marcacoesPorDia().reduce((acc, dia) => {
       if (!acc[dia.matricula]) {
@@ -1044,23 +1058,12 @@ export class Relatorios {
     doc.line(14, 34, 196, 34);
 
     // Build row metadata — hora in HH:MM, flag manual and desconsiderado
-    const rowsMeta = func.dias.map(dia => ({
-      marcacoes: dia.marcacoes.map(m => ({
-        hora: this.formatHora(m.dataMarcacao),
-        manual: m.numSerieRelogio === 'MANUAL',
-        desconsiderado: m.desconsiderado || false
-      }))
-    }));
+    const rowsMeta = func.dias.map(dia => this.formatarMarcacoesDia(dia));
 
     const tableBody = func.dias.map((dia, i) => [
       dia.getDataFormatada(),
       dia.getDiaSemana().substring(0, 3),
-      rowsMeta[i].marcacoes.map(m => {
-        let text = m.hora;
-        if (m.manual) text += '*';
-        if (m.desconsiderado) text = `[${text}]`;
-        return text;
-      }).join('  '),
+      rowsMeta[i].map(m => m.label).join('  '),
       dia.getHorasTrabalhadas(),
       this.getStatusRelatorio(dia, func.matricula)
     ]);
@@ -1093,32 +1096,38 @@ export class Relatorios {
       didDrawCell: (data: any) => {
         if (data.section !== 'body' || data.column.index !== 2) return;
         const meta = rowsMeta[data.row.index];
-        if (!meta?.marcacoes.some(m => m.desconsiderado)) return;
+        if (!meta?.some(m => m.desconsiderado)) return;
 
         const cell = data.cell;
-        const x = cell.x + cell.padding('left');
-
         const fz = 8;
-        doc.setFontSize(fz);
-        const strikeY = cell.getTextPos().y + fz * 0.5;
+        const baseY = cell.getTextPos().y;
+        const sepW = doc.getTextWidth('  ');
+        const corCinza: [number, number, number] = [156, 163, 175];
+        const strikeY = baseY - fz * 0.32;
 
-        let curX = x;
-        meta.marcacoes.forEach((m) => {
-          let label = m.hora;
-          if (m.manual) label += '*';
-          if (m.desconsiderado) label = `[${label}]`;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(fz);
+
+        let curX = cell.x + cell.padding('left');
+        meta.forEach((m) => {
+          const label = m.label;
           const w = doc.getTextWidth(label);
-          const sepW = doc.getTextWidth('  ');
 
           if (m.desconsiderado) {
-            doc.setDrawColor(150, 150, 150);
-            doc.setLineWidth(0.4);
+            // Redesenha o texto em cinza muted por cima do texto preto do autoTable
+            doc.setTextColor(corCinza[0], corCinza[1], corCinza[2]);
+            doc.text(label, curX, baseY);
+
+            // Risco cortando o texto (não sublinhado)
+            doc.setDrawColor(corCinza[0], corCinza[1], corCinza[2]);
+            doc.setLineWidth(0.35);
             doc.line(curX, strikeY, curX + w, strikeY);
           }
 
           curX += w + sepW;
         });
 
+        doc.setTextColor(0, 0, 0);
         doc.setDrawColor(0, 0, 0);
       }
     });
@@ -1133,7 +1142,7 @@ export class Relatorios {
       doc.setTextColor(107, 114, 128);
       let ly = finalY + 6;
       if (hasManual)    { doc.text('* Ponto inserido manualmente no sistema', 14, ly); ly += 4; }
-      if (hasCancelled)   doc.text('Marcações entre colchetes e riscadas foram desconsideradas/canceladas', 14, ly);
+      if (hasCancelled)   doc.text('Marcações riscadas e em cinza foram desconsideradas/canceladas', 14, ly);
       doc.setTextColor(0, 0, 0);
     }
   }
