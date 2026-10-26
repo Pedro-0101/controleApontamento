@@ -29,19 +29,36 @@ app.use((req, res, next) => {
 
 // 1. Configuração do Proxy para a API externa (Ponto Certificado)
 // Usamos uma função de filtro para decidir o que vai para o proxy e o que é local
+// Reserva tempo para consultas grandes: a API externa pode demorar em períodos longos.
+const PROXY_TIMEOUT_MS = 10 * 60 * 1000;
+
 const apiProxy = createProxyMiddleware({
   target: 'https://integrar.pontocertificado.com.br',
   changeOrigin: true,
   secure: true,
+  proxyTimeout: PROXY_TIMEOUT_MS,
+  timeout: PROXY_TIMEOUT_MS,
   pathRewrite: {
     '^/api': '/Api.svc' // Agora sim o regex vai encontrar o /api no início do path
   },
-  onProxyReq: (proxyReq, req, res) => {
-    console.log(`[Proxy] ${req.method} ${req.url} -> ${proxyReq.path}`);
-  },
-  onError: (err, req, res) => {
-    console.error('[Proxy Error]', err);
-    res.status(504).json({ success: false, error: 'Erro de comunicação com o servidor externo' });
+  on: {
+    proxyReq: (proxyReq, req) => {
+      console.log(`[Proxy] ${req.method} ${req.url} -> ${proxyReq.path}`);
+    },
+    error: (err, req, res) => {
+      console.error('[Proxy Error]', err.code || '', err.message || err);
+      if (res && typeof res.writeHead === 'function') {
+        if (!res.headersSent) {
+          res.writeHead(504, { 'Content-Type': 'application/json; charset=utf-8' });
+        }
+        res.end(JSON.stringify({
+          success: false,
+          error: 'Tempo esgotado ao consultar o servidor externo. Tente novamente ou reduza o período.'
+        }));
+      } else if (res && typeof res.destroy === 'function') {
+        res.destroy();
+      }
+    }
   }
 });
 
@@ -3189,11 +3206,17 @@ async function startServer() {
     }
   });
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor rodando na rede local na porta ${PORT}`);
     console.log(`Acesse através de: http://localhost:${PORT}`);
     console.log(`Ou pelo IP da sua máquina: http://[SEU-IP]:${PORT}`);
   });
+
+  // Node encerra requisições após 5 minutos por padrão; aumentamos o limite
+  // para não cortar a geração de relatórios grandes.
+  server.requestTimeout = 15 * 60 * 1000;
+  server.headersTimeout = 15 * 60 * 1000;
+  server.timeout = 15 * 60 * 1000;
 }
 
 startServer();
