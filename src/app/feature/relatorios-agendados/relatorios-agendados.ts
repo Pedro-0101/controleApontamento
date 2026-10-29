@@ -94,13 +94,10 @@ export class RelatoriosAgendados implements OnInit, OnDestroy {
   async ngOnInit() {
     await Promise.all([this.carregar(), this.carregarOpcoes()]);
     await this.atualizarWhatsapp();
+    // Continua monitorando sempre: além de pegar o QR Code, detecta queda de
+    // conexão e o progresso (ou travamento) da inicialização do navegador.
     this.waTimer = setInterval(() => {
-      const wa = this.whatsapp();
-      if (wa?.ready) {
-        if (this.waTimer) clearInterval(this.waTimer);
-        this.waTimer = null;
-        return;
-      }
+      if (this.waLoading()) return;
       this.atualizarWhatsapp();
     }, 5000);
   }
@@ -150,6 +147,37 @@ export class RelatoriosAgendados implements OnInit, OnDestroy {
     } finally {
       this.waLoading.set(false);
     }
+  }
+
+  /**
+   * Reinicia o processo do WhatsApp do zero (encerra o navegador travado,
+   * limpa locks e abre um novo). Usado quando fica parado em "Iniciando...".
+   */
+  async reiniciarWhatsapp() {
+    this.waLoading.set(true);
+    try {
+      this.whatsapp.set(await this.service.reiniciarWhatsapp());
+      this.toastService.success('Reiniciando o WhatsApp...');
+    } catch {
+      this.toastService.error('Erro ao reiniciar o WhatsApp');
+    } finally {
+      this.waLoading.set(false);
+    }
+  }
+
+  /** Tempo decorrido da inicialização, para o usuário ver que está andando. */
+  tempoIniciando(): string {
+    const ms = this.whatsapp()?.elapsedMs;
+    if (!ms || ms < 1000) return '';
+    const s = Math.floor(ms / 1000);
+    return s < 60 ? `${s}s` : `${Math.floor(s / 60)}min ${s % 60}s`;
+  }
+
+  /** Só oferece reiniciar quando algo está travado ou falhou. */
+  podeReiniciar(): boolean {
+    const wa = this.whatsapp();
+    if (!wa || !wa.available || wa.ready) return false;
+    return wa.starting || !!wa.error;
   }
 
   async desconectarWhatsapp() {

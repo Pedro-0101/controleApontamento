@@ -28,16 +28,28 @@ export interface RelatorioAgendadoPayload {
   ativo: number;
 }
 
+export interface WhatsappLogEntry {
+  at: string;
+  level: 'log' | 'warn' | 'error';
+  message: string;
+}
+
 export interface WhatsappStatus {
   available: boolean;
   ready: boolean;
   starting: boolean;
+  stage: string;
+  startedAt: string | null;
+  elapsedMs: number | null;
   hasQr: boolean;
   qr: string | null;
   qrDataUrl: string | null;
   qrAt: string | null;
   me: string | null;
+  browserPath: string | null;
   error: string | null;
+  errorAt: string | null;
+  logs: WhatsappLogEntry[];
 }
 
 export interface TesteRelatorioResult {

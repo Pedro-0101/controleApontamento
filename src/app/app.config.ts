@@ -75,6 +75,7 @@ import {
   TrendingUp,
   BarChart3,
   Upload,
+  QrCode,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -158,6 +159,7 @@ CalendarSearch,
       TrendingUp,
       BarChart3,
       Upload,
+      QrCode,
     }))
   ]
 };

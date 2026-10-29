@@ -63,4 +63,10 @@ export class RelatorioAgendadoService {
       this.http.post<WhatsappStatus & { success: boolean }>(`${this.waUrl}/desconectar`, {})
     );
   }
+
+  async reiniciarWhatsapp(): Promise<WhatsappStatus> {
+    return firstValueFrom(
+      this.http.post<WhatsappStatus & { success: boolean }>(`${this.waUrl}/reiniciar`, {})
+    );
+  }
 }

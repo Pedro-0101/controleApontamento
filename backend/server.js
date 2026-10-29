@@ -3156,10 +3156,32 @@ app.get('/api/whatsapp/status', async (req, res) => {
   }
 });
 
+// A conexão também responde na hora: a abertura do navegador pode demorar
+// (inclusive travar) e a UI acompanha o progresso pelo /status.
 app.post('/api/whatsapp/conectar', async (req, res) => {
   try {
-    const result = await whatsapp.init();
-    res.json({ success: result.success, error: result.error, ...(await whatsapp.getStatus()) });
+    const atual = await whatsapp.getStatus();
+    if (!atual.available) {
+      return res.json({ success: false, error: atual.error, ...atual });
+    }
+    whatsapp.init().catch((e) => {
+      console.error('[WhatsApp] Falha ao conectar:', e);
+    });
+    res.json({ success: true, ...(await whatsapp.getStatus()) });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Reinício forçado: encerra o navegador travado, limpa locks e inicia de novo.
+// Responde na hora (a UI acompanha pelo /status) para não prender a requisição
+// enquanto o navegador antigo é encerrado.
+app.post('/api/whatsapp/reiniciar', async (req, res) => {
+  try {
+    whatsapp.restart().catch((e) => {
+      console.error('[WhatsApp] Falha no reinício:', e);
+    });
+    res.json({ success: true, ...(await whatsapp.getStatus()) });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }

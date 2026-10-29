@@ -19,6 +19,13 @@
   flex-wrap: wrap;
 }
 
+.wa-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .wa-info {
   display: flex;
   align-items: center;
@@ -72,6 +79,68 @@
   margin-top: var(--spacing-md);
   color: var(--color-gray-600);
   font-size: var(--font-size-sm);
+}
+
+.wa-elapsed {
+  color: var(--color-gray-500);
+  font-variant-numeric: tabular-nums;
+}
+
+.wa-diag {
+  margin-top: var(--spacing-lg);
+  border-top: 1px dashed var(--color-border);
+  padding-top: var(--spacing-md);
+  font-size: var(--font-size-sm);
+}
+
+.wa-diag summary {
+  cursor: pointer;
+  color: var(--color-gray-600);
+  font-weight: 500;
+  user-select: none;
+}
+
+.wa-diag ul {
+  list-style: none;
+  margin: var(--spacing-sm) 0 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.wa-diag li {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  color: var(--color-gray-600);
+}
+
+.wa-diag li.log-warn {
+  color: #b45309;
+}
+
+.wa-diag li.log-error {
+  color: var(--color-danger, #dc2626);
+}
+
+.log-hora {
+  color: var(--color-gray-400);
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.log-msg {
+  word-break: break-word;
+}
+
+.log-browser {
+  margin-top: var(--spacing-sm);
+  color: var(--color-gray-400);
+  font-size: 0.72rem;
+  word-break: break-all;
 }
 
 .results-card {

@@ -30,7 +30,12 @@
           } @else if (whatsapp() && !whatsapp()!.available) {
             <span class="wa-status err">{{ whatsapp()?.error || 'Integração não instalada' }}</span>
           } @else if (whatsapp()?.starting) {
-            <span class="wa-status warn">Iniciando... aguardando leitura do QR Code</span>
+            <span class="wa-status warn">
+              Iniciando... {{ whatsapp()!.stage || 'aguardando leitura do QR Code' }}
+              @if (tempoIniciando()) {
+                <span class="wa-elapsed">({{ tempoIniciando() }})</span>
+              }
+            </span>
           } @else if (whatsapp()?.error) {
             <span class="wa-status err">Erro: {{ whatsapp()!.error }}</span>
           } @else {
@@ -45,10 +50,21 @@
             Desconectar
           </button>
         } @else {
+          @if (podeReiniciar()) {
+            <button
+              class="btn btn-outline btn-sm"
+              (click)="reiniciarWhatsapp()"
+              [disabled]="waLoading()"
+              title="Encerra o navegador do WhatsApp (mesmo travado) e inicia de novo"
+            >
+              <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
+              Reiniciar WhatsApp
+            </button>
+          }
           <button
             class="btn btn-primary btn-sm"
             (click)="conectarWhatsapp()"
-            [disabled]="waLoading() || !whatsapp()?.available"
+            [disabled]="waLoading() || !whatsapp()?.available || whatsapp()?.starting"
           >
             <lucide-icon name="qr-code" [size]="14"></lucide-icon>
             {{ whatsapp()?.hasQr ? 'Atualizar QR Code' : 'Conectar WhatsApp' }}
@@ -65,6 +81,23 @@
           e aponte para o código acima.
         </p>
       </div>
+    }
+
+    @if (whatsapp()?.logs?.length) {
+      <details class="wa-diag">
+        <summary>Diagnóstico (últimos eventos)</summary>
+        <ul>
+          @for (entry of whatsapp()!.logs; track $index) {
+            <li [class.log-error]="entry.level === 'error'" [class.log-warn]="entry.level === 'warn'">
+              <span class="log-hora">{{ entry.at | date: 'HH:mm:ss' }}</span>
+              <span class="log-msg">{{ entry.message }}</span>
+            </li>
+          }
+        </ul>
+        @if (whatsapp()?.browserPath) {
+          <p class="log-browser">Navegador: {{ whatsapp()!.browserPath }}</p>
+        }
+      </details>
     }
   </div>
 
