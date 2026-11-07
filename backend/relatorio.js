@@ -7,7 +7,8 @@
  * que o resultado enviado por WhatsApp seja idêntico ao exibido no sistema.
  */
 
-const API_BASE = 'https://integrar.pontocertificado.com.br/Api.svc';
+const { getBaseUrl } = require('./ponto-api');
+const API_BASE = `${getBaseUrl()}/Api.svc`;
 const ERROS_API = ['desativada', 'contate o suporte', 'não encontrada', 'inválido', 'inválida', 'expirado'];
 
 const AFASTAMENTO_EVENTOS = [

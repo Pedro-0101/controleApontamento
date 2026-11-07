@@ -2,8 +2,8 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { LoggerService } from '../logger/logger.service';
-import { environment } from '../../../../environments/environment';
 import { ApiSessionService } from '../apiSession/api-session.service';
+import { PontoApiService } from '../ponto-api/ponto-api.service';
 import { EmployeeService } from '../employee/employee.service';
 import { RelogioService } from '../relogio/relogio.service';
 import { FuncionarioRelogio } from '../../../models/funcionario-relogio/funcionario-relogio';
@@ -15,6 +15,7 @@ import { RelogioVinculado } from '../../../models/relogio-vinculado/relogio-vinc
 export class FuncionarioRelogioService {
   private logger = inject(LoggerService);
   private apiSessionService = inject(ApiSessionService);
+  private pontoApi = inject(PontoApiService);
   private employeeService = inject(EmployeeService);
   private relogioService = inject(RelogioService);
   private http = inject(HttpClient);
@@ -56,30 +57,23 @@ export class FuncionarioRelogioService {
   }
 
   private async getApiFuncionarios(): Promise<FuncionarioRelogio[]> {
-    const tokens = this.apiSessionService.getAllTokens();
-    if (tokens.length === 0) return [];
+    if (this.apiSessionService.getAllTokens().length === 0) return [];
 
-    const results = await Promise.all(tokens.map(async token => {
-      try {
-        const response = await fetch(environment.apiUrlSelecionaFuncionarioCategoria, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dataAtualizacao: '01/01/2020', tokenAcesso: token })
-        });
-        if (!response.ok) return [];
-        const data = await response.json();
-        return (data.d || []).map((r: any) => FuncionarioRelogio.fromApiJson(r));
-      } catch {
-        return [];
-      }
-    }));
+    const results = await this.pontoApi.postAllCompanies(
+      'SelecionaFuncionarioCategoria',
+      () => ({ dataAtualizacao: '01/01/2020' })
+    );
 
     const vistos = new Set<string>();
-    return results.flat().filter(r => {
-      if (!r.matricula || vistos.has(r.matricula)) return false;
-      vistos.add(r.matricula);
-      return true;
-    });
+    return results
+      .flatMap(result =>
+        this.pontoApi.extractArray(result.response).map((r: any) => FuncionarioRelogio.fromApiJson(r))
+      )
+      .filter(r => {
+        if (!r.matricula || vistos.has(r.matricula)) return false;
+        vistos.add(r.matricula);
+        return true;
+      });
   }
 
   merge(local: FuncionarioRelogio[], api: FuncionarioRelogio[]): FuncionarioRelogio[] {
@@ -205,23 +199,16 @@ export class FuncionarioRelogioService {
       return this._vinculadosCache.get(cacheKey)!;
     }
 
-    const tokens = this.apiSessionService.getAllTokens();
-    const results = await Promise.all(tokens.map(async token => {
-      try {
-        const response = await fetch(environment.apiUrlRelogiosPorMatricula, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ matricula, tokenAcesso: token })
-        });
-        if (!response.ok) return [];
-        const data = await response.json();
-        return (data.d || []).map((r: any) => RelogioVinculado.fromApiJson(r));
-      } catch {
-        return [];
-      }
-    }));
+    const results = await this.pontoApi.postAllCompanies(
+      'RetornaRelogiosPorMatricula',
+      () => ({ matricula })
+    );
 
-    const vinculados = this.dedupVinculados(results);
+    const vinculados = this.dedupVinculados(
+      results.map(result =>
+        this.pontoApi.extractArray(result.response).map((r: any) => RelogioVinculado.fromApiJson(r))
+      )
+    );
     this.enrichVinculadosDescricao(vinculados);
     this._vinculadosCache.set(cacheKey, vinculados);
     return vinculados;

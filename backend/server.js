@@ -2,20 +2,29 @@ const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
 const path = require('path');
+const crypto = require('crypto');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const whatsapp = require('./whatsapp');
 const relatorio = require('./relatorio');
+const { createPontoApi, getBaseUrl } = require('./ponto-api');
+
+// Carrega backend/.env (Node 20.12+). Se o arquivo não existir, usa o ambiente do processo.
+try {
+  process.loadEnvFile(path.join(__dirname, '.env'));
+} catch {
+  // .env é opcional; em produção as variáveis podem vir do ambiente.
+}
 
 const app = express();
-const PORT = 3001;
+const PORT = Number(process.env.PORT) || 3001;
 
-// Configuração do banco de dados
+// Configuração do banco de dados (via variáveis de ambiente)
 const dbConfig = {
-  host: '192.168.200.136',
-  port: 3306,
-  database: 'dnpmix',
-  user: 'root',
-  password: 'pass',
+  host: process.env.DB_HOST || '192.168.200.136',
+  port: Number(process.env.DB_PORT) || 3306,
+  database: process.env.DB_NAME || 'dnpmix',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
   charset: 'utf8mb4',
   multipleStatements: true
 };
@@ -33,7 +42,7 @@ app.use((req, res, next) => {
 const PROXY_TIMEOUT_MS = 10 * 60 * 1000;
 
 const apiProxy = createProxyMiddleware({
-  target: 'https://integrar.pontocertificado.com.br',
+  target: getBaseUrl(),
   changeOrigin: true,
   secure: true,
   proxyTimeout: PROXY_TIMEOUT_MS,
@@ -86,10 +95,12 @@ app.use(express.json({ limit: '10mb' }));
 
 // Pool de conexões
 let pool;
+let pontoApi;
 
 async function initializeDatabase() {
   try {
     pool = mysql.createPool(dbConfig);
+    pontoApi = createPontoApi(pool);
     
     // Criar tabela de auditoria se não existir
     await pool.query(`
@@ -182,11 +193,20 @@ async function initializeDatabase() {
     `);
     console.log('Tabela empresas_config verificada/criada com sucesso');
 
-    // Migração: inserir empresa inicial DNP / São João
-    await pool.query(
-      `INSERT IGNORE INTO empresas_config (nome, email, senha, chave) VALUES (?, ?, ?, ?)`,
-      ['DNP / São João', 'daniele.almeida@grupodnp.com.br', '2508468', '987c2db7-2311-4380-9770-babe1b4c4dcc']
-    );
+    // Migração: empresa inicial opcional, configurada por variáveis de ambiente.
+    // Nunca deixe credenciais fixas no código.
+    const seedEmpresa = {
+      nome: process.env.SEED_EMPRESA_NOME,
+      email: process.env.SEED_EMPRESA_EMAIL,
+      senha: process.env.SEED_EMPRESA_SENHA,
+      chave: process.env.SEED_EMPRESA_CHAVE,
+    };
+    if (seedEmpresa.nome && seedEmpresa.email && seedEmpresa.senha && seedEmpresa.chave) {
+      await pool.query(
+        `INSERT IGNORE INTO empresas_config (nome, email, senha, chave) VALUES (?, ?, ?, ?)`,
+        [seedEmpresa.nome, seedEmpresa.email, seedEmpresa.senha, seedEmpresa.chave]
+      );
+    }
 
     // Criar tabela de empresas (para vincular funcionários)
     await pool.query(`
@@ -1207,6 +1227,40 @@ app.post('/api/employees/batch-deactivate', async (req, res) => {
   }
 });
 
+// ── Sessões do portal ──────────────────────────────────────────────────────
+// O navegador recebe apenas um token de sessão opaco. O código de acesso
+// (credencial real) nunca é enviado de volta ao cliente nem gravado em cookie.
+const AUTH_SESSION_TTL_MS = (() => {
+  const value = Number(process.env.AUTH_SESSION_TTL_MS);
+  return Number.isFinite(value) && value > 0 ? value : 12 * 60 * 60 * 1000;
+})();
+const authSessions = new Map(); // token -> { userName, expiresAt }
+
+function createAuthSession(userName) {
+  const token = crypto.randomBytes(32).toString('hex');
+  authSessions.set(token, { userName, expiresAt: Date.now() + AUTH_SESSION_TTL_MS });
+  return token;
+}
+
+function readAuthSession(token) {
+  if (!token) return null;
+  const session = authSessions.get(token);
+  if (!session) return null;
+  if (session.expiresAt <= Date.now()) {
+    authSessions.delete(token);
+    return null;
+  }
+  return session;
+}
+
+// Limpeza periódica para não acumular sessões expiradas em memória.
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, session] of authSessions) {
+    if (session.expiresAt <= now) authSessions.delete(token);
+  }
+}, 10 * 60 * 1000).unref?.();
+
 // Rota de Login (Autenticação pelo Banco de Dados)
 app.post('/api/auth/login', async (req, res) => {
   const { accessCode } = req.body;
@@ -1222,11 +1276,12 @@ app.post('/api/auth/login', async (req, res) => {
     );
 
     if (rows.length > 0) {
+      const sessionToken = createAuthSession(rows[0].nome_usuario);
       res.json({
         success: true,
+        sessionToken,
         user: {
-          userName: rows[0].nome_usuario,
-          accessCode: rows[0].codigo_acesso
+          userName: rows[0].nome_usuario
         }
       });
     } else {
@@ -1242,6 +1297,23 @@ app.post('/api/auth/login', async (req, res) => {
       error: 'Erro interno ao processar login'
     });
   }
+});
+
+// Valida um token de sessão existente (login automático via cookie).
+app.post('/api/auth/session', (req, res) => {
+  const { sessionToken } = req.body || {};
+  const session = readAuthSession(sessionToken);
+  if (!session) {
+    return res.status(401).json({ success: false, message: 'Sessão inválida ou expirada' });
+  }
+  res.json({ success: true, user: { userName: session.userName } });
+});
+
+// Encerra a sessão no servidor.
+app.post('/api/auth/logout', (req, res) => {
+  const { sessionToken } = req.body || {};
+  if (sessionToken) authSessions.delete(sessionToken);
+  res.json({ success: true });
 });
 
 // Rota para buscar todos os usuários administradores
@@ -1751,35 +1823,11 @@ app.get('/api/empresas-config', async (req, res) => {
 });
 
 // GET /api/empresas-config/tokens — obtém tokens para todas as empresas ativas
+// ?force=1 ignora o cache em memória e faz um novo StartSession por empresa.
 app.get('/api/empresas-config/tokens', async (req, res) => {
   try {
-    const [companies] = await pool.query(
-      'SELECT id, nome, email, senha, chave FROM empresas_config WHERE ativo = 1'
-    );
-    const tokens = await Promise.all(companies.map(async c => {
-      try {
-        const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/StartSession', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chaveEmpresa: c.chave, usuario: c.email, senha: c.senha })
-        });
-        const data = await r.json();
-        const raw = data.d ?? null;
-        // A API retorna mensagens de erro em português quando a empresa está inativa.
-        // Verificamos por palavras-chave específicas em vez de formato, para não
-        // classificar tokens longos ou com espaços como erro.
-        const ERROS_API = ['desativada', 'contate o suporte', 'não encontrada', 'inválido', 'inválida', 'expirado'];
-        const isErro = raw && ERROS_API.some(k => raw.toLowerCase().includes(k));
-        return {
-          id: c.id,
-          nome: c.nome,
-          token: isErro ? null : raw,
-          erro: isErro ? raw : null
-        };
-      } catch (e) {
-        return { id: c.id, nome: c.nome, token: null, erro: e.message };
-      }
-    }));
+    const force = req.query.force === '1' || req.query.force === 'true';
+    const tokens = await pontoApi.getCompanyTokens({ force });
     res.json({ success: true, tokens });
   } catch (e) {
     console.error('Erro ao obter tokens:', e);
@@ -1857,28 +1905,10 @@ app.delete('/api/empresas-config/:id', async (req, res) => {
   }
 });
 
-// Helper: obtém tokens ativos da API Ponto Certificado para todas as empresas
-async function getActiveTokens() {
-  const [companies] = await pool.query(
-    'SELECT id, nome, email, senha, chave FROM empresas_config WHERE ativo = 1'
-  );
-  const tokens = await Promise.all(companies.map(async c => {
-    try {
-      const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/StartSession', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chaveEmpresa: c.chave, usuario: c.email, senha: c.senha })
-      });
-      const data = await r.json();
-      const raw = data.d ?? null;
-      const ERROS_API = ['desativada', 'contate o suporte', 'não encontrada', 'inválido', 'inválida', 'expirado'];
-      const isErro = raw && ERROS_API.some(k => raw.toLowerCase().includes(k));
-      return isErro ? null : raw;
-    } catch {
-      return null;
-    }
-  }));
-  return tokens.filter(Boolean);
+// Helper: obtém tokens ativos da API Ponto Certificado para todas as empresas.
+// Usa o cache do gerenciador; force=true renova todos.
+async function getActiveTokens({ force = false } = {}) {
+  return pontoApi.getActiveTokens({ force });
 }
 
 // Endpoint de análise de vínculos relógio x funcionário
@@ -2022,7 +2052,7 @@ app.post('/api/relogios/por-matricula/batch', async (req, res) => {
       const chunkResults = await Promise.all(chunk.map(async matricula => {
         const tokenResults = await Promise.all(tokens.map(async token => {
           try {
-            const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/RetornaRelogiosPorMatricula', {
+            const r = await fetch(`${getBaseUrl()}/Api.svc/RetornaRelogiosPorMatricula`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ matricula, tokenAcesso: token })
@@ -2190,7 +2220,7 @@ app.post('/api/relogios/:numSerie/funcionarios/remover', async (req, res) => {
       for (const token of tokens) {
         let success = false;
         try {
-          const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/vinculaFuncionarioRelogio', {
+          const r = await fetch(`${getBaseUrl()}/Api.svc/vinculaFuncionarioRelogio`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -2209,7 +2239,7 @@ app.post('/api/relogios/:numSerie/funcionarios/remover', async (req, res) => {
 
         if (!success) {
           try {
-            const r2 = await fetch('https://integrar.pontocertificado.com.br/Api.svc/VinculaFuncionarioRelogioPorLista', {
+            const r2 = await fetch(`${getBaseUrl()}/Api.svc/VinculaFuncionarioRelogioPorLista`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -2278,7 +2308,7 @@ app.post('/api/relogios/:numSerie/funcionarios/adicionar', async (req, res) => {
       for (const token of tokens) {
         let success = false;
         try {
-          const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/vinculaFuncionarioRelogio', {
+          const r = await fetch(`${getBaseUrl()}/Api.svc/vinculaFuncionarioRelogio`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -2297,7 +2327,7 @@ app.post('/api/relogios/:numSerie/funcionarios/adicionar', async (req, res) => {
 
         if (!success) {
           try {
-            const r2 = await fetch('https://integrar.pontocertificado.com.br/Api.svc/VinculaFuncionarioRelogioPorLista', {
+            const r2 = await fetch(`${getBaseUrl()}/Api.svc/VinculaFuncionarioRelogioPorLista`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -2405,7 +2435,7 @@ app.post('/api/relogios/:numSerie/funcionarios/gerenciar', async (req, res) => {
         for (const token of tokens) {
           let success = false;
           try {
-            const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/vinculaFuncionarioRelogio', {
+            const r = await fetch(`${getBaseUrl()}/Api.svc/vinculaFuncionarioRelogio`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ lstFuncRel, tokenAcesso: token })
@@ -2423,7 +2453,7 @@ app.post('/api/relogios/:numSerie/funcionarios/gerenciar', async (req, res) => {
             let fallbackOk = true;
             if (toAdd.length > 0) {
               try {
-                const r2 = await fetch('https://integrar.pontocertificado.com.br/Api.svc/VinculaFuncionarioRelogioPorLista', {
+                const r2 = await fetch(`${getBaseUrl()}/Api.svc/VinculaFuncionarioRelogioPorLista`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
@@ -2439,7 +2469,7 @@ app.post('/api/relogios/:numSerie/funcionarios/gerenciar', async (req, res) => {
             }
             if (toRemove.length > 0) {
               try {
-                const r3 = await fetch('https://integrar.pontocertificado.com.br/Api.svc/VinculaFuncionarioRelogioPorLista', {
+                const r3 = await fetch(`${getBaseUrl()}/Api.svc/VinculaFuncionarioRelogioPorLista`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
@@ -2484,7 +2514,7 @@ app.post('/api/relogios/:numSerie/funcionarios/gerenciar', async (req, res) => {
 
 async function sincronizarComApi(numSerieRelogio, lstFuncRel, token) {
   try {
-    const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/vinculaFuncionarioRelogio', {
+    const r = await fetch(`${getBaseUrl()}/Api.svc/vinculaFuncionarioRelogio`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lstFuncRel, tokenAcesso: token })
@@ -2499,7 +2529,7 @@ async function sincronizarComApi(numSerieRelogio, lstFuncRel, token) {
 
 async function sincronizarComApiFallback(matriculas, numSerieRelogio, vincular, token) {
   try {
-    const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/VinculaFuncionarioRelogioPorLista', {
+    const r = await fetch(`${getBaseUrl()}/Api.svc/VinculaFuncionarioRelogioPorLista`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2806,7 +2836,7 @@ app.post('/api/relogios/resync', async (req, res) => {
         for (const token of tokens) {
           let success = false;
           try {
-            const r = await fetch('https://integrar.pontocertificado.com.br/Api.svc/vinculaFuncionarioRelogio', {
+            const r = await fetch(`${getBaseUrl()}/Api.svc/vinculaFuncionarioRelogio`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ lstFuncRel, tokenAcesso: token })
@@ -2825,7 +2855,7 @@ app.post('/api/relogios/resync', async (req, res) => {
             let fallbackOk = true;
             if (toAdd.length > 0) {
               try {
-                const r2 = await fetch('https://integrar.pontocertificado.com.br/Api.svc/VinculaFuncionarioRelogioPorLista', {
+                const r2 = await fetch(`${getBaseUrl()}/Api.svc/VinculaFuncionarioRelogioPorLista`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
@@ -2841,7 +2871,7 @@ app.post('/api/relogios/resync', async (req, res) => {
             }
             if (toRemove.length > 0) {
               try {
-                const r3 = await fetch('https://integrar.pontocertificado.com.br/Api.svc/VinculaFuncionarioRelogioPorLista', {
+                const r3 = await fetch(`${getBaseUrl()}/Api.svc/VinculaFuncionarioRelogioPorLista`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({

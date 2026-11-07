@@ -12,6 +12,25 @@ export interface CompanyToken {
   erro: string | null;
 }
 
+// Mensagens que a API externa devolve no campo `d` (HTTP 200) quando o token
+// não serve mais. A API não usa um código fixo, então comparamos por palavra-chave.
+const TOKEN_ERROR_KEYWORDS = [
+  'desativada',
+  'desativado',
+  'contate o suporte',
+  'não encontrada',
+  'nao encontrada',
+  'inválid',
+  'invalid',
+  'expirad',
+  'token',
+  'sessão',
+  'sessao',
+  'não autorizado',
+  'nao autorizado',
+  'unauthorized',
+];
+
 @Injectable({
   providedIn: 'root',
 })
@@ -28,6 +47,7 @@ export class ApiSessionService {
 
   private refreshTimer: any;
   private retryCount = 0;
+  private inFlightLoad: Promise<boolean> | null = null;
 
   constructor(private http: HttpClient) {
     this.logger.info('ApiSessionService', 'Componente inicializado');
@@ -47,13 +67,55 @@ export class ApiSessionService {
     return this.companyTokens();
   }
 
+  getCompanyById(id: number): CompanyToken | undefined {
+    return this.companyTokens().find(c => c.id === id);
+  }
+
+  /**
+   * Identifica se um valor retornado pela API externa é uma mensagem de
+   * token inválido/expirado (e não um payload válido).
+   */
+  isTokenErrorMessage(value: unknown): boolean {
+    if (typeof value !== 'string') return false;
+    const normalized = value.toLowerCase();
+    return TOKEN_ERROR_KEYWORDS.some(keyword => normalized.includes(keyword));
+  }
+
+  /**
+   * Inicia as sessões de todas as empresas.
+   * Chamadas concorrentes compartilham a mesma requisição.
+   */
   async startSession(): Promise<boolean> {
-    this.logger.info('ApiSessionService [startSession]', 'Iniciando sessões para todas as empresas');
+    return this.loadTokens(false);
+  }
+
+  /**
+   * Força um novo StartSession no backend, ignorando o cache em memória.
+   * Usado quando a API externa sinaliza token expirado.
+   */
+  async refresh(): Promise<boolean> {
+    this.logger.info('ApiSessionService', 'Renovando tokens (force)');
+    return this.loadTokens(true);
+  }
+
+  private loadTokens(force: boolean): Promise<boolean> {
+    if (this.inFlightLoad) {
+      return this.inFlightLoad;
+    }
+
+    this.inFlightLoad = this.fetchTokens(force).finally(() => {
+      this.inFlightLoad = null;
+    });
+
+    return this.inFlightLoad;
+  }
+
+  private async fetchTokens(force: boolean): Promise<boolean> {
+    this.logger.info('ApiSessionService [startSession]', `Iniciando sessões (force=${force})`);
     try {
+      const url = `${environment.apiUrlBackend}/empresas-config/tokens${force ? '?force=1' : ''}`;
       const response = await firstValueFrom(
-        this.http.get<{ success: boolean; tokens: CompanyToken[] }>(
-          `${environment.apiUrlBackend}/empresas-config/tokens`
-        )
+        this.http.get<{ success: boolean; tokens: CompanyToken[] }>(url)
       );
 
       this.logger.info('ApiSessionService [startSession]', `Resposta: success=${response?.success} tokensCount=${response?.tokens?.length}`);
@@ -110,7 +172,7 @@ export class ApiSessionService {
 
   private async attemptRefresh() {
     this.logger.info('ApiSessionService', 'Refresh automático dos tokens');
-    const success = await this.startSession();
+    const success = await this.refresh();
     if (!success) this.handleRetry();
   }
 
@@ -122,7 +184,7 @@ export class ApiSessionService {
     this.retryCount++;
     this.logger.info('ApiSessionService', `Retry ${this.retryCount}/10 em 30s...`);
     this.refreshTimer = setTimeout(async () => {
-      const success = await this.startSession();
+      const success = await this.refresh();
       if (!success) this.handleRetry();
     }, 30 * 1000);
   }

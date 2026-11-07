@@ -4,7 +4,6 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { CookiesService } from '../cookies/cookies.service';
 import { ApiSessionService } from '../apiSession/api-session.service';
-import { CryptoService } from '../crypto/crypto.service';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable({
@@ -15,16 +14,13 @@ export class AuthService {
   private logger = inject(LoggerService);
   private cookiesService = inject(CookiesService);
   private startSessionService = inject(ApiSessionService);
-  private cryptoService = inject(CryptoService);
   private http = inject(HttpClient);
 
   private userName = signal('');
-  private userCode = signal('');
   private logedAt = signal('');
   private authenticated = signal(false);
 
   readonly _userName = computed(() => this.userName());
-  readonly _userCode = computed(() => this.userCode());
   readonly _logedAt = computed(() => this.logedAt());
   readonly _authenticated = computed(() => this.authenticated());
 
@@ -50,22 +46,18 @@ export class AuthService {
         this.http.post<any>(`${environment.apiUrlBackend}/auth/login`, { accessCode })
       );
 
-      if (response && response.success) {
-        return this.successLogin(response.user.accessCode, response.user.userName);
+      if (response?.success && response.sessionToken) {
+        return this.successLogin(response.sessionToken, response.user?.userName || '');
       }
     } catch (error) {
       this.logger.error("AuthService", "Erro ao realizar login via API", error);
     }
 
-    this.userName.set('');
-    this.userCode.set('');
-    this.authenticated.set(false);
-    this.logedAt.set('');
+    this.clearState();
     return false;
   }
 
-  private async successLogin(accessCode: string, username: string): Promise<boolean> {
-
+  private async successLogin(sessionToken: string, username: string): Promise<boolean> {
     this.logger.info("AuthService", "Login bem sucedido");
 
     try {
@@ -75,75 +67,90 @@ export class AuthService {
       return false;
     }
 
-    let date = new Date().toISOString();
+    this.applySession(sessionToken, username);
+    this.logger.info("AuthService", `Sessão iniciada para o usuário ${username}`);
+    return true;
+  }
 
-    let cryptedCode = this.cryptoService.encryptPayload({ accessCode: accessCode });
-    let cryptedName = this.cryptoService.encryptPayload({ userName: username });
-    let cryptedDate = this.cryptoService.encryptPayload({ logedAt: date });
+  /**
+   * Guarda no navegador apenas o token de sessão opaco emitido pelo backend.
+   * O código de acesso (credencial) nunca é persistido no cliente.
+   */
+  private applySession(sessionToken: string, username: string): void {
+    const date = new Date().toISOString();
 
     this.userName.set(username);
-    this.userCode.set(accessCode);
     this.logedAt.set(date);
     this.authenticated.set(true);
 
-    this.cookiesService.setCookie('userName', cryptedName, 1);
-    this.cookiesService.setCookie('accessCode', cryptedCode, 1);
-    this.cookiesService.setCookie('logedAt', cryptedDate, 1);
+    this.cookiesService.setCookie('sessionToken', sessionToken, 1);
+    this.cookiesService.setCookie('userName', username, 1);
+    this.cookiesService.setCookie('logedAt', date, 1);
 
-    this.logger.info("AuthService", `Sessão iniciada para o usuário ${username}`);
+    // Remove cookie legado que guardava o código de acesso.
+    this.cookiesService.deleteCookie('accessCode');
+  }
 
-    return true;
+  private clearState(): void {
+    this.userName.set('');
+    this.authenticated.set(false);
+    this.logedAt.set('');
   }
 
   private async verifyCookieLogin(): Promise<boolean> {
     this.logger.info("AuthService", "Verificando cookies para login automático");
 
-    let cryptedName = this.cookiesService.getCookie('userName');
-    let cryptedCode = this.cookiesService.getCookie('accessCode');
-    let cryptedDate = this.cookiesService.getCookie('logedAt');
+    const sessionToken = this.cookiesService.getCookie('sessionToken');
+    const username = this.cookiesService.getCookie('userName');
+    const logedAt = this.cookiesService.getCookie('logedAt');
 
-    if (!cryptedName || !cryptedCode || !cryptedDate) {
+    if (!sessionToken || !username || !logedAt) {
       this.logger.info("AuthService", "Cookies de sessão não encontrados");
       return false;
     }
 
-    let decryptedNamePayload = this.cryptoService.decryptPayload(cryptedName) as { userName: string };
-    let decryptedCodePayload = this.cryptoService.decryptPayload(cryptedCode) as { accessCode: string };
-    let decryptedDatePayload = this.cryptoService.decryptPayload(cryptedDate) as { logedAt: string };
-
-    if (!decryptedNamePayload || !decryptedCodePayload || !decryptedDatePayload) {
-      this.logger.info("AuthService", "Falha ao descriptografar cookies de sessão");
-      return false;
-    }
-
-    // Re-validate against database to ensure user is still active
+    // Revalida o token de sessão no backend (não reenvia a credencial).
     try {
-      const accessCode = decryptedCodePayload.accessCode;
       const response = await firstValueFrom(
-        this.http.post<any>(`${environment.apiUrlBackend}/auth/login`, { accessCode })
+        this.http.post<any>(`${environment.apiUrlBackend}/auth/session`, { sessionToken })
       );
 
-      if (response && response.success) {
-        return this.successLogin(response.user.accessCode, response.user.userName);
+      if (response?.success) {
+        return this.successLogin(sessionToken, response.user?.userName || username);
       }
     } catch (error) {
-      this.logger.error("AuthService", "Erro ao validar cookies contra banco de dados", error);
+      this.logger.error("AuthService", "Erro ao validar sessão", error);
     }
 
+    this.clearState();
+    this.cookiesService.deleteCookie('sessionToken');
+    this.cookiesService.deleteCookie('userName');
+    this.cookiesService.deleteCookie('logedAt');
     return false;
   }
 
-  logout() {
+  async logout() {
     this.logger.info("AuthService", "Encerrando sessão");
 
-    this.userName.set('');
-    this.userCode.set('');
-    this.authenticated.set(false);
-    this.logedAt.set('');
+    const sessionToken = this.cookiesService.getCookie('sessionToken');
+    if (sessionToken) {
+      try {
+        await firstValueFrom(
+          this.http.post(`${environment.apiUrlBackend}/auth/logout`, { sessionToken })
+        );
+      } catch (error) {
+        this.logger.warn("AuthService", "Falha ao encerrar sessão no servidor", error);
+      }
+    }
 
+    this.clearState();
+
+    this.cookiesService.deleteCookie('sessionToken');
     this.cookiesService.deleteCookie('userName');
-    this.cookiesService.deleteCookie('accessCode');
     this.cookiesService.deleteCookie('logedAt');
+    this.cookiesService.deleteCookie('accessCode');
+
+    this.startSessionService.endSession();
 
     return true;
   }

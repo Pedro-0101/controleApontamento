@@ -2,8 +2,8 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { LoggerService } from '../logger/logger.service';
-import { environment } from '../../../../environments/environment';
 import { ApiSessionService } from '../apiSession/api-session.service';
+import { PontoApiService } from '../ponto-api/ponto-api.service';
 import { Relogio } from '../../../models/relogio/relogio';
 import { DateHelper } from '../../helpers/dateHelper';
 import { MarcacaoDia } from '../../../models/marcacaoDia/marcacao-dia';
@@ -14,9 +14,8 @@ import { MarcacaoDia } from '../../../models/marcacaoDia/marcacao-dia';
 export class RelogioService {
   private loggerService = inject(LoggerService);
   private apiSessionService = inject(ApiSessionService);
+  private pontoApi = inject(PontoApiService);
   private http = inject(HttpClient);
-
-  private apiUrl = environment.apiUrlListaRelogios;
 
   private relogios = signal<Relogio[]>([]);
   readonly _relogios = computed(() => this.relogios());
@@ -47,8 +46,7 @@ export class RelogioService {
   }
 
   private async getRelogiosFromApi(): Promise<Relogio[]> {
-    const tokens = this.apiSessionService.getAllTokens();
-    if (tokens.length === 0) {
+    if (this.apiSessionService.getAllTokens().length === 0) {
       this.loggerService.warn('RelogioService', 'Nenhum token disponível para buscar relógios');
       return [];
     }
@@ -56,24 +54,18 @@ export class RelogioService {
     const dataInicio = DateHelper.getDataInicioRequisicaoRelogio();
     const dataFim    = DateHelper.getDataFimRequisicaoRelogio();
 
-    const results = await Promise.all(tokens.map(async token => {
-      try {
-        const response = await fetch(this.apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ datainicio: dataInicio, datafim: dataFim, status: '4', tokenAcesso: token })
-        });
-        if (!response.ok) return [];
-        const data = await response.json();
-        return (data.d || []).map((r: any) => Relogio.fromJson(r));
-      } catch {
-        return [];
-      }
-    }));
+    const results = await this.pontoApi.postAllCompanies(
+      'RetornaRelogiosInfo',
+      () => ({ datainicio: dataInicio, datafim: dataFim, status: '4' })
+    );
+
+    const relogios = results.flatMap(result =>
+      this.pontoApi.extractArray(result.response).map((r: any) => Relogio.fromJson(r))
+    );
 
     // Deduplicar por numSerie normalizado
     const vistos = new Set<string>();
-    return results.flat().filter(r => {
+    return relogios.filter(r => {
       const k = this.normalizeNumSerie(r.numSerie);
       return vistos.has(k) ? false : (vistos.add(k), true);
     });

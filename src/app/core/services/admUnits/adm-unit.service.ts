@@ -1,8 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { AdmUnit } from '../../../models/admUnit/adm-unit';
 import { LoggerService } from '../logger/logger.service';
-import { ApiSessionService } from '../apiSession/api-session.service';
-import { environment } from '../../../../environments/environment';
+import { PontoApiService } from '../ponto-api/ponto-api.service';
 import { MarcacaoDia } from '../../../models/marcacaoDia/marcacao-dia';
 
 @Injectable({
@@ -12,11 +11,10 @@ import { MarcacaoDia } from '../../../models/marcacaoDia/marcacao-dia';
 export class AdmUnitService {
 
   private loggerService = inject(LoggerService);
-  private apiSessionService = inject(ApiSessionService);
+  private pontoApi = inject(PontoApiService);
 
   private units: AdmUnit[] = [];
   private selectedUnit: AdmUnit | null = null;
-  private apiUrl = environment.apiUrlListarUnidadesAdm;
 
   constructor() {
     this.loggerService.info("AdmUnitService", "Componente inicializado");
@@ -51,24 +49,22 @@ export class AdmUnitService {
   }
 
   private async getUnitsFromApi(): Promise<AdmUnit[]> {
+    const results = await this.pontoApi.postAllCompanies(
+      'ListarUnidadeAdministrativa',
+      () => ({})
+    );
 
-    const token = this.apiSessionService.token();
+    const rows = results.flatMap(result =>
+      this.pontoApi.extractArray(result.response)
+    );
 
-    const response = await fetch(this.apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ tokenAcesso: token })
+    // Uma mesma unidade pode aparecer em mais de uma empresa/token.
+    const vistos = new Set<number>();
+    return rows.filter(row => {
+      const id = Number(row?.Id ?? row?.id);
+      if (!Number.isFinite(id) || vistos.has(id)) return false;
+      vistos.add(id);
+      return true;
     });
-
-    if (!response.ok) {
-      throw new Error(`Erro na API (${response.status}): ${response.statusText}`);
-    }
-
-    const data: any = await response.json();
-
-    return data.d;
-
   }
 }

@@ -59,7 +59,7 @@ export class EmpresaConfigService {
   async testarConexao(id: number): Promise<boolean> {
     const r = await firstValueFrom(
       this.http.get<{ success: boolean; tokens: { id: number; token: string | null }[] }>(
-        `${this.apiUrl}/tokens`
+        `${this.apiUrl}/tokens?force=1`
       )
     );
     if (!r.success) return false;

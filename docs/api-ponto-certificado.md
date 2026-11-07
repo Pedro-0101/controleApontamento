@@ -438,12 +438,20 @@ Guarde o maior `id` importado e chame `SelecionaMarcacoesPosteriorIdInformado` c
 
 - **Proxy:** o frontend chama `/api/<Operacao>`, reescrito para `/Api.svc/<Operacao>`
   (dev: `src/proxy.conf.json`; produção: `backend/server.js`, que também diferencia rotas locais).
-- **Tokens:** `GET /api/empresas-config/tokens` (backend) faz `StartSession` para cada empresa
-  ativa cadastrada no MySQL e devolve os tokens; o frontend itera todos os tokens em cada consulta
-  e deduplica os resultados.
+- **Tokens (backend):** `backend/ponto-api.js` centraliza o `StartSession` por empresa,
+  classifica erros (`desativada`, `inválido`, `expirado`, etc.) e mantém um cache em memória
+  (`PONTO_TOKEN_TTL_MS`, padrão 15 min). `GET /api/empresas-config/tokens` devolve os tokens;
+  `?force=1` ignora o cache e refaz o `StartSession`.
+- **Tokens (frontend):** `ApiSessionService` mantém os tokens por empresa, renova em background
+  e expõe `refresh()`. `PontoApiService` é o cliente único das operações externas: se a API
+  responder mensagem de token inválido/expirado no campo `d`, ele renova a sessão e repete a
+  operação uma vez.
+- **Segredos:** credenciais do banco e da API externa ficam em `backend/.env` (ignorado pelo git;
+  modelo em `backend/.env.example`). Nenhuma credencial é embutida no bundle do frontend.
+- **Sessão do portal:** o login devolve um token de sessão opaco (memória do backend); o
+  navegador guarda apenas esse token — nunca o código de acesso.
 - **Operações usadas:** `StartSession`, `SelecionaMarcacoes`, `RetornaRelogiosInfo`,
-  `ListarUnidadeAdministrativa`, `SelecionaFuncionarioCategoria`, `RetornaRelogiosPorMatricula`
-  (URLs em `src/environments/environment*.ts`).
+  `ListarUnidadeAdministrativa`, `SelecionaFuncionarioCategoria`, `RetornaRelogiosPorMatricula`.
 
 ---
 

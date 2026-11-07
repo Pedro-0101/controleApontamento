@@ -1,11 +1,14 @@
+const path = require('path');
 const mysql = require('mysql2/promise');
 
+try { process.loadEnvFile(path.join(__dirname, '.env')); } catch { /* usa ambiente */ }
+
 const dbConfig = {
-  host: '192.168.200.136',
-  port: 3306,
-  database: 'dnpmix',
-  user: 'root',
-  password: 'pass'
+  host: process.env.DB_HOST || '192.168.200.136',
+  port: Number(process.env.DB_PORT) || 3306,
+  database: process.env.DB_NAME || 'dnpmix',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || ''
 };
 
 async function main() {

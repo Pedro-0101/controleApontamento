@@ -1,13 +1,16 @@
 
+const path = require('path');
 const http = require('http');
+
+try { process.loadEnvFile(path.join(__dirname, 'backend', '.env')); } catch { /* usa ambiente */ }
 
 const CONFIG = {
   host: 'localhost',
-  port: 3001,
+  port: process.env.PORT || 3001,
   credentials: {
-    chaveEmpresa: '987c2db7-2311-4380-9770-babe1b4c4dcc',
-    usuario: 'daniele.almeida@grupodnp.com.br',
-    senha: '2508468'
+    chaveEmpresa: process.env.SEED_EMPRESA_CHAVE,
+    usuario: process.env.SEED_EMPRESA_EMAIL,
+    senha: process.env.SEED_EMPRESA_SENHA
   }
 };
 
