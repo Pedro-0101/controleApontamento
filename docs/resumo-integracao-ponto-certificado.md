@@ -214,6 +214,30 @@ Este sistema é compatível com qualquer solução que suporte:
 
 ---
 
+## Planejamento de Execução no Projeto
+
+Divisão adotada para implementar a integração neste sistema:
+
+| Fase | Escopo | Status |
+|---|---|---|
+| **Fase 1 — Autenticação e Segurança** | Token por empresa, cache/renovação automática, detecção de token expirado, tratamento de empresas desativadas e remoção de credenciais do frontend. | ✅ **Concluída em 07/11/2026** (commit `725559d`) |
+| **Fase 2 — Sincronização de Funcionários e Relógios** | Carga inicial e sincronização de cadastro de funcionários e REPs. | ⬜ Pendente |
+| **Fase 3 — Marcações** | Carga histórica por período e sincronização incremental por último ID. | ⬜ Pendente |
+| **Fase 4 — Vínculos Funcionário-Relógio** | Vinculação/desvinculação individual e em lote. | ⬜ Pendente |
+| **Fase 5 — AFD, Relatórios e Webhooks** | Geração de AFD, relatórios consolidados e notificações em tempo real. | ⬜ Pendente |
+
+**Entregas da Fase 1 já implementadas:**
+
+- `backend/ponto-api.js` centraliza o `StartSession`, classifica erros da API e mantém cache de tokens com TTL configurável (`PONTO_TOKEN_TTL_MS`).
+- `GET /api/empresas-config/tokens?force=1` força a renovação dos tokens.
+- `PontoApiService` (frontend) detecta token inválido/expirado na resposta, renova a sessão da empresa e repete a operação uma única vez.
+- `ApiSessionService` faz renovação periódica com deduplicação de chamadas concorrentes.
+- Credenciais do banco e da API externa movidas para `backend/.env` (ignorado pelo git), com modelo em `backend/.env.example`.
+- Sessão do portal passou a usar token opaco emitido pelo backend; o código de acesso não é mais gravado em cookie nem enviado ao navegador.
+- Credenciais, chave AES e URLs antigas removidas do bundle do frontend.
+
+---
+
 ## Observações Importantes
 
 1. **Formato de Datas:** O sistema aceita tanto formato brasileiro (DD/MM/YYYY) quanto ISO (YYYY-MM-DD).
