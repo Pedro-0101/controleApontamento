@@ -221,7 +221,7 @@ Divisão adotada para implementar a integração neste sistema:
 | Fase | Escopo | Status |
 |---|---|---|
 | **Fase 1 — Autenticação e Segurança** | Token por empresa, cache/renovação automática, detecção de token expirado, tratamento de empresas desativadas e remoção de credenciais do frontend. | ✅ **Concluída em 07/11/2026** (commit `725559d`) |
-| **Fase 2 — Sincronização de Funcionários e Relógios** | Carga inicial e sincronização de cadastro de funcionários e REPs. | ⬜ Pendente |
+| **Fase 2 — Sincronização de Funcionários e Relógios** | Carga inicial e sincronização de cadastro de funcionários e REPs. | ✅ **Concluída em 07/11/2026** |
 | **Fase 3 — Marcações** | Carga histórica por período e sincronização incremental por último ID. | ⬜ Pendente |
 | **Fase 4 — Vínculos Funcionário-Relógio** | Vinculação/desvinculação individual e em lote. | ⬜ Pendente |
 | **Fase 5 — AFD, Relatórios e Webhooks** | Geração de AFD, relatórios consolidados e notificações em tempo real. | ⬜ Pendente |
@@ -235,6 +235,16 @@ Divisão adotada para implementar a integração neste sistema:
 - Credenciais do banco e da API externa movidas para `backend/.env` (ignorado pelo git), com modelo em `backend/.env.example`.
 - Sessão do portal passou a usar token opaco emitido pelo backend; o código de acesso não é mais gravado em cookie nem enviado ao navegador.
 - Credenciais, chave AES e URLs antigas removidas do bundle do frontend.
+
+**Entregas da Fase 2 já implementadas:**
+
+- `backend/ponto-sync.js` faz a carga inicial e a sincronização de funcionários (`ListarFuncionarios`) e relógios/REPs (`RetornaRelogiosInfo`) de todas as empresas ativas ou de uma empresa específica.
+- Funcionários existentes são atualizados por matrícula preservando empresa, local, cargo e status local (o status só é alterado com `atualizarStatus: true`).
+- Funcionários novos são inseridos com a empresa local definida em `empresas_config.empresa_id` ou por correspondência automática de nome; sem vínculo, entram sem empresa e são contabilizados no resumo.
+- Relógios são upsertados pelo número de série normalizado (sem pontos/zeros à esquerda), preservando o controle local de ativo/inativo.
+- Novos endpoints: `POST /api/sincronizacao/executar` e `GET /api/sincronizacao/historico`.
+- Cada execução é registrada em `sincronizacao_execucao` (status, duração, empresas processadas e resumo em JSON).
+- Tela **Configurações → Empresas da API** ganhou os botões *Sincronizar tudo*, *Sincronizar* (por empresa), *Histórico* e o campo de empresa local padrão por conta da API.
 
 ---
 

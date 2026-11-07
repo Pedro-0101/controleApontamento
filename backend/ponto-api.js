@@ -66,6 +66,30 @@ async function fetchJson(url, options = {}) {
 }
 
 /**
+ * Executa uma operação da API externa com um token já obtido.
+ * Erros de negócio da API vêm em `d` (HTTP 200) e são convertidos em exceção.
+ * @returns {Promise<any>} conteúdo de `d`
+ */
+async function postOperation(operation, body, token) {
+  if (!token) throw new Error('Token de acesso ausente');
+
+  const data = await fetchJson(`${getBaseUrl()}/Api.svc/${operation}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...body, tokenAcesso: token }),
+  });
+
+  const result = data?.d;
+  if (isTokenErrorMessage(result)) {
+    const error = new Error(String(result));
+    error.tokenError = true;
+    throw error;
+  }
+
+  return result;
+}
+
+/**
  * Executa StartSession para uma empresa.
  * @returns {{ token: string|null, erro: string|null }}
  */
@@ -162,9 +186,31 @@ function createPontoApi(pool) {
     else cache.delete(companyId);
   }
 
+  /**
+   * Executa uma operação usando o token da empresa.
+   * Se a API recusar o token, invalida o cache, renova a sessão e repete uma vez.
+   */
+  async function callOperation(company, operation, body = {}) {
+    let entry = await resolveCompany(company, false);
+    if (!entry.token) throw new Error(entry.erro || `Empresa ${company.nome} sem token de acesso`);
+
+    try {
+      return await postOperation(operation, body, entry.token);
+    } catch (error) {
+      if (!error?.tokenError) throw error;
+
+      invalidate(company.id);
+      entry = await resolveCompany(company, true);
+      if (!entry.token) throw new Error(entry.erro || `Não foi possível renovar o token de ${company.nome}`);
+
+      return postOperation(operation, body, entry.token);
+    }
+  }
+
   return {
     getCompanyTokens,
     getActiveTokens,
+    callOperation,
     invalidate,
     startSession,
     isTokenErrorMessage,
@@ -176,4 +222,5 @@ module.exports = {
   startSession,
   isTokenErrorMessage,
   getBaseUrl,
+  postOperation,
 };

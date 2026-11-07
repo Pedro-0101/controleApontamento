@@ -9,6 +9,8 @@ export interface EmpresaConfig {
   email: string;
   chave: string;
   ativo: number;
+  empresa_id?: number | null;
+  empresa_nome?: string | null;
   criado_em?: string;
 }
 
@@ -18,6 +20,7 @@ export interface EmpresaConfigForm {
   senha: string;
   chave: string;
   ativo?: number;
+  empresa_id?: number | null;
 }
 
 @Injectable({ providedIn: 'root' })

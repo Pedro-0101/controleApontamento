@@ -451,7 +451,15 @@ Guarde o maior `id` importado e chame `SelecionaMarcacoesPosteriorIdInformado` c
 - **Sessão do portal:** o login devolve um token de sessão opaco (memória do backend); o
   navegador guarda apenas esse token — nunca o código de acesso.
 - **Operações usadas:** `StartSession`, `SelecionaMarcacoes`, `RetornaRelogiosInfo`,
-  `ListarUnidadeAdministrativa`, `SelecionaFuncionarioCategoria`, `RetornaRelogiosPorMatricula`.
+  `ListarFuncionarios`, `ListarUnidadeAdministrativa`, `SelecionaFuncionarioCategoria`,
+  `RetornaRelogiosPorMatricula`.
+- **Sincronização de cadastro (Fase 2):** `backend/ponto-sync.js` executa
+  `ListarFuncionarios` e `RetornaRelogiosInfo` por empresa e faz upsert em
+  `qrcod_2023` e `relogios`. Disparo por `POST /api/sincronizacao/executar`
+  (body opcional: `empresaConfigIds`, `recursos`, `incluirNovos`,
+  `atualizarStatus`, `usuario`); o histórico fica em
+  `GET /api/sincronizacao/historico`. A empresa local padrão dos novos
+  funcionários é configurada em `empresas_config.empresa_id`.
 
 ---
 

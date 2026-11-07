@@ -7,6 +7,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const whatsapp = require('./whatsapp');
 const relatorio = require('./relatorio');
 const { createPontoApi, getBaseUrl } = require('./ponto-api');
+const { createPontoSync } = require('./ponto-sync');
 
 // Carrega backend/.env (Node 20.12+). Se o arquivo não existir, usa o ambiente do processo.
 try {
@@ -79,7 +80,7 @@ app.use((req, res, next) => {
   }
 
   // Lista de prefixos das nossas rotas locais (excluem o /api inicial no teste de string)
-  const localPrefixes = ['/api/auth', '/api/comments', '/api/marcacoes', '/api/employee', '/api/employees', '/api/health', '/api/audit-logs', '/api/empresas-config', '/api/empresas', '/api/locais', '/api/relogios', '/api/relatorios-agendados', '/api/whatsapp'];
+  const localPrefixes = ['/api/auth', '/api/comments', '/api/marcacoes', '/api/employee', '/api/employees', '/api/health', '/api/audit-logs', '/api/empresas-config', '/api/sincronizacao', '/api/empresas', '/api/locais', '/api/relogios', '/api/relatorios-agendados', '/api/whatsapp'];
   const isLocal = localPrefixes.some(prefix => req.url.startsWith(prefix));
   
   if (isLocal) {
@@ -96,11 +97,14 @@ app.use(express.json({ limit: '10mb' }));
 // Pool de conexões
 let pool;
 let pontoApi;
+let pontoSync;
 
 async function initializeDatabase() {
   try {
     pool = mysql.createPool(dbConfig);
     pontoApi = createPontoApi(pool);
+    pontoSync = createPontoSync({ pool, pontoApi });
+    await pontoSync.ensureSchema();
     
     // Criar tabela de auditoria se não existir
     await pool.query(`
@@ -1813,7 +1817,11 @@ app.get('/api/health', (req, res) => {
 app.get('/api/empresas-config', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, nome, email, chave, ativo, criado_em FROM empresas_config ORDER BY nome ASC'
+      `SELECT ec.id, ec.nome, ec.email, ec.chave, ec.ativo, ec.empresa_id,
+              ec.criado_em, e.nome AS empresa_nome
+       FROM empresas_config ec
+       LEFT JOIN empresas e ON e.id = ec.empresa_id
+       ORDER BY ec.nome ASC`
     );
     res.json({ success: true, empresas: rows });
   } catch (e) {
@@ -1837,17 +1845,21 @@ app.get('/api/empresas-config/tokens', async (req, res) => {
 
 // POST /api/empresas-config — cria nova empresa
 app.post('/api/empresas-config', async (req, res) => {
-  const { nome, email, senha, chave } = req.body;
+  const { nome, email, senha, chave, empresa_id } = req.body;
   if (!nome || !email || !senha || !chave) {
     return res.status(400).json({ success: false, error: 'Nome, email, senha e chave são obrigatórios' });
   }
   try {
     const [result] = await pool.query(
-      'INSERT INTO empresas_config (nome, email, senha, chave) VALUES (?, ?, ?, ?)',
-      [nome, email, senha, chave]
+      'INSERT INTO empresas_config (nome, email, senha, chave, empresa_id) VALUES (?, ?, ?, ?, ?)',
+      [nome, email, senha, chave, empresa_id || null]
     );
     const [rows] = await pool.query(
-      'SELECT id, nome, email, chave, ativo, criado_em FROM empresas_config WHERE id = ?',
+      `SELECT ec.id, ec.nome, ec.email, ec.chave, ec.ativo, ec.empresa_id,
+              ec.criado_em, e.nome AS empresa_nome
+       FROM empresas_config ec
+       LEFT JOIN empresas e ON e.id = ec.empresa_id
+       WHERE ec.id = ?`,
       [result.insertId]
     );
     res.json({ success: true, empresa: rows[0], message: 'Empresa criada com sucesso' });
@@ -1863,24 +1875,28 @@ app.post('/api/empresas-config', async (req, res) => {
 // PUT /api/empresas-config/:id — atualiza empresa (senha vazia = não altera)
 app.put('/api/empresas-config/:id', async (req, res) => {
   const { id } = req.params;
-  const { nome, email, senha, chave, ativo } = req.body;
+  const { nome, email, senha, chave, ativo, empresa_id } = req.body;
   if (!nome || !email || !chave) {
     return res.status(400).json({ success: false, error: 'Nome, email e chave são obrigatórios' });
   }
   try {
     if (senha && senha.trim()) {
       await pool.query(
-        'UPDATE empresas_config SET nome=?, email=?, senha=?, chave=?, ativo=? WHERE id=?',
-        [nome, email, senha, chave, ativo !== undefined ? ativo : 1, id]
+        'UPDATE empresas_config SET nome=?, email=?, senha=?, chave=?, ativo=?, empresa_id=? WHERE id=?',
+        [nome, email, senha, chave, ativo !== undefined ? ativo : 1, empresa_id || null, id]
       );
     } else {
       await pool.query(
-        'UPDATE empresas_config SET nome=?, email=?, chave=?, ativo=? WHERE id=?',
-        [nome, email, chave, ativo !== undefined ? ativo : 1, id]
+        'UPDATE empresas_config SET nome=?, email=?, chave=?, ativo=?, empresa_id=? WHERE id=?',
+        [nome, email, chave, ativo !== undefined ? ativo : 1, empresa_id || null, id]
       );
     }
     const [rows] = await pool.query(
-      'SELECT id, nome, email, chave, ativo, criado_em FROM empresas_config WHERE id=?',
+      `SELECT ec.id, ec.nome, ec.email, ec.chave, ec.ativo, ec.empresa_id,
+              ec.criado_em, e.nome AS empresa_nome
+       FROM empresas_config ec
+       LEFT JOIN empresas e ON e.id = ec.empresa_id
+       WHERE ec.id=?`,
       [id]
     );
     res.json({ success: true, empresa: rows[0], message: 'Empresa atualizada com sucesso' });
@@ -1902,6 +1918,53 @@ app.delete('/api/empresas-config/:id', async (req, res) => {
   } catch (e) {
     console.error('Erro ao desativar empresa:', e);
     res.status(500).json({ success: false, error: 'Erro ao desativar empresa' });
+  }
+});
+
+// ── Sincronização de funcionários e relógios (Fase 2) ──────────────────────
+
+// POST /api/sincronizacao/executar — carga inicial / sincronização de cadastro
+// Body opcional: { empresaConfigIds: number[], recursos: ['funcionarios','relogios'],
+//                  incluirNovos: boolean, atualizarStatus: boolean, usuario: string }
+app.post('/api/sincronizacao/executar', async (req, res) => {
+  const {
+    empresaConfigIds,
+    recursos,
+    incluirNovos,
+    atualizarStatus,
+    usuario,
+  } = req.body || {};
+
+  if (empresaConfigIds !== undefined && !Array.isArray(empresaConfigIds)) {
+    return res.status(400).json({ success: false, error: 'empresaConfigIds deve ser um array' });
+  }
+  if (recursos !== undefined && !Array.isArray(recursos)) {
+    return res.status(400).json({ success: false, error: 'recursos deve ser um array' });
+  }
+
+  try {
+    const resultado = await pontoSync.runSync({
+      companyIds: empresaConfigIds,
+      recursos,
+      incluirNovos: incluirNovos !== false,
+      atualizarStatus: atualizarStatus === true,
+      usuario: usuario || null,
+    });
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro na sincronização de cadastro:', e);
+    res.status(500).json({ success: false, error: e.message || 'Erro ao sincronizar cadastro' });
+  }
+});
+
+// GET /api/sincronizacao/historico — últimas execuções
+app.get('/api/sincronizacao/historico', async (req, res) => {
+  try {
+    const historico = await pontoSync.getHistorico({ limit: req.query.limit });
+    res.json({ success: true, historico });
+  } catch (e) {
+    console.error('Erro ao consultar histórico de sincronização:', e);
+    res.status(500).json({ success: false, error: 'Erro ao consultar histórico de sincronização' });
   }
 });
 

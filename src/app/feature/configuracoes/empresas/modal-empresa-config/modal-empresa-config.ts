@@ -6,6 +6,8 @@ import {
   EmpresaConfig,
   EmpresaConfigService,
 } from '../../../../core/services/empresa-config/empresa-config.service';
+import { EmpresaService } from '../../../../core/services/empresa/empresa.service';
+import { Empresa } from '../../../../models/empresa/empresa';
 import { ToastService } from '../../../../core/services/toast/toast.service';
 
 @Component({
@@ -16,6 +18,7 @@ import { ToastService } from '../../../../core/services/toast/toast.service';
 })
 export class ModalEmpresaConfig implements OnInit {
   private service = inject(EmpresaConfigService);
+  private empresaService = inject(EmpresaService);
   private toastService = inject(ToastService);
 
   mode     = input.required<'create' | 'edit'>();
@@ -28,6 +31,8 @@ export class ModalEmpresaConfig implements OnInit {
   email  = signal('');
   senha  = signal('');
   chave  = signal('');
+  empresaId = signal<number | null>(null);
+  empresas = signal<Empresa[]>([]);
 
   isSaving  = signal(false);
   isTesting = signal(false);
@@ -40,6 +45,16 @@ export class ModalEmpresaConfig implements OnInit {
       this.email.set(e.email);
       this.chave.set(e.chave);
       this.senha.set('');
+      this.empresaId.set(e.empresa_id ?? null);
+    }
+    this.carregarEmpresas();
+  }
+
+  private async carregarEmpresas() {
+    try {
+      this.empresas.set(await this.empresaService.listar(true));
+    } catch {
+      this.empresas.set([]);
     }
   }
 
@@ -87,6 +102,7 @@ export class ModalEmpresaConfig implements OnInit {
         email: this.email(),
         senha: this.senha(),
         chave: this.chave(),
+        empresa_id: this.empresaId(),
       };
       if (this.mode() === 'create') {
         await this.service.criar(data);
