@@ -8,6 +8,8 @@ export interface RelatorioConsolidadoOpcoes {
   empresasConfig: Array<{ id: number; nome: string; ativo: number }>;
   relogios: Array<{ num_serie: string; descricao: string; ativo: number; status: number }>;
   locais: string[];
+  provedores: string[];
+  empresasSistema: number[];
 }
 
 export interface RelatorioConsolidadoFiltros {
@@ -18,6 +20,8 @@ export interface RelatorioConsolidadoFiltros {
   matriculas?: string[];
   numSeries?: string[];
   locais?: string[];
+  provedores?: string[];
+  empresasSistema?: number[];
   busca?: string;
   tipoRegistro?: number | null;
 }
@@ -39,6 +43,8 @@ export interface RelatorioConsolidadoEmpresa {
   funcionarios: number;
   relogios: number;
   dias: number;
+  provedores: string[];
+  empresasSistema: number[];
 }
 
 export interface RelatorioConsolidadoRegistro {
@@ -47,7 +53,15 @@ export interface RelatorioConsolidadoRegistro {
   empresa_config_nome: string;
   empresa_id: number | null;
   empresa_nome: string;
-  marcacao_id: number;
+  marcacao_id: number | null;
+  provedor: string;
+  provedor_label: string;
+  empresasistema: number | null;
+  reppid: number | null;
+  coletor: number | null;
+  turma: string | null;
+  status_exportacao: string | null;
+  data_hora_coleta: string | null;
   nsr: number | null;
   data_marcacao: string;
   data_insercao: string | null;
@@ -94,6 +108,8 @@ export class RelatorioConsolidadoService {
       empresasConfig: r.empresasConfig || [],
       relogios: r.relogios || [],
       locais: r.locais || [],
+      provedores: r.provedores || [],
+      empresasSistema: r.empresasSistema || [],
     };
   }
 
@@ -135,6 +151,8 @@ export class RelatorioConsolidadoService {
       ['matriculas', filtros.matriculas],
       ['numSeries', filtros.numSeries],
       ['locais', filtros.locais],
+      ['provedores', filtros.provedores],
+      ['empresasSistema', filtros.empresasSistema],
     ];
     for (const [chave, valores] of listas) {
       if (valores && valores.length > 0) params = params.set(chave, valores.join(','));

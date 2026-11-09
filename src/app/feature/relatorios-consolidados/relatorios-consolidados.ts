@@ -32,12 +32,16 @@ export class RelatoriosConsolidados implements OnInit {
   empresasConfigSelecionadas = signal<string[]>([]);
   relogiosSelecionados = signal<string[]>([]);
   locaisSelecionados = signal<string[]>([]);
+  provedoresSelecionados = signal<string[]>([]);
+  empresasSistemaFiltro = signal('');
 
   opcoes = signal<RelatorioConsolidadoOpcoes>({
     empresas: [],
     empresasConfig: [],
     relogios: [],
     locais: [],
+    provedores: [],
+    empresasSistema: [],
   });
 
   resultado = signal<RelatorioConsolidadoResultado | null>(null);
@@ -70,6 +74,22 @@ export class RelatoriosConsolidados implements OnInit {
   );
 
   localOptions = computed(() => this.opcoes().locais);
+
+  provedorOptions = computed(() => {
+    const rotulos: Record<string, string> = {
+      pontocertificado: 'Ponto Certificado',
+      exata: 'ExataWeb',
+    };
+    const todos = new Set([
+      'pontocertificado',
+      'exata',
+      ...(this.opcoes().provedores || []),
+    ]);
+    return [...todos].map((valor) => ({
+      nome: rotulos[valor] || valor,
+      id: valor,
+    }));
+  });
 
   registros = computed(() => this.resultado()?.registros || []);
 
@@ -108,6 +128,10 @@ export class RelatoriosConsolidados implements OnInit {
     this.locaisSelecionados.set(values);
   }
 
+  onProvedoresChange(values: string[]) {
+    this.provedoresSelecionados.set(values);
+  }
+
   onTipoRegistroChange(value: string) {
     this.tipoRegistro.set(value === '' ? null : Number(value));
   }
@@ -120,6 +144,11 @@ export class RelatoriosConsolidados implements OnInit {
       empresaConfigIds: this.empresasConfigSelecionadas().map(Number).filter(Number.isFinite),
       numSeries: this.relogiosSelecionados(),
       locais: this.locaisSelecionados(),
+      provedores: this.provedoresSelecionados(),
+      empresasSistema: this.empresasSistemaFiltro()
+        .split(',')
+        .map((item) => Number(item.trim()))
+        .filter(Number.isFinite),
       busca: this.busca().trim(),
       tipoRegistro: this.tipoRegistro(),
     };
@@ -194,6 +223,8 @@ export class RelatoriosConsolidados implements OnInit {
     this.empresasConfigSelecionadas.set([]);
     this.relogiosSelecionados.set([]);
     this.locaisSelecionados.set([]);
+    this.provedoresSelecionados.set([]);
+    this.empresasSistemaFiltro.set('');
     this.resultado.set(null);
     this.pagina.set(1);
   }

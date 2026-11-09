@@ -334,6 +334,140 @@ export interface ExataSyncFuncionariosResultado {
   empresas: ExataSyncFuncionarioEmpresa[];
 }
 
+export interface ExataPontosSyncEmpresa {
+  empresa_exata_id: number;
+  empresasistema: number;
+  descricao: string | null;
+  empresa_id: number | null;
+  empresa_nome: string | null;
+  modo: 'periodo' | 'incremental';
+  dataInicio: string | null;
+  dataFim: string | null;
+  dias: number;
+  paginas: number;
+  buscados: number;
+  inseridos: number;
+  atualizados: number;
+  ignorados: number;
+  baixados: number;
+  erros: number;
+  erro: string | null;
+}
+
+export interface ExataPontosSyncResultado {
+  success: boolean;
+  execucaoId: number;
+  status: 'CONCLUIDO' | 'PARCIAL' | 'ERRO';
+  modo: 'periodo' | 'incremental';
+  duracaoMs: number;
+  buscados: number;
+  inseridos: number;
+  atualizados: number;
+  ignorados: number;
+  baixados: number;
+  erros: number;
+  empresas: ExataPontosSyncEmpresa[];
+}
+
+export interface ExataPontosStatusEmpresa {
+  id: number;
+  empresasistema: number;
+  descricao: string | null;
+  empresa_id: number | null;
+  empresa_nome: string | null;
+  ativo: number;
+  ultima_data: string | null;
+  ultimo_nsr: number | null;
+  ultimo_reppid: number | null;
+  ultima_execucao_em: string | null;
+  ultimo_total: number | null;
+  total_marcacoes: number;
+  ultima_marcacao: string | null;
+}
+
+export interface ExataPontosStatus {
+  success: boolean;
+  conta: ExataConta;
+  empresas: ExataPontosStatusEmpresa[];
+  resumo: { total: number; ativas: number; marcacoes: number };
+}
+
+export interface ExecutarExataPontosOptions {
+  empresasExataIds?: number[];
+  modo: 'periodo' | 'incremental';
+  dataInicio?: string;
+  dataFim?: string;
+  qtde?: number;
+  usuario?: string;
+}
+
+export interface ExataStatusFuncionario {
+  id: number;
+  empresa_config_id: number;
+  empresasistema: number;
+  status_id: number;
+  descricao: string | null;
+  ponto_liberado: string | null;
+  ativo: string | null;
+  status_integra: string | null;
+  factory: string | null;
+  add_dias_status_fim: number | null;
+  retorno_automatico: number | null;
+  ultima_modificacao: string | null;
+  evento_local: string | null;
+  mapeamento_manual: number;
+  sincronizado_em: string | null;
+}
+
+export interface ExataStatusEmpresa {
+  id: number;
+  empresasistema: number;
+  descricao: string | null;
+  empresa_id: number | null;
+  empresa_nome: string | null;
+  ativo: number;
+  statuses: ExataStatusFuncionario[];
+  eventos_mapeados: number;
+}
+
+export interface ExataStatusListaResultado {
+  success: boolean;
+  conta: ExataConta;
+  empresas: ExataStatusEmpresa[];
+  eventosDisponiveis: string[];
+}
+
+export interface ExataStatusSyncEmpresa {
+  empresa_exata_id: number;
+  empresasistema: number;
+  descricao: string | null;
+  recebidos: number;
+  inseridos: number;
+  atualizados: number;
+  ignorados: number;
+  eventos_criados: number;
+  eventos_atualizados: number;
+  eventos_removidos: number;
+  sem_mapeamento: number;
+  erro: string | null;
+}
+
+export interface ExataStatusSyncResultado {
+  success: boolean;
+  execucaoId: number;
+  status: 'CONCLUIDO' | 'PARCIAL' | 'ERRO';
+  duracaoMs: number;
+  recebidos: number;
+  inseridos: number;
+  atualizados: number;
+  ignorados: number;
+  eventosCriados: number;
+  eventosAtualizados: number;
+  eventosRemovidos: number;
+  semMapeamento: number;
+  empresas: ExataStatusSyncEmpresa[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class SincronizacaoService {
   private http = inject(HttpClient);
@@ -449,5 +583,54 @@ export class SincronizacaoService {
         { empresasExataIds, usuario }
       )
     );
+  }
+
+  // ── ExataWeb (Fase 3) — marcações e baixa ───────────────────────────────
+
+  async sincronizarPontosExata(
+    options: ExecutarExataPontosOptions
+  ): Promise<ExataPontosSyncResultado> {
+    return firstValueFrom(
+      this.http.post<ExataPontosSyncResultado>(`${this.apiUrl}/exata/pontos`, options)
+    );
+  }
+
+  async statusPontosExata(): Promise<ExataPontosStatus | null> {
+    const r = await firstValueFrom(
+      this.http.get<ExataPontosStatus>(`${this.apiUrl}/exata/pontos/status`)
+    );
+    return r.success ? r : null;
+  }
+
+  // ── ExataWeb (Fase 4) — status de funcionários ──────────────────────────
+
+  async sincronizarStatusExata(
+    empresasExataIds?: number[],
+    usuario?: string
+  ): Promise<ExataStatusSyncResultado> {
+    return firstValueFrom(
+      this.http.post<ExataStatusSyncResultado>(
+        `${this.apiUrl}/exata/status`,
+        { empresasExataIds, usuario }
+      )
+    );
+  }
+
+  async listarStatusExata(): Promise<ExataStatusListaResultado | null> {
+    const r = await firstValueFrom(
+      this.http.get<ExataStatusListaResultado>(`${this.apiUrl}/exata/status`)
+    );
+    return r.success ? r : null;
+  }
+
+  async atualizarStatusExata(id: number, eventoLocal: string | null): Promise<ExataStatusFuncionario> {
+    const r = await firstValueFrom(
+      this.http.put<{ success: boolean; status: ExataStatusFuncionario }>(
+        `${this.apiUrl}/exata/status/${id}`,
+        { evento_local: eventoLocal }
+      )
+    );
+    if (!r.success) throw new Error('Erro ao atualizar o mapeamento do status');
+    return r.status;
   }
 }

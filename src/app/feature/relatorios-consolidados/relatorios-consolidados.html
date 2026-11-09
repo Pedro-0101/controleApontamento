@@ -66,6 +66,25 @@
       </div>
 
       <div class="campo">
+        <span>Provedor ({{ provedoresSelecionados().length }})</span>
+        <app-multi-select-dropdown
+          [options]="provedorOptions()"
+          labelProp="nome"
+          valueProp="id"
+          [subLabelProp]="null"
+          placeholder="Todos os provedores"
+          searchPlaceholder="Buscar provedor..."
+          (selectionChange)="onProvedoresChange($event)">
+        </app-multi-select-dropdown>
+      </div>
+
+      <label class="campo">
+        <span>Código da empresa na API</span>
+        <input type="text" placeholder="Ex.: 1, 12" [value]="empresasSistemaFiltro()"
+          (input)="empresasSistemaFiltro.set($any($event.target).value)" />
+      </label>
+
+      <div class="campo">
         <span>Empresas da API ({{ empresasConfigSelecionadas().length }})</span>
         <app-multi-select-dropdown
           [options]="empresaConfigOptions()"
@@ -186,6 +205,8 @@
             <tr>
               <th>Empresa</th>
               <th>Conta da API</th>
+              <th>Provedor</th>
+              <th>Empresa Sistema</th>
               <th>Registros</th>
               <th>Funcionários</th>
               <th>Relógios</th>
@@ -197,6 +218,14 @@
               <tr>
                 <td><strong>{{ empresa.empresa_nome }}</strong></td>
                 <td class="texto-suave">{{ empresa.empresa_config_nome }}</td>
+                <td class="texto-suave">
+                  @for (provedor of empresa.provedores; track provedor) {
+                    <span class="badge">{{ provedor === 'exata' ? 'ExataWeb' : 'Ponto Certificado' }}</span>
+                  }
+                </td>
+                <td class="texto-suave">
+                  {{ empresa.empresasSistema.length ? empresa.empresasSistema.join(', ') : '—' }}
+                </td>
                 <td>{{ empresa.registros }}</td>
                 <td>{{ empresa.funcionarios }}</td>
                 <td>{{ empresa.relogios }}</td>
@@ -204,7 +233,7 @@
               </tr>
             } @empty {
               <tr>
-                <td colspan="6" class="texto-suave">Nenhuma marcação encontrada.</td>
+                <td colspan="8" class="texto-suave">Nenhuma marcação encontrada.</td>
               </tr>
             }
           </tbody>
@@ -237,10 +266,12 @@
           <thead>
             <tr>
               <th>Data/Hora</th>
+              <th>Provedor</th>
+              <th>Empresa Sistema</th>
               <th>Matrícula</th>
               <th>Funcionário</th>
               <th>Empresa</th>
-              <th>Relógio</th>
+              <th>Relógio / REPP</th>
               <th>NSR</th>
               <th>Tipo</th>
               <th>Local</th>
@@ -251,6 +282,10 @@
             @for (registro of registrosPagina(); track registro.id) {
               <tr>
                 <td>{{ registro.data_marcacao | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+                <td>
+                  <span class="badge">{{ registro.provedor_label }}</span>
+                </td>
+                <td>{{ registro.empresasistema ?? '—' }}</td>
                 <td>{{ registro.matricula }}</td>
                 <td>
                   <strong>{{ registro.funcionario_nome || '—' }}</strong>
@@ -264,7 +299,10 @@
                 </td>
                 <td>
                   {{ registro.relogio_descricao || registro.num_serie_relogio }}
-                  <span class="texto-suave d-block">{{ registro.num_serie_relogio }}</span>
+                  <span class="texto-suave d-block">
+                    {{ registro.num_serie_relogio }}
+                    @if (registro.reppid) { · REPP {{ registro.reppid }} }
+                  </span>
                 </td>
                 <td>{{ registro.nsr ?? '—' }}</td>
                 <td>{{ registro.tipo_registro_label }}</td>
@@ -279,7 +317,7 @@
               </tr>
             } @empty {
               <tr>
-                <td colspan="9" class="texto-suave">Nenhum registro para exibir.</td>
+                <td colspan="11" class="texto-suave">Nenhum registro para exibir.</td>
               </tr>
             }
           </tbody>

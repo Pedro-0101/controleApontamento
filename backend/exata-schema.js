@@ -185,6 +185,54 @@ async function ensureMarcacaoSyncEstadoExataSchema(pool) {
   `);
 }
 
+async function ensureStatusFuncionarioExataSchema(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS status_funcionario_exata (
+      id                  INT AUTO_INCREMENT PRIMARY KEY,
+      empresa_config_id   INT NOT NULL,
+      empresasistema      INT NOT NULL,
+      status_id           INT NOT NULL,
+      descricao           VARCHAR(255) NULL,
+      ponto_liberado      CHAR(1) NULL,
+      ativo               CHAR(1) NULL,
+      status_integra      VARCHAR(100) NULL,
+      factory             CHAR(1) NULL,
+      add_dias_status_fim INT NULL,
+      retorno_automatico  TINYINT(1) NULL,
+      ultima_modificacao  DATETIME NULL,
+      evento_local        VARCHAR(100) NULL,
+      mapeamento_manual   TINYINT(1) NOT NULL DEFAULT 0,
+      sincronizado_em     DATETIME NULL,
+      criado_em           DATETIME DEFAULT CURRENT_TIMESTAMP,
+      atualizado_em       DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_status_funcionario_exata (empresa_config_id, empresasistema, status_id),
+      INDEX idx_status_exata_integra (empresa_config_id, empresasistema, status_integra)
+    )
+  `);
+}
+
+/**
+ * Colunas extras em evento_funcionario para registrar a origem do evento e
+ * permitir o upsert idempotente dos status importados da Exata.
+ */
+async function ensureEventoFuncionarioExataSchema(pool) {
+  if (!(await tableExists(pool, 'evento_funcionario'))) return;
+
+  await addColumnIfMissing(pool, 'evento_funcionario', 'chave_externa', 'VARCHAR(255) NULL');
+  await addColumnIfMissing(
+    pool,
+    'evento_funcionario',
+    'origem',
+    "VARCHAR(20) NOT NULL DEFAULT 'local'"
+  );
+  await addIndexIfMissing(
+    pool,
+    'evento_funcionario',
+    'uk_evento_chave_externa',
+    'UNIQUE KEY `uk_evento_chave_externa` (`chave_externa`)'
+  );
+}
+
 /**
  * Aplica todas as migrações da Exata. Deve ser chamada depois que
  * `empresas_config` e `marcacoes_ponto` já existem.
@@ -195,6 +243,8 @@ async function ensureExataSchema(pool) {
   await ensureFuncionarioExataSchema(pool);
   await ensureMarcacoesPontoSchema(pool);
   await ensureMarcacaoSyncEstadoExataSchema(pool);
+  await ensureStatusFuncionarioExataSchema(pool);
+  await ensureEventoFuncionarioExataSchema(pool);
 }
 
 module.exports = {
@@ -204,6 +254,8 @@ module.exports = {
   ensureFuncionarioExataSchema,
   ensureMarcacoesPontoSchema,
   ensureMarcacaoSyncEstadoExataSchema,
+  ensureStatusFuncionarioExataSchema,
+  ensureEventoFuncionarioExataSchema,
   addColumnIfMissing,
   addIndexIfMissing,
   tableExists,

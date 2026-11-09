@@ -3,6 +3,10 @@ const assert = require('node:assert/strict');
 
 const {
   normalizarFuncionario,
+  normalizarPontoExata,
+  mapStatusParaEvento,
+  montarDataHoraExata,
+  splitDiasExata,
   parseDateOnly,
   parseDateTime,
   encontrarEmpresaLocal,
@@ -76,6 +80,81 @@ test('normaliza funcionário da Exata preservando matrícula e campos', () => {
 test('normaliza funcionário sem matrícula como ignorado', () => {
   assert.equal(normalizarFuncionario({ nome: 'SEM MATRÍCULA' }, 1, 2), null);
   assert.equal(normalizarFuncionario({ matricula: '   ' }, 1, 2), null);
+});
+
+test('monta data/hora da Exata sem conversão de fuso', () => {
+  assert.equal(montarDataHoraExata('02/10/2022', '19:11'), '2022-10-02 19:11:00');
+  assert.equal(montarDataHoraExata('2022-10-02', '19:11:30'), '2022-10-02 19:11:30');
+  assert.equal(montarDataHoraExata('31/02/2022', '10:00'), null);
+  assert.equal(montarDataHoraExata('', '10:00'), null);
+});
+
+test('normaliza ponto da Exata usando (empresasistema, reppid, nsr)', () => {
+  const row = normalizarPontoExata(
+    {
+      empresa: 7,
+      nsr: 8010,
+      reppid: 12,
+      data: '02/10/2022',
+      hora: '19:11',
+      pis: 56,
+      coletor: 2,
+      matricula: 56,
+      nome: 'CINQUENTA E SEIS',
+      turma: 56,
+      latitude: '0.0',
+      longitude: '0.0',
+      status: 'N',
+      dataHoraColeta: '2022-10-02 19:12:10',
+      hash: 'ABC',
+      cpf: '7374311303',
+      tipoColetor: '1',
+      registro: 'REGISTRO',
+    },
+    10,
+    7,
+    3
+  );
+
+  assert.equal(row.empresa_config_id, 10);
+  assert.equal(row.empresasistema, 7);
+  assert.equal(row.empresa_id, 3);
+  assert.equal(row.marcacao_id, null);
+  assert.equal(row.nsr, 8010);
+  assert.equal(row.reppid, 12);
+  assert.equal(row.data_marcacao, '2022-10-02 19:11:00');
+  assert.equal(row.matricula, '56');
+  assert.equal(row.num_serie_relogio, '12');
+  assert.equal(row.provedor, 'exata');
+  assert.equal(row.status_exportacao, 'N');
+  assert.equal(row.data_hora_coleta, '2022-10-02 19:12:10');
+});
+
+test('ignora ponto sem nsr/reppid ou sem data válida', () => {
+  assert.equal(normalizarPontoExata({ reppid: 1, data: '02/10/2022', hora: '10:00' }, 1, 2), null);
+  assert.equal(normalizarPontoExata({ nsr: 1, data: '02/10/2022', hora: '10:00' }, 1, 2), null);
+  assert.equal(normalizarPontoExata({ nsr: 1, reppid: 2, data: 'xx' }, 1, 2), null);
+});
+
+test('divide período em blocos diários', () => {
+  const dias = splitDiasExata('2022-10-01', '2022-10-03');
+  assert.deepEqual(dias, [
+    { inicio: '2022-10-01', fim: '2022-10-01' },
+    { inicio: '2022-10-02', fim: '2022-10-02' },
+    { inicio: '2022-10-03', fim: '2022-10-03' },
+  ]);
+  assert.throws(() => splitDiasExata('2022-10-03', '2022-10-01'), /maior ou igual/);
+});
+
+test('mapeia códigos de status da Exata para eventos locais', () => {
+  assert.equal(mapStatusParaEvento('FERIAS'), 'Ferias');
+  assert.equal(mapStatusParaEvento('Atestado Médico'), 'Atestado');
+  assert.equal(mapStatusParaEvento('AFASTAMENTO INSS'), 'Afastado');
+  assert.equal(mapStatusParaEvento('SUSPENSAO'), 'Suspensao');
+  assert.equal(mapStatusParaEvento('LICENCA MATERNIDADE'), 'Licença Maternidade/ Paternidade');
+  assert.equal(mapStatusParaEvento('Licença Nojo'), 'Licença Nojo');
+  assert.equal(mapStatusParaEvento('ATIVO'), null);
+  assert.equal(mapStatusParaEvento('DEMITIDO'), null);
 });
 
 test('mapeia empresa local por nome exato ou parcial único', () => {

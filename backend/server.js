@@ -2105,6 +2105,103 @@ app.post('/api/sincronizacao/exata/funcionarios', async (req, res) => {
   }
 });
 
+// ── ExataWeb — marcações de ponto e baixa (Fase 3) ─────────────────────────
+
+// POST /api/sincronizacao/exata/pontos — importa pontos por período/incremental
+// Body: { empresasExataIds?: number[], modo: 'periodo'|'incremental',
+//         dataInicio?: string, dataFim?: string, qtde?: number, usuario?: string }
+app.post('/api/sincronizacao/exata/pontos', async (req, res) => {
+  const {
+    empresasExataIds,
+    modo,
+    dataInicio,
+    dataFim,
+    qtde,
+    usuario,
+  } = req.body || {};
+
+  if (empresasExataIds !== undefined && !Array.isArray(empresasExataIds)) {
+    return res.status(400).json({ success: false, error: 'empresasExataIds deve ser um array' });
+  }
+  if (modo !== undefined && modo !== 'periodo' && modo !== 'incremental') {
+    return res.status(400).json({ success: false, error: "modo deve ser 'periodo' ou 'incremental'" });
+  }
+  if (modo === 'periodo' && (!dataInicio || !dataFim)) {
+    return res.status(400).json({ success: false, error: 'Informe dataInicio e dataFim para importar por período' });
+  }
+
+  try {
+    const resultado = await exataSync.sincronizarPontos({
+      empresasExataIds,
+      modo: modo || 'incremental',
+      dataInicio,
+      dataFim,
+      qtde,
+      usuario: usuario || null,
+    });
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro ao sincronizar marcações da Exata:', e);
+    res.status(500).json({ success: false, error: e.message || 'Erro ao sincronizar marcações da Exata' });
+  }
+});
+
+// GET /api/sincronizacao/exata/pontos/status — estado por empresa
+app.get('/api/sincronizacao/exata/pontos/status', async (req, res) => {
+  try {
+    const resultado = await exataSync.listarPontosStatus();
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro ao consultar status das marcações da Exata:', e);
+    res.status(500).json({ success: false, error: e.message || 'Erro ao consultar status das marcações da Exata' });
+  }
+});
+
+// ── ExataWeb — status de funcionários (Fase 4, somente leitura) ────────────
+
+// POST /api/sincronizacao/exata/status — importa o catálogo de status
+app.post('/api/sincronizacao/exata/status', async (req, res) => {
+  const { empresasExataIds, usuario } = req.body || {};
+  if (empresasExataIds !== undefined && !Array.isArray(empresasExataIds)) {
+    return res.status(400).json({ success: false, error: 'empresasExataIds deve ser um array' });
+  }
+
+  try {
+    const resultado = await exataSync.sincronizarStatusFuncionarios({
+      empresasExataIds,
+      usuario: usuario || null,
+    });
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro ao sincronizar status de funcionários da Exata:', e);
+    res.status(500).json({ success: false, error: e.message || 'Erro ao sincronizar status de funcionários da Exata' });
+  }
+});
+
+// GET /api/sincronizacao/exata/status — catálogo importado e mapeamentos
+app.get('/api/sincronizacao/exata/status', async (req, res) => {
+  try {
+    const resultado = await exataSync.listarStatusFuncionarios();
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro ao listar status de funcionários da Exata:', e);
+    res.status(500).json({ success: false, error: e.message || 'Erro ao listar status de funcionários da Exata' });
+  }
+});
+
+// PUT /api/sincronizacao/exata/status/:id — ajuste manual do evento local
+app.put('/api/sincronizacao/exata/status/:id', async (req, res) => {
+  const { id } = req.params;
+  const { evento_local } = req.body || {};
+  try {
+    const status = await exataSync.atualizarStatusExata(id, { evento_local });
+    res.json({ success: true, status });
+  } catch (e) {
+    console.error('Erro ao atualizar status da Exata:', e);
+    res.status(400).json({ success: false, error: e.message || 'Erro ao atualizar status da Exata' });
+  }
+});
+
 // ── Vínculos funcionário-relógio (Fase 4) ──────────────────────────────────
 
 // POST /api/sincronizacao/vinculos/preview — prévia das alterações
@@ -2314,6 +2411,8 @@ function filtrosConsolidado(req) {
     matriculas: parseQueryList(source.matriculas),
     numSeries: parseQueryList(source.numSeries),
     locais: parseQueryList(source.locais),
+    provedores: parseQueryList(source.provedores || source.provedor),
+    empresasSistema: parseQueryList(source.empresasSistema || source.empresasistema),
     busca: source.busca || '',
     tipoRegistro: source.tipoRegistro,
   };

@@ -163,15 +163,24 @@ function truncate(value, max) {
 }
 
 const PDF_COLUNAS = [
-  { titulo: 'Data', x: 20, largura: 44, maxChars: 10, campo: (r) => formatDate(r.data_marcacao) },
-  { titulo: 'Hora', x: 64, largura: 38, maxChars: 8, campo: (r) => formatTime(r.data_marcacao) },
-  { titulo: 'Matrícula', x: 102, largura: 62, maxChars: 12, campo: (r) => r.matricula },
-  { titulo: 'Funcionário', x: 164, largura: 186, maxChars: 36, campo: (r) => r.funcionario_nome || '—' },
-  { titulo: 'Empresa', x: 350, largura: 138, maxChars: 26, campo: (r) => r.empresa_nome || '—' },
-  { titulo: 'Relógio', x: 488, largura: 96, maxChars: 18, campo: (r) => r.relogio_descricao || r.num_serie_relogio || '—' },
-  { titulo: 'NSR', x: 584, largura: 46, maxChars: 8, campo: (r) => r.nsr ?? '' },
-  { titulo: 'Local', x: 630, largura: 192, maxChars: 32, campo: (r) => r.local || '—' },
+  { titulo: 'Provedor', x: 20, largura: 66, maxChars: 14, campo: (r) => provedorLabel(r.provedor) },
+  { titulo: 'Data', x: 86, largura: 42, maxChars: 10, campo: (r) => formatDate(r.data_marcacao) },
+  { titulo: 'Hora', x: 128, largura: 34, maxChars: 8, campo: (r) => formatTime(r.data_marcacao) },
+  { titulo: 'Matrícula', x: 162, largura: 50, maxChars: 10, campo: (r) => r.matricula },
+  { titulo: 'Funcionário', x: 212, largura: 148, maxChars: 28, campo: (r) => r.funcionario_nome || '—' },
+  { titulo: 'Empresa', x: 360, largura: 116, maxChars: 22, campo: (r) => r.empresa_nome || '—' },
+  { titulo: 'Emp.Sist.', x: 476, largura: 42, maxChars: 8, campo: (r) => r.empresasistema ?? '' },
+  { titulo: 'REPP', x: 518, largura: 40, maxChars: 8, campo: (r) => r.reppid ?? '' },
+  { titulo: 'NSR', x: 558, largura: 40, maxChars: 8, campo: (r) => r.nsr ?? '' },
+  { titulo: 'Local', x: 598, largura: 224, maxChars: 38, campo: (r) => r.local || '—' },
 ];
+
+function provedorLabel(value) {
+  const texto = String(value || '').trim().toLowerCase();
+  if (texto === 'exata') return 'ExataWeb';
+  if (texto === 'pontocertificado') return 'Ponto Certificado';
+  return value || '—';
+}
 
 function buildPdf({ titulo, subtotal, filtros, rows }) {
   const pageWidth = 842;
@@ -292,6 +301,18 @@ function createRelatoriosConsolidados({ pool }) {
        SELECT DISTINCT descricao_local AS nome FROM marcacoes_ponto
        WHERE descricao_local IS NOT NULL AND descricao_local <> ''`
     );
+    const [provedores] = await pool.query(
+      `SELECT DISTINCT provedor
+         FROM marcacoes_ponto
+        WHERE provedor IS NOT NULL AND provedor <> ''
+        ORDER BY provedor ASC`
+    );
+    const [empresasSistema] = await pool.query(
+      `SELECT DISTINCT empresasistema
+         FROM marcacoes_ponto
+        WHERE empresasistema IS NOT NULL
+        ORDER BY empresasistema ASC`
+    );
 
     const locaisUnicos = new Map();
     for (const item of [...locais, ...locaisMarcacoes]) {
@@ -306,6 +327,8 @@ function createRelatoriosConsolidados({ pool }) {
       empresasConfig,
       relogios,
       locais: [...locaisUnicos.values()].sort((a, b) => a.localeCompare(b, 'pt-BR')),
+      provedores: provedores.map((item) => item.provedor),
+      empresasSistema: empresasSistema.map((item) => Number(item.empresasistema)),
     };
   }
 
@@ -348,6 +371,8 @@ function createRelatoriosConsolidados({ pool }) {
     const matriculas = toArray(filtros.matriculas);
     const numSeries = toArray(filtros.numSeries);
     const locais = toArray(filtros.locais);
+    const provedores = toArray(filtros.provedores || filtros.provedor);
+    const empresasSistema = toNumberArray(filtros.empresasSistema || filtros.empresasistema);
     const busca = String(filtros.busca ?? '').trim();
     const tipoRegistro = filtros.tipoRegistro !== undefined && filtros.tipoRegistro !== ''
       ? Number(filtros.tipoRegistro)
@@ -368,6 +393,14 @@ function createRelatoriosConsolidados({ pool }) {
       where.push('mp.matricula IN (?)');
       params.push(matriculas);
     }
+    if (provedores.length > 0) {
+      where.push('mp.provedor IN (?)');
+      params.push(provedores.map((item) => String(item).trim().toLowerCase()));
+    }
+    if (empresasSistema.length > 0) {
+      where.push('mp.empresasistema IN (?)');
+      params.push(empresasSistema);
+    }
     if (Number.isFinite(tipoRegistro)) {
       where.push('mp.tipo_registro = ?');
       params.push(tipoRegistro);
@@ -378,7 +411,8 @@ function createRelatoriosConsolidados({ pool }) {
               mp.data_marcacao, mp.data_insercao, mp.matricula, mp.cpf, mp.pis,
               mp.num_serie_relogio, mp.tipo_registro, mp.nome_local, mp.descricao_local,
               mp.codigo_unidade, mp.gps_latitude, mp.gps_longitude, mp.flag_fora_cerca,
-              mp.atividade,
+              mp.atividade, mp.provedor, mp.empresasistema, mp.reppid, mp.coletor,
+              mp.turma, mp.status_exportacao, mp.data_hora_coleta,
               ec.nome AS empresa_config_nome,
               e.nome AS empresa_nome
        FROM marcacoes_ponto mp
@@ -443,6 +477,14 @@ function createRelatoriosConsolidados({ pool }) {
         empresa_id: row.empresa_id,
         empresa_nome: row.empresa_nome || row.empresa_config_nome || 'Sem empresa',
         marcacao_id: row.marcacao_id,
+        provedor: row.provedor || 'pontocertificado',
+        provedor_label: provedorLabel(row.provedor),
+        empresasistema: row.empresasistema,
+        reppid: row.reppid,
+        coletor: row.coletor,
+        turma: row.turma,
+        status_exportacao: row.status_exportacao,
+        data_hora_coleta: row.data_hora_coleta,
         nsr: row.nsr,
         data_marcacao: row.data_marcacao,
         data_insercao: row.data_insercao,
@@ -484,11 +526,17 @@ function createRelatoriosConsolidados({ pool }) {
           funcionarios: new Set(),
           relogios: new Set(),
           dias: new Set(),
+          provedores: new Set(),
+          empresasSistema: new Set(),
         });
       }
 
       const item = porEmpresaMap.get(chave);
       item.registros++;
+      if (registro.provedor) item.provedores.add(registro.provedor);
+      if (registro.empresasistema !== null && registro.empresasistema !== undefined) {
+        item.empresasSistema.add(registro.empresasistema);
+      }
       if (registro.matricula) item.funcionarios.add(registro.matricula);
       if (registro.num_serie_relogio) item.relogios.add(normalizeNumSerie(registro.num_serie_relogio));
       item.dias.add(dateKey(registro.data_marcacao));
@@ -508,6 +556,8 @@ function createRelatoriosConsolidados({ pool }) {
         funcionarios: item.funcionarios.size,
         relogios: item.relogios.size,
         dias: item.dias.size,
+        provedores: [...item.provedores],
+        empresasSistema: [...item.empresasSistema],
       }))
       .sort((a, b) => b.registros - a.registros || a.empresa_nome.localeCompare(b.empresa_nome));
 
@@ -539,20 +589,29 @@ function createRelatoriosConsolidados({ pool }) {
       `Empresas: ${resultado.totalGeral.empresas}`,
       `Relógios: ${resultado.totalGeral.relogios}`,
     ];
+    const provedores = toArray(filtros.provedores || filtros.provedor);
+    if (provedores.length > 0) {
+      partes.push(`Provedores: ${provedores.map(provedorLabel).join(', ')}`);
+    }
     if (filtros.busca) partes.push(`Busca: ${filtros.busca}`);
     return partes.join('  |  ');
   }
 
-  function gerarCsv(resultado) {
-    const cabecalho = [
-      'Data', 'Hora', 'Matrícula', 'Funcionário', 'Empresa', 'Empresa da API',
-      'Relógio', 'Nº de série', 'NSR', 'Tipo', 'Local', 'CPF', 'PIS',
-      'Fora da cerca', 'Latitude', 'Longitude',
+  function cabecalhoExportacao() {
+    return [
+      'Data', 'Hora', 'Provedor', 'Empresa Sistema', 'REPP ID', 'Matrícula',
+      'Funcionário', 'Empresa', 'Empresa da API', 'Relógio', 'Nº de série',
+      'NSR', 'Tipo', 'Local', 'CPF', 'PIS', 'Fora da cerca', 'Latitude', 'Longitude',
     ];
+  }
 
-    const linhas = resultado.registros.map((row) => [
+  function linhaExportacao(row) {
+    return [
       formatDate(row.data_marcacao),
       formatTime(row.data_marcacao),
+      row.provedor_label || provedorLabel(row.provedor),
+      row.empresasistema ?? '',
+      row.reppid ?? '',
       row.matricula,
       row.funcionario_nome,
       row.empresa_nome,
@@ -567,36 +626,21 @@ function createRelatoriosConsolidados({ pool }) {
       row.flag_fora_cerca ? 'Sim' : 'Não',
       row.gps_latitude,
       row.gps_longitude,
-    ].map(csvEscape).join(';'));
+    ];
+  }
+
+  function gerarCsv(resultado) {
+    const cabecalho = cabecalhoExportacao();
+    const linhas = resultado.registros.map((row) =>
+      linhaExportacao(row).map(csvEscape).join(';')
+    );
 
     return `\uFEFF${cabecalho.join(';')}\r\n${linhas.join('\r\n')}\r\n`;
   }
 
   function gerarExcel(resultado, filtros) {
-    const cabecalho = [
-      'Data', 'Hora', 'Matrícula', 'Funcionário', 'Empresa', 'Empresa da API',
-      'Relógio', 'Nº de série', 'NSR', 'Tipo', 'Local', 'CPF', 'PIS',
-      'Fora da cerca', 'Latitude', 'Longitude',
-    ];
-
-    const linhas = resultado.registros.map((row) => [
-      formatDate(row.data_marcacao),
-      formatTime(row.data_marcacao),
-      row.matricula,
-      row.funcionario_nome,
-      row.empresa_nome,
-      row.empresa_config_nome,
-      row.relogio_descricao,
-      row.num_serie_relogio,
-      row.nsr ?? '',
-      row.tipo_registro_label,
-      row.local,
-      row.cpf,
-      row.pis,
-      row.flag_fora_cerca ? 'Sim' : 'Não',
-      row.gps_latitude,
-      row.gps_longitude,
-    ].map(htmlEscape));
+    const cabecalho = cabecalhoExportacao();
+    const linhas = resultado.registros.map((row) => linhaExportacao(row).map(htmlEscape));
 
     const resumo = resultado.porEmpresa.map((item) =>
       `<tr><td>${htmlEscape(item.empresa_nome)}</td><td>${item.registros}</td>` +

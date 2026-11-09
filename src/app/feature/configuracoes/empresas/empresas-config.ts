@@ -8,7 +8,12 @@ import {
   ExataConta,
   ExataEmpresa,
   ExataListaResultado,
+  ExataPontosStatus,
+  ExataPontosSyncResultado,
   ExataResumo,
+  ExataStatusFuncionario,
+  ExataStatusListaResultado,
+  ExataStatusSyncResultado,
   ExataSyncEmpresasResultado,
   ExataSyncFuncionariosResultado,
   MarcacoesSyncResultado,
@@ -59,6 +64,12 @@ export class EmpresasConfig implements OnInit {
 
   empresas   = signal<EmpresaConfig[]>([]);
   isLoading  = signal(false);
+
+  /** Empresas que de fato usam a Ponto Certificado (sem a conta Exata). */
+  empresasPontocertificado = computed(() =>
+    this.empresas().filter((empresa) => empresa.provedor !== 'exata')
+  );
+  temPontoCertificado = computed(() => this.empresasPontocertificado().length > 0);
   showModal  = signal(false);
   modalMode  = signal<'create' | 'edit'>('create');
   selected   = signal<EmpresaConfig | null>(null);
@@ -148,12 +159,32 @@ export class EmpresasConfig implements OnInit {
   exataEmpresasResultado = signal<ExataSyncEmpresasResultado | null>(null);
   exataFuncionariosResultado = signal<ExataSyncFuncionariosResultado | null>(null);
 
+  // ExataWeb — marcações de ponto e baixa (Fase 3)
+  exataPontosStatus = signal<ExataPontosStatus | null>(null);
+  exataPontosResultado = signal<ExataPontosSyncResultado | null>(null);
+  exataPontosErro = signal<string | null>(null);
+  isSincronizandoExataPontos = signal(false);
+  exataPontosModo = signal<'periodo' | 'incremental'>('periodo');
+  exataDataInicio = signal(this.isoDate(this.daysAgo(30)));
+  exataDataFim = signal(this.isoDate(new Date()));
+  exataQtde = signal(100);
+  exataEmpresaPontosId = signal('');
+
+  // ExataWeb — status de funcionários (Fase 4)
+  exataStatusLista = signal<ExataStatusListaResultado | null>(null);
+  exataStatusResultado = signal<ExataStatusSyncResultado | null>(null);
+  exataStatusErro = signal<string | null>(null);
+  isSincronizandoExataStatus = signal(false);
+  eventosLocais = signal<string[]>([]);
+
   async ngOnInit() {
     await Promise.all([
       this.carregar(),
       this.carregarStatusMarcacoes(),
       this.carregarStatusVinculos(),
       this.carregarExata(),
+      this.carregarStatusPontosExata(),
+      this.carregarStatusExata(),
     ]);
   }
 
@@ -279,6 +310,186 @@ export class EmpresasConfig implements OnInit {
 
   temErroExataFuncionarios(resultado: ExataSyncFuncionariosResultado): boolean {
     return (resultado.empresas || []).some((empresa) => !!empresa.erro);
+  }
+
+  // ── ExataWeb — marcações de ponto (Fase 3) ───────────────────────────────
+
+  async carregarStatusPontosExata() {
+    try {
+      this.exataPontosStatus.set(await this.syncService.statusPontosExata());
+    } catch {
+      // Status é apenas informativo.
+    }
+  }
+
+  private empresasExataSelecionadas(): number[] | undefined {
+    const id = Number(this.exataEmpresaPontosId());
+    return Number.isFinite(id) && id > 0 ? [id] : undefined;
+  }
+
+  async importarPeriodoExata() {
+    const dataInicio = this.exataDataInicio();
+    const dataFim = this.exataDataFim();
+    if (!dataInicio || !dataFim) {
+      this.toastService.warning('Informe a data inicial e a data final');
+      return;
+    }
+    if (dataInicio > dataFim) {
+      this.toastService.warning('A data inicial deve ser anterior à data final');
+      return;
+    }
+
+    await this.executarPontosExata({
+      modo: 'periodo',
+      dataInicio,
+      dataFim,
+      empresasExataIds: this.empresasExataSelecionadas(),
+      qtde: Number(this.exataQtde()) || 100,
+    });
+  }
+
+  async sincronizarIncrementalExata() {
+    await this.executarPontosExata({
+      modo: 'incremental',
+      empresasExataIds: this.empresasExataSelecionadas(),
+      qtde: Number(this.exataQtde()) || 100,
+    });
+  }
+
+  private async executarPontosExata(options: {
+    modo: 'periodo' | 'incremental';
+    dataInicio?: string;
+    dataFim?: string;
+    empresasExataIds?: number[];
+    qtde?: number;
+  }) {
+    this.exataPontosModo.set(options.modo);
+    this.isSincronizandoExataPontos.set(true);
+    this.exataPontosErro.set(null);
+    this.exataPontosResultado.set(null);
+
+    try {
+      const resultado = await this.syncService.sincronizarPontosExata(options);
+      this.exataPontosResultado.set(resultado);
+
+      if (resultado.status === 'CONCLUIDO') {
+        this.toastService.success(
+          `${resultado.inseridos + resultado.atualizados} marcação(ões) importada(s) e ${resultado.baixados} baixada(s)`
+        );
+      } else if (resultado.status === 'PARCIAL') {
+        this.toastService.warning('Importação concluída com falhas em algumas empresas');
+      } else {
+        this.toastService.error('Não foi possível importar as marcações da Exata');
+      }
+
+      await Promise.all([this.carregarStatusPontosExata(), this.carregarExata()]);
+      if (this.showHistorico()) await this.carregarHistorico();
+    } catch (error: any) {
+      const mensagem = error?.error?.error || 'Erro ao importar marcações da Exata';
+      this.exataPontosErro.set(mensagem);
+      this.toastService.error(mensagem);
+    } finally {
+      this.isSincronizandoExataPontos.set(false);
+    }
+  }
+
+  resumoPontosExata(resultado: ExataPontosSyncResultado): string {
+    const partes = [
+      `${resultado.buscados} buscada(s)`,
+      `${resultado.inseridos} nova(s)`,
+      `${resultado.atualizados} atualizada(s)`,
+      `${resultado.baixados} baixada(s)`,
+    ];
+    if (resultado.ignorados > 0) partes.push(`${resultado.ignorados} ignorada(s)`);
+    if (resultado.erros > 0) partes.push(`${resultado.erros} erro(s) de baixa`);
+    return partes.join(' · ');
+  }
+
+  // ── ExataWeb — status de funcionários (Fase 4) ──────────────────────────
+
+  async carregarStatusExata() {
+    try {
+      const resultado = await this.syncService.listarStatusExata();
+      if (!resultado) return;
+      this.exataStatusLista.set(resultado);
+      this.eventosLocais.set(resultado.eventosDisponiveis || []);
+    } catch {
+      // A lista é complementar ao painel de empresas.
+    }
+  }
+
+  async sincronizarStatusExata() {
+    this.isSincronizandoExataStatus.set(true);
+    this.exataStatusErro.set(null);
+    this.exataStatusResultado.set(null);
+
+    try {
+      const resultado = await this.syncService.sincronizarStatusExata();
+      this.exataStatusResultado.set(resultado);
+
+      if (resultado.status === 'CONCLUIDO') {
+        this.toastService.success(
+          `${resultado.recebidos} status importado(s), ${resultado.eventosCriados + resultado.eventosAtualizados} evento(s) refletido(s)`
+        );
+      } else if (resultado.status === 'PARCIAL') {
+        this.toastService.warning('Sincronização concluída com falhas em algumas empresas');
+      } else {
+        this.toastService.error('Não foi possível sincronizar os status da Exata');
+      }
+
+      await this.carregarStatusExata();
+      if (this.showHistorico()) await this.carregarHistorico();
+    } catch (error: any) {
+      const mensagem = error?.error?.error || 'Erro ao sincronizar status da Exata';
+      this.exataStatusErro.set(mensagem);
+      this.toastService.error(mensagem);
+    } finally {
+      this.isSincronizandoExataStatus.set(false);
+    }
+  }
+
+  async mapearStatusExata(status: ExataStatusFuncionario, valor: string) {
+    try {
+      const atualizado = await this.syncService.atualizarStatusExata(
+        status.id,
+        valor || null
+      );
+      this.exataStatusLista.update((lista) => {
+        if (!lista) return lista;
+        return {
+          ...lista,
+          empresas: lista.empresas.map((empresa) => ({
+            ...empresa,
+            statuses: empresa.statuses.map((item) =>
+              item.id === status.id ? { ...item, ...atualizado } : item
+            ),
+            eventos_mapeados: empresa.statuses.filter((item) =>
+              item.id === status.id ? !!atualizado.evento_local : !!item.evento_local
+            ).length,
+          })),
+        };
+      });
+      this.toastService.success('Mapeamento do status atualizado');
+    } catch (error: any) {
+      this.toastService.error(error?.error?.error || 'Erro ao atualizar o mapeamento do status');
+    }
+  }
+
+  resumoStatusExata(resultado: ExataStatusSyncResultado): string {
+    const partes = [
+      `${resultado.recebidos} recebido(s)`,
+      `${resultado.inseridos} novo(s)`,
+      `${resultado.atualizados} atualizado(s)`,
+      `${resultado.eventosCriados} evento(s) criado(s)`,
+      `${resultado.eventosAtualizados} evento(s) atualizado(s)`,
+    ];
+    if (resultado.eventosRemovidos > 0) partes.push(`${resultado.eventosRemovidos} evento(s) removido(s)`);
+    if (resultado.ignorados > 0) partes.push(`${resultado.ignorados} ignorado(s)`);
+    return partes.join(' · ');
+  }
+
+  statusEventoLabel(evento: string | null): string {
+    return evento || 'Sem mapeamento';
   }
 
   async carregar() {

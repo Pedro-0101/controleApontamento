@@ -380,6 +380,31 @@
   }
 }
 
+.marcacoes-subcard {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-gray-200, #e5e7eb);
+}
+
+.status-exata-grupo {
+  margin-top: 14px;
+}
+
+.status-exata-grupo .table-container {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.status-exata-grupo select {
+  width: 100%;
+  min-width: 180px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-gray-300, #d1d5db);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-surface, #fff);
+  font-size: 0.8rem;
+}
+
 .acoes {
   display: flex;
   gap: 8px;
