@@ -29,11 +29,8 @@ export class RelatoriosConsolidados implements OnInit {
   tipoRegistro = signal<number | null>(null);
 
   empresasSelecionadas = signal<string[]>([]);
-  empresasConfigSelecionadas = signal<string[]>([]);
   relogiosSelecionados = signal<string[]>([]);
   locaisSelecionados = signal<string[]>([]);
-  provedoresSelecionados = signal<string[]>([]);
-  empresasSistemaFiltro = signal('');
 
   opcoes = signal<RelatorioConsolidadoOpcoes>({
     empresas: [],
@@ -58,13 +55,6 @@ export class RelatoriosConsolidados implements OnInit {
     }))
   );
 
-  empresaConfigOptions = computed(() =>
-    this.opcoes().empresasConfig.map((empresa) => ({
-      nome: empresa.ativo ? empresa.nome : `${empresa.nome} (inativa)`,
-      id: String(empresa.id),
-    }))
-  );
-
   relogioOptions = computed(() =>
     this.opcoes().relogios.map((relogio) => ({
       label: relogio.descricao || relogio.num_serie,
@@ -74,22 +64,6 @@ export class RelatoriosConsolidados implements OnInit {
   );
 
   localOptions = computed(() => this.opcoes().locais);
-
-  provedorOptions = computed(() => {
-    const rotulos: Record<string, string> = {
-      pontocertificado: 'Ponto Certificado',
-      exata: 'ExataWeb',
-    };
-    const todos = new Set([
-      'pontocertificado',
-      'exata',
-      ...(this.opcoes().provedores || []),
-    ]);
-    return [...todos].map((valor) => ({
-      nome: rotulos[valor] || valor,
-      id: valor,
-    }));
-  });
 
   registros = computed(() => this.resultado()?.registros || []);
 
@@ -116,20 +90,12 @@ export class RelatoriosConsolidados implements OnInit {
     this.empresasSelecionadas.set(values);
   }
 
-  onEmpresasConfigChange(values: string[]) {
-    this.empresasConfigSelecionadas.set(values);
-  }
-
   onRelogiosChange(values: string[]) {
     this.relogiosSelecionados.set(values);
   }
 
   onLocaisChange(values: string[]) {
     this.locaisSelecionados.set(values);
-  }
-
-  onProvedoresChange(values: string[]) {
-    this.provedoresSelecionados.set(values);
   }
 
   onTipoRegistroChange(value: string) {
@@ -141,14 +107,8 @@ export class RelatoriosConsolidados implements OnInit {
       dataInicio: this.dataInicio(),
       dataFim: this.dataFim(),
       empresaIds: this.empresasSelecionadas().map(Number).filter(Number.isFinite),
-      empresaConfigIds: this.empresasConfigSelecionadas().map(Number).filter(Number.isFinite),
       numSeries: this.relogiosSelecionados(),
       locais: this.locaisSelecionados(),
-      provedores: this.provedoresSelecionados(),
-      empresasSistema: this.empresasSistemaFiltro()
-        .split(',')
-        .map((item) => Number(item.trim()))
-        .filter(Number.isFinite),
       busca: this.busca().trim(),
       tipoRegistro: this.tipoRegistro(),
     };
@@ -220,11 +180,8 @@ export class RelatoriosConsolidados implements OnInit {
     this.busca.set('');
     this.tipoRegistro.set(null);
     this.empresasSelecionadas.set([]);
-    this.empresasConfigSelecionadas.set([]);
     this.relogiosSelecionados.set([]);
     this.locaisSelecionados.set([]);
-    this.provedoresSelecionados.set([]);
-    this.empresasSistemaFiltro.set('');
     this.resultado.set(null);
     this.pagina.set(1);
   }

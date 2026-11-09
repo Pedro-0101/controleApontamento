@@ -183,10 +183,57 @@
 
 /* ── Section animations ──────────────────────────────────────────── */
 
+.section-origens {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  animation: fadeIn 0.25s ease-in-out;
+}
+
+.origens-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-2);
+}
+
+.origem-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-2);
+  font-size: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.origem-badge[data-origem='pontocertificado'] {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.origem-badge[data-origem='exata'] {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.origem-badge[data-origem='manual'] {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #b45309;
+}
+
 .section-cards,
 .section-filters,
 .section-table,
-.section-date-nav {
+.section-date-nav,
+.section-origens {
   animation: fadeIn 0.25s ease-in-out;
 }
 

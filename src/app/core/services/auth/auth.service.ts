@@ -37,7 +37,9 @@ export class AuthService {
 
     if (this.authenticated()) {
       this.logger.info("AuthService", "Usuário já logado");
-      await this.startSessionService.startSession();
+      // A sessão com APIs externas é opcional: o painel e os relatórios leem a
+      // base local unificada. Uma falha aqui não pode bloquear o login.
+      this.startSessionService.startSession().catch(() => undefined);
       return true;
     }
 
@@ -60,12 +62,11 @@ export class AuthService {
   private async successLogin(sessionToken: string, username: string): Promise<boolean> {
     this.logger.info("AuthService", "Login bem sucedido");
 
-    try {
-      await this.startSessionService.startSession();
-    } catch (error) {
-      this.logger.error("AuthService", "Erro ao iniciar sessão", error);
-      return false;
-    }
+    // Sessões de API são opcionais para o painel/relatórios locais. Inicia em
+    // segundo plano para não atrasar nem bloquear o login.
+    this.startSessionService.startSession().catch(() => {
+      this.logger.warn("AuthService", "Não foi possível iniciar a sessão com as APIs externas; seguindo com a base local.");
+    });
 
     this.applySession(sessionToken, username);
     this.logger.info("AuthService", `Sessão iniciada para o usuário ${username}`);

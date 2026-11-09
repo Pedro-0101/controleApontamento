@@ -44,6 +44,7 @@ export class Marcacao {
   tipoRegistro!: number;
   trabalhadorId!: number;
   desconsiderado: boolean = false;
+  provedor?: string; // origem do ponto: pontocertificado, exata ou vazio (manual)
   apiEmpresaNome?: string; // empresa da API de origem (preenchido em MarcacaoApiService)
 
   constructor(data: Partial<Marcacao>) {

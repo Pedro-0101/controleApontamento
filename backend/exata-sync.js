@@ -18,6 +18,7 @@ const NOME_CONTA_EXATA = 'ExataWeb';
 const CHUNK_SIZE = 500;
 const MARCACOES_CHUNK_SIZE = 500;
 const DEFAULT_PONTOS_QTDE = 100;
+const DEFAULT_PONTOS_QTDE_EXPORTADOS = 20000;
 const DEFAULT_INCREMENTAL_DIAS = 30;
 
 function envPositiveInt(name, fallback) {
@@ -27,6 +28,18 @@ function envPositiveInt(name, fallback) {
 
 function pontosQtdePadrao() {
   return Math.min(envPositiveInt('EXATA_PONTOS_QTDE', DEFAULT_PONTOS_QTDE), 1000);
+}
+
+/**
+ * A API não pagina o status "S" (já exportados): repetir a consulta devolve o
+ * mesmo primeiro lote. Por isso pedimos todos os pontos exportados do dia em
+ * uma única chamada, com um teto bem maior que o da paginação do status "N".
+ */
+function pontosQtdeExportadosPadrao() {
+  return Math.min(
+    Math.max(envPositiveInt('EXATA_PONTOS_QTDE_EXPORTADOS', DEFAULT_PONTOS_QTDE_EXPORTADOS), 1000),
+    100000
+  );
 }
 
 function incrementalDiasPadrao() {
@@ -1182,7 +1195,9 @@ function createExataSync({ pool, exataApi }) {
     }
     stats.total = stats.inseridos + stats.atualizados;
 
-    return { ...stats, rows: rows.filter((row) => row._status === 'N') };
+    // Devolve também as linhas já exportadas (status "S") para atualizar
+    // estado/progresso; a baixa só considera `_status === 'N'`.
+    return { ...stats, rows };
   }
 
   async function confirmarPontosExata(empresasistema, rows) {
@@ -1316,7 +1331,10 @@ function createExataSync({ pool, exataApi }) {
       atualizados: 0,
       ignorados: 0,
       baixados: 0,
+      exportados: 0,
       errosBaixa: 0,
+      errosExportados: 0,
+      limiteExportados: false,
       total: 0,
       ultimaData: null,
       ultimoNsr: 0,
@@ -1336,11 +1354,29 @@ function createExataSync({ pool, exataApi }) {
     }
     stats.dias = blocos.length;
 
+    const qtdeExportados = Math.max(quantidade, pontosQtdeExportadosPadrao());
+
     for (const bloco of blocos) {
       let pagina = 0;
       const assinaturas = new Set();
+      const chavesBloco = new Set();
       let interromper = false;
 
+      const registrarLinhas = (rows) => {
+        for (const row of rows || []) {
+          chavesBloco.add(`${row.reppid}:${row.nsr}`);
+          const dia = String(row.data_marcacao || '').slice(0, 10);
+          if (dia && (!stats.ultimaData || dia > stats.ultimaData)) {
+            stats.ultimaData = dia;
+          }
+          if (row.nsr > stats.ultimoNsr) {
+            stats.ultimoNsr = row.nsr;
+            stats.ultimoReppid = row.reppid;
+          }
+        }
+      };
+
+      // 1) Pontos pendentes (status "N"): paginação + baixa.
       while (pagina < 10000) {
         const itens = await exataApi.buscarPontos({
           empresa: empresa.empresasistema,
@@ -1375,16 +1411,7 @@ function createExataSync({ pool, exataApi }) {
         stats.ignorados += persistido.ignorados;
         stats.total += persistido.total;
         pagina++;
-
-        for (const row of persistido.rows) {
-          if (!stats.ultimaData || row.data_marcacao.slice(0, 10) > stats.ultimaData) {
-            stats.ultimaData = row.data_marcacao.slice(0, 10);
-          }
-          if (row.nsr > stats.ultimoNsr) {
-            stats.ultimoNsr = row.nsr;
-            stats.ultimoReppid = row.reppid;
-          }
-        }
+        registrarLinhas(persistido.rows);
 
         const baixa = await confirmarPontosExata(empresa.empresasistema, persistido.rows);
         stats.baixados += baixa.confirmados;
@@ -1404,6 +1431,61 @@ function createExataSync({ pool, exataApi }) {
         });
 
         if (interromper) break;
+      }
+
+      // 2) Pontos já exportados (status "S"): a API não pagina esse status,
+      //    então buscamos o dia inteiro em uma única consulta com limite alto.
+      //    Isso garante que pontos baixados por outro processo/sistema também
+      //    apareçam no painel e nos relatórios.
+      try {
+        const exportados = await exataApi.buscarPontos({
+          empresa: empresa.empresasistema,
+          qtde: qtdeExportados,
+          dtInicial: bloco.inicio,
+          dtFinal: bloco.fim,
+          status: 'S',
+        });
+
+        if (!Array.isArray(exportados)) {
+          throw new Error(
+            `Resposta inválida de /pontos671 status=S (empresa ${empresa.empresasistema}, ${bloco.inicio})`
+          );
+        }
+
+        if (exportados.length >= qtdeExportados) {
+          stats.limiteExportados = true;
+          stats.ultimoErro = `A consulta de pontos já exportados atingiu o limite de ${qtdeExportados} no dia ${bloco.inicio}; aumente EXATA_PONTOS_QTDE_EXPORTADOS`;
+        }
+
+        const novos = exportados.filter(
+          (item) => !chavesBloco.has(`${item?.reppid}:${item?.nsr}`)
+        );
+
+        if (novos.length > 0) {
+          const persistidoS = await persistirPontosExata(conta.id, empresa, novos);
+          stats.buscados += persistidoS.buscados;
+          stats.inseridos += persistidoS.inseridos;
+          stats.atualizados += persistidoS.atualizados;
+          stats.ignorados += persistidoS.ignorados;
+          stats.exportados += persistidoS.total;
+          stats.total += persistidoS.total;
+          registrarLinhas(persistidoS.rows);
+
+          await marcarPontosExportados(conta.id, empresa.empresasistema, persistidoS.rows);
+          await salvarEstadoPontosExata(conta.id, empresa.empresasistema, {
+            ultimaData: stats.ultimaData,
+            ultimoNsr: stats.ultimoNsr,
+            ultimoReppid: stats.ultimoReppid,
+            ultimoTotal: stats.total,
+          });
+        }
+      } catch (error) {
+        stats.errosExportados++;
+        stats.ultimoErro = error?.message || String(error);
+        console.error(
+          `[Exata] Pontos exportados da empresa ${empresa.empresasistema} em ${bloco.inicio}:`,
+          stats.ultimoErro
+        );
       }
 
       stats.paginas += pagina;
@@ -1457,6 +1539,7 @@ function createExataSync({ pool, exataApi }) {
       atualizados: 0,
       ignorados: 0,
       baixados: 0,
+      exportados: 0,
       erros: 0,
     };
 
@@ -1477,7 +1560,9 @@ function createExataSync({ pool, exataApi }) {
         atualizados: 0,
         ignorados: 0,
         baixados: 0,
+        exportados: 0,
         erros: 0,
+        limiteExportados: false,
         erro: null,
       };
 
@@ -1497,7 +1582,9 @@ function createExataSync({ pool, exataApi }) {
           atualizados: stats.atualizados,
           ignorados: stats.ignorados,
           baixados: stats.baixados,
-          erros: stats.errosBaixa,
+          exportados: stats.exportados,
+          erros: stats.errosBaixa + stats.errosExportados,
+          limiteExportados: stats.limiteExportados,
           erro: stats.ultimoErro || null,
         });
 
@@ -1506,9 +1593,10 @@ function createExataSync({ pool, exataApi }) {
         totais.atualizados += stats.atualizados;
         totais.ignorados += stats.ignorados;
         totais.baixados += stats.baixados;
-        totais.erros += stats.errosBaixa;
+        totais.exportados += stats.exportados;
+        totais.erros += stats.errosBaixa + stats.errosExportados;
 
-        if (stats.errosBaixa > 0) totalComErro++;
+        if (stats.errosBaixa > 0 || stats.errosExportados > 0) totalComErro++;
       } catch (error) {
         totalComErro++;
         resultado.erro = error?.message || String(error);
@@ -1524,6 +1612,7 @@ function createExataSync({ pool, exataApi }) {
         inseridos: resultado.inseridos,
         atualizados: resultado.atualizados,
         baixados: resultado.baixados,
+        exportados: resultado.exportados,
         erros: resultado.erros,
         erro: resultado.erro,
       });
@@ -1560,6 +1649,7 @@ function createExataSync({ pool, exataApi }) {
       buscados: metricas.buscados,
       persistidos: metricas.persistidos,
       baixados: metricas.baixados,
+      exportados: totais.exportados,
       erros: metricas.erros,
       duracao_ms: duracaoMs,
     });

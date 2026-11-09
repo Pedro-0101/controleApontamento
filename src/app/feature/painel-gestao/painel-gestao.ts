@@ -31,6 +31,7 @@ export class PainelGestao {
   protected marcacoesDia = signal<MarcacaoDia[]>([]);
   protected showModalPontoGlobal = signal(false);
   protected isRefreshing = signal(false);
+  protected pontosPorOrigem = this.marcacaoService._pontosPorOrigem;
 
   @ViewChild('dateInput') dateInput!: ElementRef<HTMLInputElement>;
   @ViewChild('filtros') filtros!: FiltrosTabelaMarcacoes;

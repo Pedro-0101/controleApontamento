@@ -47,6 +47,17 @@
     </button>
   </section>
 
+  @if (pontosPorOrigem().length) {
+    <section class="section-origens">
+      <span class="origens-label">Pontos por origem:</span>
+      @for (item of pontosPorOrigem(); track item.origem) {
+        <span class="origem-badge" [attr.data-origem]="item.origem">
+          {{ item.label }}: <strong>{{ item.total }}</strong>
+        </span>
+      }
+    </section>
+  }
+
   <section class="section-filters">
     <app-filtros-tabela-marcacoes #filtros></app-filtros-tabela-marcacoes>
   </section>

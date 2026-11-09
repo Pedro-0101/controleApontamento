@@ -2,7 +2,7 @@
   <div class="page-header">
     <div>
       <h1>Relatórios Consolidados</h1>
-      <p>Consolide marcações de várias empresas com filtros por período, relógio, funcionário e local.</p>
+      <p>Todos os pontos de todos os funcionários em uma única visão, com filtros por período, relógio, funcionário e local.</p>
     </div>
     <div class="header-actions">
       <button class="btn btn-outline" (click)="limparFiltros()" [disabled]="isLoading()">
@@ -62,38 +62,6 @@
           placeholder="Todas as empresas"
           searchPlaceholder="Buscar empresa..."
           (selectionChange)="onEmpresasChange($event)">
-        </app-multi-select-dropdown>
-      </div>
-
-      <div class="campo">
-        <span>Provedor ({{ provedoresSelecionados().length }})</span>
-        <app-multi-select-dropdown
-          [options]="provedorOptions()"
-          labelProp="nome"
-          valueProp="id"
-          [subLabelProp]="null"
-          placeholder="Todos os provedores"
-          searchPlaceholder="Buscar provedor..."
-          (selectionChange)="onProvedoresChange($event)">
-        </app-multi-select-dropdown>
-      </div>
-
-      <label class="campo">
-        <span>Código da empresa na API</span>
-        <input type="text" placeholder="Ex.: 1, 12" [value]="empresasSistemaFiltro()"
-          (input)="empresasSistemaFiltro.set($any($event.target).value)" />
-      </label>
-
-      <div class="campo">
-        <span>Empresas da API ({{ empresasConfigSelecionadas().length }})</span>
-        <app-multi-select-dropdown
-          [options]="empresaConfigOptions()"
-          labelProp="nome"
-          valueProp="id"
-          [subLabelProp]="null"
-          placeholder="Todas as contas"
-          searchPlaceholder="Buscar conta..."
-          (selectionChange)="onEmpresasConfigChange($event)">
         </app-multi-select-dropdown>
       </div>
 
@@ -166,7 +134,7 @@
       <div class="card-header">
         <div>
           <strong>Totais por empresa</strong>
-          <p>Consolidação das marcações filtradas por empresa local.</p>
+          <p>Consolidação de todos os pontos do período, sem distinção de origem.</p>
         </div>
         <div class="export-actions">
           <button class="btn btn-outline btn-sm" (click)="exportar('csv')"
@@ -204,9 +172,6 @@
           <thead>
             <tr>
               <th>Empresa</th>
-              <th>Conta da API</th>
-              <th>Provedor</th>
-              <th>Empresa Sistema</th>
               <th>Registros</th>
               <th>Funcionários</th>
               <th>Relógios</th>
@@ -214,18 +179,9 @@
             </tr>
           </thead>
           <tbody>
-            @for (empresa of relatorio.porEmpresa; track empresa.empresa_nome + empresa.empresa_config_id) {
+            @for (empresa of relatorio.porEmpresa; track (empresa.empresa_id ?? empresa.empresa_config_id)) {
               <tr>
                 <td><strong>{{ empresa.empresa_nome }}</strong></td>
-                <td class="texto-suave">{{ empresa.empresa_config_nome }}</td>
-                <td class="texto-suave">
-                  @for (provedor of empresa.provedores; track provedor) {
-                    <span class="badge">{{ provedor === 'exata' ? 'ExataWeb' : 'Ponto Certificado' }}</span>
-                  }
-                </td>
-                <td class="texto-suave">
-                  {{ empresa.empresasSistema.length ? empresa.empresasSistema.join(', ') : '—' }}
-                </td>
                 <td>{{ empresa.registros }}</td>
                 <td>{{ empresa.funcionarios }}</td>
                 <td>{{ empresa.relogios }}</td>
@@ -233,7 +189,7 @@
               </tr>
             } @empty {
               <tr>
-                <td colspan="8" class="texto-suave">Nenhuma marcação encontrada.</td>
+                <td colspan="5" class="texto-suave">Nenhuma marcação encontrada.</td>
               </tr>
             }
           </tbody>
@@ -266,8 +222,6 @@
           <thead>
             <tr>
               <th>Data/Hora</th>
-              <th>Provedor</th>
-              <th>Empresa Sistema</th>
               <th>Matrícula</th>
               <th>Funcionário</th>
               <th>Empresa</th>
@@ -282,10 +236,6 @@
             @for (registro of registrosPagina(); track registro.id) {
               <tr>
                 <td>{{ registro.data_marcacao | date:'dd/MM/yyyy HH:mm:ss' }}</td>
-                <td>
-                  <span class="badge">{{ registro.provedor_label }}</span>
-                </td>
-                <td>{{ registro.empresasistema ?? '—' }}</td>
                 <td>{{ registro.matricula }}</td>
                 <td>
                   <strong>{{ registro.funcionario_nome || '—' }}</strong>
@@ -293,10 +243,7 @@
                     <span class="texto-suave d-block">{{ registro.cargo }}</span>
                   }
                 </td>
-                <td>
-                  {{ registro.empresa_nome }}
-                  <span class="texto-suave d-block">{{ registro.empresa_config_nome }}</span>
-                </td>
+                <td>{{ registro.empresa_nome }}</td>
                 <td>
                   {{ registro.relogio_descricao || registro.num_serie_relogio }}
                   <span class="texto-suave d-block">
@@ -317,7 +264,7 @@
               </tr>
             } @empty {
               <tr>
-                <td colspan="11" class="texto-suave">Nenhum registro para exibir.</td>
+                <td colspan="9" class="texto-suave">Nenhum registro para exibir.</td>
               </tr>
             }
           </tbody>

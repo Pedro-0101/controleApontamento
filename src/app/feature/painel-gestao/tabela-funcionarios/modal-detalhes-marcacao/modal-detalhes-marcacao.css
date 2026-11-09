@@ -305,6 +305,34 @@
   border-color: #fbc89e;
 }
 
+/* Origem do ponto — mesmas cores da legenda "Pontos por origem" */
+.marcacao-item[data-origem='pontocertificado'] {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.marcacao-item[data-origem='pontocertificado'] .hora {
+  color: #1d4ed8;
+}
+
+.marcacao-item[data-origem='exata'] {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.marcacao-item[data-origem='exata'] .hora {
+  color: #15803d;
+}
+
+.marcacao-item[data-origem='manual'] {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.marcacao-item[data-origem='manual'] .hora {
+  color: #b45309;
+}
+
 .marcacao-item.desconsiderado {
   opacity: 0.55;
 }

@@ -2,7 +2,6 @@ import { computed, inject, Injectable, signal, effect, Injector, runInInjectionC
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { LoggerService } from '../logger/logger.service';
-import { ApiSessionService } from '../apiSession/api-session.service';
 import { environment } from '../../../../environments/environment';
 import { IMarcacaoJson, Marcacao } from '../../../models/marcacao/marcacao';
 import { MarcacaoDia } from '../../../models/marcacaoDia/marcacao-dia';
@@ -22,7 +21,6 @@ import { MarcacaoApiService } from '../marcacao-api/marcacao-api.service';
 export class MarcacaoService {
 
   private loggerService = inject(LoggerService);
-  private apiSessionService = inject(ApiSessionService);
   private funcionarioService = inject(FuncionarioService);
   private employeeService = inject(EmployeeService);
   private http = inject(HttpClient);
@@ -44,6 +42,26 @@ export class MarcacaoService {
   readonly _marcacoes = computed(() => this.marcacoes());
   readonly _marcacoesFiltradas = computed(() => this.marcacoesFiltradas());
   readonly _marcacoesFiltradasBackup = computed(() => this.marcacaoesFiltradasBackup());
+
+  /**
+   * Quantidade de pontos por origem no período carregado. Exibe no painel
+   * quantos vieram do Stefanini/Ponto Certificado, da ExataWeb e de pontos
+   * manuais, para deixar claro o que está sendo somado na visão unificada.
+   */
+  readonly _pontosPorOrigem = computed(() => {
+    const counts = new Map<string, number>();
+    for (const dia of this.marcacaoesFiltradasBackup()) {
+      for (const marcacao of dia.marcacoes) {
+        const origem = marcacao.numSerieRelogio === 'MANUAL'
+          ? 'manual'
+          : (marcacao.provedor || 'desconhecida');
+        counts.set(origem, (counts.get(origem) || 0) + 1);
+      }
+    }
+    return [...counts.entries()]
+      .map(([origem, total]) => ({ origem, total, label: this.rotuloOrigem(origem) }))
+      .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label));
+  });
   readonly _empresasFiltroPainel = computed(() => {
     const backup = this.marcacaoesFiltradasBackup();
     const empresasUnicas = [...new Set(backup.map(m => m.empresa).filter(e => !!e))].sort();
@@ -201,6 +219,7 @@ export class MarcacaoService {
       // Buscar marcações da API
       const marcacoes = await this.fetchMarcacoes(dataInicio, dataFim);
       this.loggerService.info('MarcacaoService [updateMarcacoes]', `fetchMarcacoes retornou ${marcacoes.length} marcações brutas`);
+      this.logarOrigens('updateMarcacoes', marcacoes);
 
       this.marcacoes.set(marcacoes);
 
@@ -319,6 +338,7 @@ export class MarcacaoService {
     this.isBackgroundRefreshing.set(true);
     try {
       const marcacoes = await this.fetchMarcacoes(dataInicio, dataFim);
+      this.logarOrigens('backgroundRefresh', marcacoes);
       this.marcacoes.set(marcacoes);
 
       const marcacoesOrdenadas = marcacoes.sort((a, b) => a.cpf.localeCompare(b.cpf));
@@ -1135,6 +1155,33 @@ export class MarcacaoService {
     const diffMinutos = (almocoFim.getTime() - almocoInicio.getTime()) / (1000 * 60);
 
     return diffMinutos < 55 || diffMinutos > 65;
+  }
+
+  private rotuloOrigem(origem: string): string {
+    if (origem === 'exata') return 'ExataWeb';
+    if (origem === 'pontocertificado') return 'Stefanini/Ponto Certificado';
+    if (origem === 'manual') return 'Manual';
+    return origem || 'Desconhecida';
+  }
+
+  /** Log claro de quantos pontos vieram de cada origem no conjunto carregado. */
+  private logarOrigens(contexto: string, marcacoes: Marcacao[]): void {
+    const counts = new Map<string, number>();
+    for (const marcacao of marcacoes) {
+      const origem = marcacao.numSerieRelogio === 'MANUAL'
+        ? 'manual'
+        : (marcacao.provedor || 'desconhecida');
+      counts.set(origem, (counts.get(origem) || 0) + 1);
+    }
+
+    const resumo = [...counts.entries()]
+      .map(([origem, total]) => `${this.rotuloOrigem(origem)}=${total}`)
+      .join(', ');
+
+    this.loggerService.info(
+      'MarcacaoService [origens]',
+      `${contexto}: total=${marcacoes.length}${resumo ? ` | ${resumo}` : ''}`
+    );
   }
 
   private applyFilters(): void {

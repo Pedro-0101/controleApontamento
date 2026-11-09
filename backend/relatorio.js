@@ -7,9 +7,7 @@
  * que o resultado enviado por WhatsApp seja idêntico ao exibido no sistema.
  */
 
-const { getBaseUrl } = require('./ponto-api');
-const API_BASE = `${getBaseUrl()}/Api.svc`;
-const ERROS_API = ['desativada', 'contate o suporte', 'não encontrada', 'inválido', 'inválida', 'expirado'];
+const { consultarMarcacoesLocais } = require('./marcacoes-locais');
 
 const AFASTAMENTO_EVENTOS = [
   'Ferias', 'Atestado', 'Afastado', 'Suspensao', 'Folga',
@@ -123,43 +121,6 @@ function computeStatus({ dataStr, trabalhaSabado, batePonto, marks, evento }) {
   return 'Falta';
 }
 
-async function getActiveTokens(pool) {
-  const [companies] = await pool.query(
-    'SELECT id, nome, email, senha, chave FROM empresas_config WHERE ativo = 1 AND provedor <> \'exata\''
-  );
-  const tokens = await Promise.all(companies.map(async (c) => {
-    try {
-      const r = await fetch(`${API_BASE}/StartSession`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chaveEmpresa: c.chave, usuario: c.email, senha: c.senha }),
-      });
-      const data = await r.json();
-      const raw = data?.d ?? null;
-      const isErro = raw && ERROS_API.some((k) => String(raw).toLowerCase().includes(k));
-      return isErro ? null : raw;
-    } catch {
-      return null;
-    }
-  }));
-  return tokens.filter(Boolean);
-}
-
-async function fetchMarcacoes(token, dataInicio, dataFim) {
-  try {
-    const r = await fetch(`${API_BASE}/SelecionaMarcacoes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tokenAcesso: token, dataInicio, dataFim }),
-    });
-    const data = await r.json();
-    const arr = data?.d?.results || data?.d || data;
-    return Array.isArray(arr) ? arr : [];
-  } catch {
-    return [];
-  }
-}
-
 async function getEmployees(pool, { empresa_id, local_id }) {
   let query = `
     SELECT q.matricula, q.nome, q.trabalha_sabado, q.bate_ponto, q.data_admissao,
@@ -228,26 +189,28 @@ async function buildReport(pool, schedule, dataStr) {
   const matriculas = employees.map((e) => String(e.matricula).trim());
   const placeholders = matriculas.map(() => '?').join(',');
 
-  // Marcações automáticas da API externa (inclui madrugada do dia seguinte)
-  const tokens = await getActiveTokens(pool);
-  const dataInicioApi = `${formatDDMMYYYY(parseYMD(dataStr))} 00:00:00`;
-  const dataFimApi = `${formatDDMMYYYY(parseYMD(addDays(dataStr, 1)))} 03:59:59`;
-  const rawAll = (await Promise.all(tokens.map((t) => fetchMarcacoes(t, dataInicioApi, dataFimApi)))).flat();
+  // Marcações automáticas locais: mesma base unificada do painel e dos
+  // relatórios, com pontos de qualquer integração (Stefanini ou ExataWeb).
+  // Inclui a madrugada do dia seguinte para a lógica de dia lógico (< 04:00).
+  const rows = await consultarMarcacoesLocais(pool, {
+    dataInicio: dataStr,
+    dataFim: addDays(dataStr, 1),
+  });
 
   const marksByMatricula = new Map();
-  for (const raw of rawAll) {
-    const matricula = String(raw.MatriculaFuncionario || '').trim();
+  for (const row of rows) {
+    const matricula = String(row.matricula || '').trim();
     if (!matricula) continue;
-    const dt = parseApiDate(raw.DataMarcacao);
-    if (!dt) continue;
+    const dt = row.data_marcacao instanceof Date ? row.data_marcacao : parseApiDate(row.data_marcacao);
+    if (!dt || Number.isNaN(dt.getTime())) continue;
     const logical = new Date(dt);
     if (logical.getHours() < 4) logical.setDate(logical.getDate() - 1);
     if (formatYMD(logical) !== dataStr) continue;
     if (!marksByMatricula.has(matricula)) marksByMatricula.set(matricula, []);
     marksByMatricula.get(matricula).push({
-      id: raw.Id || raw.id || 0,
-      nsr: raw.NSR != null ? raw.NSR : 0,
-      numSerieRelogio: String(raw.NumSerieRelogio || ''),
+      id: row.marcacao_id ?? row.id ?? 0,
+      nsr: row.nsr != null ? row.nsr : 0,
+      numSerieRelogio: String(row.num_serie_relogio || ''),
       dataMarcacao: dt,
     });
   }

@@ -64,6 +64,8 @@
               class="marcacao-item"
               [class.manual]="m.numSerieRelogio === 'MANUAL'"
               [class.desconsiderado]="m.desconsiderado"
+              [attr.data-origem]="m.numSerieRelogio === 'MANUAL' ? 'manual' : (m.provedor || 'desconhecida')"
+              [attr.title]="m.numSerieRelogio === 'MANUAL' ? 'Ponto manual' : (m.provedor === 'exata' ? 'ExataWeb' : (m.provedor === 'pontocertificado' ? 'Stefanini/Ponto Certificado' : 'Origem desconhecida'))"
             >
               <lucide-icon name="clock" [size]="14"></lucide-icon>
               <span class="hora">

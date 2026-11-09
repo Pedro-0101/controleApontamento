@@ -14,6 +14,7 @@ const { createRelatoriosConsolidados } = require('./relatorios-consolidados');
 const { createPontoWebhooks } = require('./ponto-webhooks');
 const { createExataApi } = require('./exata-api');
 const { createExataSync } = require('./exata-sync');
+const { consultarMarcacoesLocais, toMarcacaoDto } = require('./marcacoes-locais');
 
 // Carrega backend/.env (Node 20.12+). Se o arquivo não existir, usa o ambiente do processo.
 try {
@@ -651,6 +652,52 @@ app.post('/api/comments/batch', async (req, res) => {
   } catch (error) {
     console.error('Erro ao buscar comentários:', error);
     res.status(500).json({ success: false, error: 'Erro ao buscar comentários' });
+  }
+});
+
+// Rota unificada de leitura das marcações locais.
+// Devolve todos os pontos do período, de todos os funcionários e de qualquer
+// origem (Ponto Certificado/Stefanini ou ExataWeb), sem exigir configuração de
+// API, empresa ou provedor no frontend.
+app.post('/api/marcacoes/periodo', async (req, res) => {
+  const { dataInicio, dataFim, matriculaFuncionario, numSerieRelogio } = req.body || {};
+
+  if (!dataInicio || !dataFim) {
+    return res.status(400).json({ success: false, error: 'Informe dataInicio e dataFim' });
+  }
+
+  try {
+    const rows = await consultarMarcacoesLocais(pool, {
+      dataInicio,
+      dataFim,
+      matriculaFuncionario,
+      numSerieRelogio,
+    });
+
+    const porOrigem = rows.reduce((acc, row) => {
+      const origem = row.provedor || 'desconhecido';
+      acc[origem] = (acc[origem] || 0) + 1;
+      return acc;
+    }, {});
+    const resumo = Object.entries(porOrigem)
+      .map(([origem, total]) => `${origem}=${total}`)
+      .join(' ');
+
+    console.log(
+      `[Marcações] período=${dataInicio}..${dataFim} ` +
+      `matricula=${matriculaFuncionario || 'TODOS'} relogio=${numSerieRelogio || 'TODOS'} ` +
+      `total=${rows.length}${resumo ? ` ${resumo}` : ''}`
+    );
+
+    res.json({
+      success: true,
+      total: rows.length,
+      porOrigem,
+      marcacoes: rows.map(toMarcacaoDto),
+    });
+  } catch (error) {
+    console.error('Erro ao consultar marcações locais:', error);
+    res.status(400).json({ success: false, error: error.message || 'Erro ao consultar marcações' });
   }
 });
 
