@@ -1,7 +1,7 @@
 # Resumo de Integração — ExataWeb (Portaria 671)
 
 > Status real da implementação no sistema de controle de apontamento.
-> Atualizado em: **09/11/2026** — Fase 6 (coexistência e rollout) implementada.
+> Atualizado em: **09/11/2026** — Fase 7 (qualidade contínua) implementada.
 
 ---
 
@@ -25,8 +25,8 @@ webhooks e AFD filtram a conta Exata quando a funcionalidade não existe nela.
 | 3 | Marcações por período/incremental e baixa (`baixaponto671`) | ✅ Concluída |
 | 4 | Status de funcionários (somente leitura) | ✅ Concluída |
 | 5 | Relatórios consolidados e ocultação de telas inexistentes | ✅ Concluída |
-| 6 | Coexistência, validação, monitoramento e rollback | ✅ **Concluída em 09/11/2026** |
-| 7 | Qualidade contínua (testes e documentação) | 🔄 Contínua |
+| 6 | Coexistência, validação, monitoramento e rollback | ✅ Concluída em 09/11/2026 |
+| 7 | Qualidade contínua (testes, logs, métricas e documentação) | ✅ **Concluída em 09/11/2026** |
 
 ---
 
@@ -207,16 +207,70 @@ funcionário ou status é escrito na Exata.
 
 ---
 
-## 10. Testes e verificação
+## 10. Qualidade contínua (Fase 7)
+
+### 10.1 Testes unitários e de fluxo
 
 ```bash
 cd backend
 npm test
 ```
 
-Cobertura atual: cliente Exata (login, cache, renovação, erros), normalização de funcionários
-e pontos, divisão de períodos, mapeamento de status, camada de provedores e geração do CSV de
-validação.
+Cobrem:
+
+- cliente Exata: login, cache do JWT, renovação em 401, erros 400/406, ausência de credenciais;
+- normalização de funcionários, pontos, datas, matrícula e status;
+- camada de provedores (`provedor-api`);
+- idempotência: reexecutar a mesma carga por período não cria duplicatas;
+- falha na baixa: os pontos permanecem no banco e são recuperados na execução seguinte;
+- logs sem credenciais, com contexto e contadores;
+- métricas padronizadas (`buscados`, `persistidos`, `baixados`, `erros`);
+- geração do CSV de validação.
+
+Arquivos: `exata-api.test.js`, `exata-sync.test.js`, `provedor-api.test.js`,
+`exata-observability.test.js` e `exata-fluxo.test.js`.
+
+### 10.2 Testes de integração com a conta real
+
+Desabilitados por padrão. Executam login, empresas, funcionários, status e consulta de pontos.
+
+PowerShell:
+
+```powershell
+$env:EXATA_INTEGRATION=1; npm test
+```
+
+A baixa (`baixaponto671`) altera o estado da conta e exige habilitação extra:
+
+```powershell
+$env:EXATA_INTEGRATION=1; $env:EXATA_INTEGRATION_BAIXA=1; npm test
+```
+
+Bash:
+
+```bash
+EXATA_INTEGRATION=1 npm test
+EXATA_INTEGRATION=1 EXATA_INTEGRATION_BAIXA=1 npm test
+```
+
+Requisitos: `backend/.env` com `EXATA_API_BASE_URL`, `EXATA_API_USER` e `EXATA_API_PASSWORD`.
+Os testes nunca imprimem token ou senha.
+
+### 10.3 Logs e métricas
+
+O módulo `backend/exata-observability.js` centraliza os logs. Cada empresa gera uma linha com
+operação, `empresa_config_id`, `empresasistema` e contadores, por exemplo:
+
+```
+[Exata] pontos.empresa empresa_config_id=1 empresasistema=7 modo=periodo status=OK buscados=120 inseridos=100 atualizados=20 baixados=120 erros=0
+```
+
+Chaves sensíveis (`token`, `senha`, `password`, `authorization`, `secret`, `credencial`) são
+mascaradas automaticamente como `[redacted]`; valores longos são truncados. As métricas também
+são gravadas em `sincronizacao_execucao.resumo` e retornadas no campo `metricas` da sincronização
+de pontos.
+
+### 10.4 Frontend
 
 ```bash
 npm run build
@@ -224,12 +278,17 @@ npm run build
 
 Valida o frontend Angular.
 
+### 10.5 Documentação da API
+
+A referência dos endpoints usados está em `docs/api-exata-web.md`.
+
 ---
 
 ## 11. Pendências para encerramento
 
 - [ ] Informar/confirmar as credenciais reais da Exata no `backend/.env`.
 - [ ] Executar o rollout com a conta real.
+- [ ] Executar `EXATA_INTEGRATION=1 npm test` com a conta real.
 - [ ] Entregar as contagens por empresa/dia ao solicitante e obter o aceite.
 - [ ] Monitorar por alguns dias baixas pendentes, duplicidades e execuções com erro.
 - [ ] Testar o rollback (desativar e reativar) em ambiente controlado.

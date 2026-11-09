@@ -172,6 +172,77 @@ export class MyComponent {
 }
 ```
 
+## Integração ExataWeb (Portaria 671)
+
+A integração com a ExataWeb roda em paralelo à Ponto Certificado, com `provedor`
+explícito por conta em `empresas_config`.
+
+### Módulos
+
+| Arquivo | Papel |
+|---|---|
+| `exata-api.js` | cliente HTTP: login JWT, cache/renovação, timeout e erros |
+| `exata-sync.js` | regras de sincronização, validação, monitoramento e rollback |
+| `exata-schema.js` | migrações idempotentes |
+| `exata-observability.js` | logs sanitizados e métricas padronizadas |
+| `provedor-api.js` | abstração comum entre Ponto Certificado e Exata |
+| `scripts/exata-smoke.js` | teste de fumaça contra a conta real |
+
+### Configuração
+
+As credenciais são globais da conta e ficam somente em `.env` (fora do git). Veja o
+modelo completo em `.env.example`:
+
+```env
+EXATA_API_BASE_URL=
+EXATA_API_USER=
+EXATA_API_PASSWORD=
+EXATA_API_TIMEOUT_MS=30000
+EXATA_TOKEN_TTL_MS=900000
+EXATA_PONTOS_QTDE=100
+EXATA_INCREMENTAL_DIAS=30
+```
+
+Nenhuma credencial é enviada ao frontend nem registrada em log.
+
+### Testes
+
+```bash
+npm test
+```
+
+Executa testes unitários do cliente, normalização de dados, provedores, idempotência,
+falha de baixa, logs e métricas. Os testes de integração real ficam desabilitados:
+
+Também é possível rodar apenas os testes de integração:
+
+```powershell
+$env:EXATA_INTEGRATION=1; npm run test:integration
+```
+
+PowerShell (suíte completa):
+
+```powershell
+# login, empresas, funcionários, status e consulta de pontos
+$env:EXATA_INTEGRATION=1; npm test
+
+# inclui baixaponto671 (altera o estado da conta)
+$env:EXATA_INTEGRATION=1; $env:EXATA_INTEGRATION_BAIXA=1; npm test
+```
+
+Bash:
+
+```bash
+EXATA_INTEGRATION=1 npm test
+EXATA_INTEGRATION=1 EXATA_INTEGRATION_BAIXA=1 npm test
+```
+
+### Operação
+
+- Referência dos endpoints: `../docs/api-exata-web.md`.
+- Status da integração e fluxos de rollout/rollback: `../docs/resumo-integracao-exata.md`.
+- Fumaça manual: `node scripts/exata-smoke.js [empresasistema] [AAAA-MM-DD]`.
+
 ## Observações
 
 - A API utiliza CORS habilitado para permitir requisições do frontend Angular

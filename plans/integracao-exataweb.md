@@ -310,15 +310,15 @@ Consequências para a UI:
 
 ---
 
-### Fase 7 — Qualidade contínua (paralela)
+### Fase 7 — Qualidade contínua (paralela) — concluída em 09/11/2026
 
-- [ ] Testes unitários do cliente Exata e do mapeamento de dados.
-- [ ] Testes de integração com a conta real (login, empresas, funcionários, pontos, baixa).
-- [ ] Testes de idempotência (rodar 2x a mesma carga).
-- [ ] Teste de falha na baixa.
-- [ ] Logs com `empresa_config_id`, `empresasistema`, operação e contadores (sem dados sensíveis).
-- [ ] Métricas: pontos buscados, persistidos, baixados, erros.
-- [ ] Atualizar README e documentação de operação.
+- [x] Testes unitários do cliente Exata e do mapeamento de dados.
+- [x] Testes de integração com a conta real (login, empresas, funcionários, pontos, baixa).
+- [x] Testes de idempotência (rodar 2x a mesma carga).
+- [x] Teste de falha na baixa.
+- [x] Logs com `empresa_config_id`, `empresasistema`, operação e contadores (sem dados sensíveis).
+- [x] Métricas: pontos buscados, persistidos, baixados, erros.
+- [x] Atualizar README e documentação de operação.
 
 ---
 

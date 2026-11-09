@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node --test exata-api.test.js exata-sync.test.js provedor-api.test.js"
+    "test": "node --test exata-api.test.js exata-sync.test.js provedor-api.test.js exata-observability.test.js exata-fluxo.test.js exata-integration.test.js",
+    "test:integration": "node --test exata-integration.test.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

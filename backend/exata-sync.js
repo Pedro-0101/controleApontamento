@@ -11,6 +11,7 @@
  */
 
 const { ensureExataSchema } = require('./exata-schema');
+const { criarLoggerExata, metricasPontos } = require('./exata-observability');
 
 const CHAVE_CONTA_EXATA = 'exata';
 const NOME_CONTA_EXATA = 'ExataWeb';
@@ -33,12 +34,7 @@ function incrementalDiasPadrao() {
 }
 
 /** Log operacional sem credenciais: apenas contexto e contadores. */
-function logExata(operacao, dados = {}) {
-  const partes = Object.entries(dados)
-    .filter(([, valor]) => valor !== undefined && valor !== null && valor !== '')
-    .map(([chave, valor]) => `${chave}=${valor}`);
-  console.log(`[Exata] ${operacao}${partes.length ? ` ${partes.join(' ')}` : ''}`);
-}
+const logExata = criarLoggerExata();
 
 const EVENTOS_LOCAIS = [
   'Ferias',
@@ -989,6 +985,18 @@ function createExataSync({ pool, exataApi }) {
         console.error(`[Exata] Funcionários da empresa ${empresa.empresasistema}:`, resultado.erro);
       }
 
+      logExata('funcionarios.empresa', {
+        empresa_config_id: conta.id,
+        empresasistema: empresa.empresasistema,
+        status: resultado.erro ? 'ERRO' : 'OK',
+        recebidos: resultado.recebidos,
+        inseridos: resultado.inseridos,
+        atualizados: resultado.atualizados,
+        ignorados: resultado.ignorados,
+        locais_inseridos: resultado.locais_inseridos,
+        erro: resultado.erro,
+      });
+
       resultados.push(resultado);
     }
 
@@ -1507,6 +1515,19 @@ function createExataSync({ pool, exataApi }) {
         console.error(`[Exata] Pontos da empresa ${empresa.empresasistema}:`, resultado.erro);
       }
 
+      logExata('pontos.empresa', {
+        empresa_config_id: conta.id,
+        empresasistema: empresa.empresasistema,
+        modo: modoNormalizado,
+        status: resultado.erro ? 'ERRO' : 'OK',
+        buscados: resultado.buscados,
+        inseridos: resultado.inseridos,
+        atualizados: resultado.atualizados,
+        baixados: resultado.baixados,
+        erros: resultado.erros,
+        erro: resultado.erro,
+      });
+
       resultados.push(resultado);
     }
 
@@ -1531,15 +1552,15 @@ function createExataSync({ pool, exataApi }) {
         : null,
     });
 
+    const metricas = metricasPontos(totais);
     logExata('pontos.fim', {
       empresa_config_id: conta.id,
       modo: modoNormalizado,
       status,
-      buscados: totais.buscados,
-      inseridos: totais.inseridos,
-      atualizados: totais.atualizados,
-      baixados: totais.baixados,
-      erros: totais.erros,
+      buscados: metricas.buscados,
+      persistidos: metricas.persistidos,
+      baixados: metricas.baixados,
+      erros: metricas.erros,
       duracao_ms: duracaoMs,
     });
 
@@ -1550,6 +1571,7 @@ function createExataSync({ pool, exataApi }) {
       modo: modoNormalizado,
       duracaoMs,
       ...totais,
+      metricas: metricasPontos(totais),
       empresas: resultados,
     };
   }
@@ -2098,6 +2120,18 @@ function createExataSync({ pool, exataApi }) {
         resultado.erro = error?.message || String(error);
         console.error(`[Exata] Status da empresa ${empresa.empresasistema}:`, resultado.erro);
       }
+
+      logExata('status.empresa', {
+        empresa_config_id: conta.id,
+        empresasistema: empresa.empresasistema,
+        status: resultado.erro ? 'ERRO' : 'OK',
+        recebidos: resultado.recebidos,
+        inseridos: resultado.inseridos,
+        atualizados: resultado.atualizados,
+        eventos_criados: resultado.eventos_criados,
+        eventos_atualizados: resultado.eventos_atualizados,
+        erro: resultado.erro,
+      });
 
       resultados.push(resultado);
     }
