@@ -565,6 +565,269 @@
         }
       }
     </div>
+
+    <!-- Fase 6 — coexistência, validação e monitoramento -->
+    <div class="marcacoes-subcard">
+      <div class="marcacoes-header">
+        <div>
+          <strong>Rollout e coexistência — ExataWeb</strong>
+          <p>
+            Ative a conta, sincronize todas as empresas e acompanhe a saúde da integração.
+            O rollback apenas desativa a conta Exata: os dados importados são preservados e a
+            Ponto Certificado continua funcionando normalmente.
+          </p>
+        </div>
+        <div class="header-actions">
+          @if (exataConta(); as conta) {
+            @if (conta.ativo) {
+              <button class="btn btn-outline" (click)="alterarContaExata(false)"
+                [disabled]="isAlterandoContaExata() || isExecutandoRolloutExata()">
+                <lucide-icon name="power" [size]="16"></lucide-icon>
+                Desativar conta (rollback)
+              </button>
+            } @else {
+              <button class="btn btn-outline" (click)="alterarContaExata(true)"
+                [disabled]="isAlterandoContaExata() || isExecutandoRolloutExata()">
+                <lucide-icon name="power" [size]="16"></lucide-icon>
+                Ativar conta
+              </button>
+            }
+          }
+          <button class="btn btn-primary" (click)="executarRolloutExata()"
+            [disabled]="isExecutandoRolloutExata()">
+            @if (isExecutandoRolloutExata()) {
+              <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+            } @else {
+              <lucide-icon name="rocket" [size]="16"></lucide-icon>
+            }
+            Executar rollout
+          </button>
+        </div>
+      </div>
+
+      @if (exataRolloutMensagem(); as mensagem) {
+        <div class="sync-banner">
+          <lucide-icon name="info" [size]="18"></lucide-icon>
+          <span>{{ mensagem }}</span>
+        </div>
+      }
+
+      @if (exataMonitoramento(); as monitor) {
+        <div class="vinculos-resumo">
+          <span>
+            Saúde:
+            <span class="badge" [class.status-ok]="monitor.saude === 'OK'"
+              [class.status-parcial]="monitor.saude !== 'OK'">{{ monitor.saude }}</span>
+          </span>
+          <span>Conta: <strong>{{ monitor.conta.ativo ? 'ativa' : 'desativada' }}</strong></span>
+          <span><strong>{{ monitor.pontos.total }}</strong> marcação(ões)</span>
+          <span><strong>{{ monitor.pontos.hoje }}</strong> hoje</span>
+          <span><strong>{{ monitor.pontos.pendentes_baixa }}</strong> com baixa pendente</span>
+          <span><strong>{{ monitor.empresas.sem_mapeamento }}</strong> empresa(s) sem empresa local</span>
+          <button class="btn btn-outline btn-sm" (click)="carregarMonitoramentoExata()"
+            [disabled]="isCarregandoMonitoramentoExata()">
+            @if (isCarregandoMonitoramentoExata()) {
+              <lucide-icon name="loader-circle" [size]="14" class="spin"></lucide-icon>
+            } @else {
+              <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
+            }
+            Atualizar
+          </button>
+        </div>
+
+        @if (monitor.alertas.length > 0) {
+          <div class="sync-banner erro">
+            <lucide-icon name="alert-triangle" [size]="18"></lucide-icon>
+            <span>{{ monitor.alertas.join(' · ') }}</span>
+          </div>
+        }
+
+        @if (monitor.pendenciasBaixa.length > 0 || monitor.duplicidades.length > 0) {
+          <div class="marcacoes-form">
+            @if (monitor.pendenciasBaixa.length > 0) {
+              <div class="sync-empresa">
+                <div class="sync-empresa-titulo">
+                  <strong>Baixas pendentes por empresa</strong>
+                </div>
+                @for (item of monitor.pendenciasBaixa; track item.empresasistema) {
+                  <div class="sync-linha">
+                    <span class="sync-recurso">empresasistema {{ item.empresasistema }}</span>
+                    <span>{{ item.total }} pendente(s)</span>
+                    @if (item.mais_antiga) {
+                      <span>desde {{ item.mais_antiga | date:'dd/MM/yyyy HH:mm' }}</span>
+                    }
+                  </div>
+                }
+              </div>
+            }
+            @if (monitor.duplicidades.length > 0) {
+              <div class="sync-empresa sync-empresa-erro">
+                <div class="sync-empresa-titulo">
+                  <strong>Duplicidades detectadas</strong>
+                </div>
+                @for (item of monitor.duplicidades; track item.reppid + '-' + item.nsr) {
+                  <div class="sync-linha">
+                    <span class="sync-recurso">empresa {{ item.empresasistema }}</span>
+                    <span>REPP {{ item.reppid }} · NSR {{ item.nsr }}</span>
+                    <span>{{ item.total }} ocorrência(s)</span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        @if (monitor.ultimas.length > 0) {
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Status</th>
+                  <th>Início</th>
+                  <th>Empresas</th>
+                  <th>Erro</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (execucao of monitor.ultimas; track execucao.id) {
+                  <tr>
+                    <td><strong>{{ execucao.tipo }}</strong></td>
+                    <td>
+                      <span class="badge"
+                        [class.status-ok]="execucao.status === 'CONCLUIDO'"
+                        [class.status-parcial]="execucao.status !== 'CONCLUIDO'"
+                      >{{ execucao.status }}</span>
+                    </td>
+                    <td>{{ execucao.iniciado_em | date:'dd/MM/yyyy HH:mm' }}</td>
+                    <td>{{ execucao.empresas_processadas ?? '—' }}</td>
+                    <td>
+                      @if (execucao.erro) {
+                        <span class="texto-alerta">{{ execucao.erro }}</span>
+                      } @else {
+                        <span class="texto-suave">—</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      }
+
+      <div class="marcacoes-header" style="margin-top: 18px;">
+        <div>
+          <strong>Contagens para validação (empresa/dia)</strong>
+          <p>
+            Confira com o solicitante os totais importados, exportados e pendentes antes de
+            encerrar o rollout. O CSV usa separador <code>;</code> e abre no Excel.
+          </p>
+        </div>
+        <button class="btn btn-outline" (click)="exportarValidacaoExata()"
+          [disabled]="isCarregandoValidacaoExata()">
+          <lucide-icon name="download" [size]="16"></lucide-icon>
+          Exportar CSV
+        </button>
+      </div>
+
+      <div class="marcacoes-form">
+        <label class="campo">
+          <span>Empresa Exata</span>
+          <select [value]="exataValidacaoEmpresaId()"
+            (change)="exataValidacaoEmpresaId.set($any($event.target).value)">
+            <option value="">Todas as empresas</option>
+            @for (empresa of exataEmpresas(); track empresa.id) {
+              <option [value]="empresa.id">
+                {{ empresa.descricao || ('Empresa ' + empresa.empresasistema) }}
+              </option>
+            }
+          </select>
+        </label>
+        <label class="campo">
+          <span>Data inicial</span>
+          <input type="date" [value]="exataValidacaoInicio()"
+            (input)="exataValidacaoInicio.set($any($event.target).value)" />
+        </label>
+        <label class="campo">
+          <span>Data final</span>
+          <input type="date" [value]="exataValidacaoFim()"
+            (input)="exataValidacaoFim.set($any($event.target).value)" />
+        </label>
+        <button class="btn btn-primary" (click)="carregarValidacaoExata()"
+          [disabled]="isCarregandoValidacaoExata()">
+          @if (isCarregandoValidacaoExata()) {
+            <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+          } @else {
+            <lucide-icon name="list-checks" [size]="16"></lucide-icon>
+          }
+          Gerar contagens
+        </button>
+      </div>
+
+      @if (exataValidacaoErro()) {
+        <div class="sync-banner erro">
+          <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
+          <span>{{ exataValidacaoErro() }}</span>
+        </div>
+      }
+
+      @if (exataValidacao(); as validacao) {
+        <div class="vinculos-resumo">
+          <span>Período: <strong>{{ validacao.dataInicio }}</strong> a <strong>{{ validacao.dataFim }}</strong></span>
+          <span><strong>{{ validacao.resumo.total }}</strong> marcação(ões)</span>
+          <span><strong>{{ validacao.resumo.funcionarios }}</strong> funcionário(s)</span>
+          <span><strong>{{ validacao.resumo.exportados }}</strong> exportada(s)</span>
+          <span><strong>{{ validacao.resumo.pendentes }}</strong> pendente(s)</span>
+          <span><strong>{{ validacao.resumo.empresasComDados }}/{{ validacao.resumo.empresas }}</strong> empresa(s) com dados</span>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Empresa Exata</th>
+                <th>Empresa local</th>
+                <th>Data</th>
+                <th>Marcações</th>
+                <th>Funcionários</th>
+                <th>Exportadas</th>
+                <th>Pendentes</th>
+                <th>NSR</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (empresa of validacao.empresas; track empresa.empresa_exata_id) {
+                @if (empresa.dias.length === 0) {
+                  <tr>
+                    <td>{{ empresa.descricao || ('Empresa ' + empresa.empresasistema) }}</td>
+                    <td>{{ empresa.empresa_nome || 'Sem empresa local' }}</td>
+                    <td colspan="6" class="texto-suave">Nenhuma marcação no período</td>
+                  </tr>
+                }
+                @for (dia of empresa.dias; track dia.data) {
+                  <tr>
+                    <td>
+                      <strong>{{ empresa.descricao || ('Empresa ' + empresa.empresasistema) }}</strong>
+                      <span class="texto-suave d-block">empresasistema {{ empresa.empresasistema }}</span>
+                    </td>
+                    <td>{{ empresa.empresa_nome || 'Sem empresa local' }}</td>
+                    <td>{{ dia.data | date:'dd/MM/yyyy' }}</td>
+                    <td>{{ dia.total }}</td>
+                    <td>{{ dia.funcionarios }}</td>
+                    <td>{{ dia.exportados }}</td>
+                    <td [class.texto-alerta]="dia.pendentes > 0">{{ dia.pendentes }}</td>
+                    <td>
+                      {{ dia.primeiro_nsr ?? '—' }} a {{ dia.ultimo_nsr ?? '—' }}
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
   </div>
 
   @if (temPontoCertificado()) {

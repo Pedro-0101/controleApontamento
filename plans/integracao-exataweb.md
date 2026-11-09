@@ -296,12 +296,12 @@ Consequências para a UI:
 ### Fase 6 — Coexistência e rollout (2–3 dias)
 
 - [ ] Rodar Ponto Certificado e Exata em paralelo durante a validação.
-- [ ] Ativar a conta Exata e sincronizar todas as empresas descobertas.
-- [ ] Entregar contagens por empresa/dia para o solicitante validar.
-- [ ] Monitorar logs, erros de baixa e duplicidades.
-- [ ] Plano de rollback: desativar a conta Exata sem afetar a Ponto Certificado.
-- [ ] Atualizar `docs/resumo-integracao-ponto-certificado.md` (ou criar `docs/resumo-integracao-exata.md`) com status **real**.
-- [ ] Adicionar variáveis ao `backend/.env.example`.
+- [x] Ativar a conta Exata e sincronizar todas as empresas descobertas (botão *Executar rollout*).
+- [x] Entregar contagens por empresa/dia para o solicitante validar (painel + exportação CSV).
+- [x] Monitorar logs, erros de baixa e duplicidades (endpoint/painel de monitoramento).
+- [x] Plano de rollback: desativar a conta Exata sem afetar a Ponto Certificado.
+- [x] Atualizar `docs/resumo-integracao-ponto-certificado.md` (ou criar `docs/resumo-integracao-exata.md`) com status **real**.
+- [x] Adicionar variáveis ao `backend/.env.example`.
 
 **Critérios de aceite:**
 - Dados da Exata importados e validados pelo solicitante.

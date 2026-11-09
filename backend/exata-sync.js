@@ -16,6 +16,29 @@ const CHAVE_CONTA_EXATA = 'exata';
 const NOME_CONTA_EXATA = 'ExataWeb';
 const CHUNK_SIZE = 500;
 const MARCACOES_CHUNK_SIZE = 500;
+const DEFAULT_PONTOS_QTDE = 100;
+const DEFAULT_INCREMENTAL_DIAS = 30;
+
+function envPositiveInt(name, fallback) {
+  const parsed = Number(process.env[name]);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : fallback;
+}
+
+function pontosQtdePadrao() {
+  return Math.min(envPositiveInt('EXATA_PONTOS_QTDE', DEFAULT_PONTOS_QTDE), 1000);
+}
+
+function incrementalDiasPadrao() {
+  return envPositiveInt('EXATA_INCREMENTAL_DIAS', DEFAULT_INCREMENTAL_DIAS);
+}
+
+/** Log operacional sem credenciais: apenas contexto e contadores. */
+function logExata(operacao, dados = {}) {
+  const partes = Object.entries(dados)
+    .filter(([, valor]) => valor !== undefined && valor !== null && valor !== '')
+    .map(([chave, valor]) => `${chave}=${valor}`);
+  console.log(`[Exata] ${operacao}${partes.length ? ` ${partes.join(' ')}` : ''}`);
+}
 
 const EVENTOS_LOCAIS = [
   'Ferias',
@@ -287,6 +310,60 @@ function splitDiasExata(dataInicio, dataFim) {
   return dias;
 }
 
+function csvCell(value) {
+  if (value === null || value === undefined) return '';
+  const texto = String(value).replace(/\r?\n/g, ' ');
+  return /[";\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
+}
+
+/**
+ * Gera o CSV de conferência por empresa/dia (separador `;`, pronto para Excel).
+ * @param {object} resultado retorno de relatorioValidacao
+ */
+function gerarCsvValidacao(resultado) {
+  const linhas = [[
+    'Empresa Exata',
+    'empresasistema',
+    'Empresa local',
+    'Data',
+    'Marcações',
+    'Funcionários',
+    'Exportadas',
+    'Pendentes',
+    'REPs',
+    'Primeiro NSR',
+    'Último NSR',
+  ]];
+
+  for (const empresa of resultado?.empresas || []) {
+    const dias = empresa.dias?.length
+      ? empresa.dias
+      : [{ data: '', total: 0, funcionarios: 0, exportados: 0, pendentes: 0, repps: 0, primeiro_nsr: null, ultimo_nsr: null }];
+
+    for (const dia of dias) {
+      linhas.push([
+        empresa.descricao || `Empresa ${empresa.empresasistema}`,
+        empresa.empresasistema,
+        empresa.empresa_nome || 'Sem empresa local',
+        dia.data || '',
+        dia.total ?? 0,
+        dia.funcionarios ?? 0,
+        dia.exportados ?? 0,
+        dia.pendentes ?? 0,
+        dia.repps ?? 0,
+        dia.primeiro_nsr ?? '',
+        dia.ultimo_nsr ?? '',
+      ]);
+    }
+  }
+
+  const resumo = resultado?.resumo || {};
+  linhas.push([]);
+  linhas.push(['Total geral', '', '', '', resumo.total ?? 0, resumo.funcionarios ?? 0, resumo.exportados ?? 0, resumo.pendentes ?? 0]);
+
+  return linhas.map((linha) => linha.map(csvCell).join(';')).join('\r\n');
+}
+
 const STATUS_EVENTO_REGRAS = [
   { regex: /ferias/, evento: 'Ferias' },
   { regex: /atestado/, evento: 'Atestado' },
@@ -384,6 +461,62 @@ function createExataSync({ pool, exataApi }) {
     return rows[0];
   }
 
+  function contaEstaAtiva(conta) {
+    return Number(conta?.ativo) === 1;
+  }
+
+  function garantirContaAtiva(conta) {
+    if (!contaEstaAtiva(conta)) {
+      throw new Error(
+        'A conta ExataWeb está desativada. Reative a conta antes de executar sincronizações.'
+      );
+    }
+  }
+
+  /**
+   * Ativa/desativa a conta global da Exata.
+   *
+   * Desativar é o rollback previsto: nenhuma chamada é feita à Exata e a Ponto
+   * Certificado continua funcionando. Os dados já importados são preservados.
+   */
+  async function atualizarContaExata({ ativo, usuario = null } = {}) {
+    await ensureSchema();
+    const conta = await getContaExata();
+    if (ativo === undefined || ativo === null) {
+      throw new Error('Informe o campo ativo (1 para ativar, 0 para desativar)');
+    }
+
+    const novoAtivo = ativo ? 1 : 0;
+    await pool.query(
+      `UPDATE empresas_config SET ativo = ? WHERE id = ? AND provedor = 'exata'`,
+      [novoAtivo, conta.id]
+    );
+
+    try {
+      await pool.query(
+        `INSERT INTO audit_log (usuario, acao, tabela, registro_id, dados_antigos, dados_novos)
+         VALUES (?, ?, 'empresas_config', ?, ?, ?)`,
+        [
+          usuario || null,
+          novoAtivo ? 'EXATA_CONTA_ATIVAR' : 'EXATA_CONTA_DESATIVAR',
+          conta.id,
+          JSON.stringify({ ativo: conta.ativo }),
+          JSON.stringify({ ativo: novoAtivo }),
+        ]
+      );
+    } catch {
+      // Auditoria é complementar; não impede o rollback.
+    }
+
+    logExata('conta.atualizada', {
+      empresa_config_id: conta.id,
+      ativo: novoAtivo,
+      usuario: usuario || '-',
+    });
+
+    return { ...conta, ativo: novoAtivo };
+  }
+
   async function carregarEmpresasLocais() {
     const [rows] = await pool.query('SELECT id, nome FROM empresas ORDER BY nome ASC');
     return rows;
@@ -473,8 +606,10 @@ function createExataSync({ pool, exataApi }) {
   async function sincronizarEmpresas({ usuario = null } = {}) {
     await ensureSchema();
     const conta = await getContaExata();
+    garantirContaAtiva(conta);
     const empresasLocais = await carregarEmpresasLocais();
     const iniciadoEm = Date.now();
+    logExata('empresas.inicio', { empresa_config_id: conta.id, usuario: usuario || '-' });
 
     const resposta = await exataApi.listarEmpresas();
     if (!Array.isArray(resposta)) {
@@ -569,6 +704,16 @@ function createExataSync({ pool, exataApi }) {
       empresasProcessadas: resposta.length,
       resumo: stats,
       erro: erros.length > 0 ? JSON.stringify(erros).slice(0, 60000) : null,
+    });
+
+    logExata('empresas.fim', {
+      empresa_config_id: conta.id,
+      status,
+      recebidas: stats.recebidas,
+      inseridas: stats.inseridas,
+      atualizadas: stats.atualizadas,
+      erros: erros.length,
+      duracao_ms: duracaoMs,
     });
 
     return {
@@ -757,7 +902,9 @@ function createExataSync({ pool, exataApi }) {
   async function sincronizarFuncionarios({ empresasExataIds, usuario = null } = {}) {
     await ensureSchema();
     const conta = await getContaExata();
+    garantirContaAtiva(conta);
     const iniciadoEm = Date.now();
+    logExata('funcionarios.inicio', { empresa_config_id: conta.id, usuario: usuario || '-' });
 
     const ids = Array.isArray(empresasExataIds)
       ? empresasExataIds.map(Number).filter(Number.isFinite)
@@ -862,6 +1009,17 @@ function createExataSync({ pool, exataApi }) {
       erro: totalComErro > 0
         ? resultados.filter((r) => r.erro).map((r) => `${r.descricao || r.empresasistema}: ${r.erro}`).join('; ')
         : null,
+    });
+
+    logExata('funcionarios.fim', {
+      empresa_config_id: conta.id,
+      status,
+      empresas: resultados.length,
+      recebidos: totais.recebidos,
+      inseridos: totais.inseridos,
+      atualizados: totais.atualizados,
+      erros: totalComErro,
+      duracao_ms: duracaoMs,
     });
 
     return {
@@ -1117,6 +1275,18 @@ function createExataSync({ pool, exataApi }) {
     return data.toISOString().slice(0, 10);
   }
 
+  function periodoValidacao(dataInicio, dataFim) {
+    const inicio = parseDateOnly(dataInicio) || diasAtrasIso(incrementalDiasPadrao());
+    const fim = parseDateOnly(dataFim) || hojeIso();
+    if (!inicio || !fim) {
+      throw new Error('Período inválido: informe datas no formato DD/MM/AAAA ou AAAA-MM-DD');
+    }
+    if (fim < inicio) {
+      throw new Error('A data final deve ser maior ou igual à data inicial');
+    }
+    return { inicio, fim };
+  }
+
   /**
    * Importa os pontos de uma empresa Exata.
    * Cada página é persistida e só então confirmada via baixaponto671; se a
@@ -1127,9 +1297,9 @@ function createExataSync({ pool, exataApi }) {
     modo,
     dataInicio,
     dataFim,
-    qtde = 100,
+    qtde = pontosQtdePadrao(),
   }) {
-    const quantidade = Math.min(Math.max(Math.trunc(Number(qtde) || 100), 1), 1000);
+    const quantidade = Math.min(Math.max(Math.trunc(Number(qtde) || pontosQtdePadrao()), 1), 1000);
     const stats = {
       dias: 0,
       paginas: 0,
@@ -1152,7 +1322,7 @@ function createExataSync({ pool, exataApi }) {
       const estado = await lerEstadoPontosExata(conta.id, empresa.empresasistema);
       const inicio = dataInicio
         || dataParaIso(estado?.ultima_data)
-        || diasAtrasIso(30);
+        || diasAtrasIso(incrementalDiasPadrao());
       const fim = dataFim || hojeIso();
       blocos = splitDiasExata(inicio, fim);
     }
@@ -1240,11 +1410,12 @@ function createExataSync({ pool, exataApi }) {
     modo = 'incremental',
     dataInicio,
     dataFim,
-    qtde = 100,
+    qtde,
     usuario = null,
   } = {}) {
     await ensureSchema();
     const conta = await getContaExata();
+    garantirContaAtiva(conta);
 
     const modoNormalizado = modo === 'periodo' ? 'periodo' : 'incremental';
     if (modoNormalizado === 'periodo') {
@@ -1254,12 +1425,22 @@ function createExataSync({ pool, exataApi }) {
       splitDiasExata(dataInicio, dataFim);
     }
 
+    const quantidade = Math.min(Math.max(Math.trunc(Number(qtde) || pontosQtdePadrao()), 1), 1000);
     const empresas = await carregarEmpresasExata(conta.id, empresasExataIds);
     if (empresas.length === 0) {
       throw new Error('Nenhuma empresa Exata ativa encontrada para importar marcações');
     }
 
     const iniciadoEm = Date.now();
+    logExata('pontos.inicio', {
+      empresa_config_id: conta.id,
+      modo: modoNormalizado,
+      empresas: empresas.length,
+      qtde: quantidade,
+      dataInicio: dataInicio || '-',
+      dataFim: dataFim || '-',
+      usuario: usuario || '-',
+    });
     const resultados = [];
     let totalComErro = 0;
     const totais = {
@@ -1297,7 +1478,7 @@ function createExataSync({ pool, exataApi }) {
           modo: modoNormalizado,
           dataInicio,
           dataFim,
-          qtde,
+          qtde: quantidade,
         });
 
         Object.assign(resultado, {
@@ -1344,10 +1525,22 @@ function createExataSync({ pool, exataApi }) {
       iniciadoEm,
       duracaoMs,
       empresasProcessadas: resultados.length,
-      resumo: { modo: modoNormalizado, dataInicio: dataInicio || null, dataFim: dataFim || null, qtde: Number(qtde) || 100, ...totais, empresas: resultados },
+      resumo: { modo: modoNormalizado, dataInicio: dataInicio || null, dataFim: dataFim || null, qtde: quantidade, ...totais, empresas: resultados },
       erro: totalComErro > 0
         ? resultados.filter((r) => r.erro).map((r) => `${r.descricao || r.empresasistema}: ${r.erro}`).join('; ')
         : null,
+    });
+
+    logExata('pontos.fim', {
+      empresa_config_id: conta.id,
+      modo: modoNormalizado,
+      status,
+      buscados: totais.buscados,
+      inseridos: totais.inseridos,
+      atualizados: totais.atualizados,
+      baixados: totais.baixados,
+      erros: totais.erros,
+      duracao_ms: duracaoMs,
     });
 
     return {
@@ -1398,6 +1591,283 @@ function createExataSync({ pool, exataApi }) {
     }, { total: 0, ativas: 0, marcacoes: 0 });
 
     return { success: true, conta, empresas, resumo };
+  }
+
+  // ── Fase 6 — validação, monitoramento e rollout ───────────────────────────
+
+  /**
+   * Contagens de conferência por empresa/dia. Serve para o solicitante validar
+   * os dados importados sem precisar consultar a Exata novamente.
+   */
+  async function relatorioValidacao({ dataInicio, dataFim, empresasExataIds } = {}) {
+    await ensureSchema();
+    const conta = await getContaExata();
+    const periodo = periodoValidacao(dataInicio, dataFim);
+
+    const ids = Array.isArray(empresasExataIds)
+      ? empresasExataIds.map(Number).filter(Number.isFinite)
+      : [];
+
+    const filtroEmpresas = ids.length > 0 ? ' AND ee.id IN (?)' : '';
+    const [empresas] = await pool.query(
+      `SELECT ee.id, ee.empresasistema, ee.descricao, ee.empresa_id, ee.ativo,
+              e.nome AS empresa_nome
+         FROM empresas_exata ee
+         LEFT JOIN empresas e ON e.id = ee.empresa_id
+        WHERE ee.empresa_config_id = ?${filtroEmpresas}
+        ORDER BY ee.descricao ASC, ee.empresasistema ASC`,
+      ids.length > 0 ? [conta.id, ids] : [conta.id]
+    );
+
+    const paramsBase = [conta.id, periodo.inicio, periodo.fim];
+    const filtroPontos = ids.length > 0 ? ' AND mp.empresasistema IN (?)' : '';
+    const paramsPontos = ids.length > 0 ? [...paramsBase, ids] : paramsBase;
+
+    const [diasRows] = await pool.query(
+      `SELECT mp.empresasistema,
+              DATE_FORMAT(mp.data_marcacao, '%Y-%m-%d') AS dia,
+              COUNT(*) AS total,
+              COUNT(DISTINCT mp.matricula) AS funcionarios,
+              SUM(CASE WHEN mp.status_exportacao = 'S' THEN 1 ELSE 0 END) AS exportados,
+              SUM(CASE WHEN mp.status_exportacao IS NULL OR mp.status_exportacao <> 'S' THEN 1 ELSE 0 END) AS pendentes,
+              COUNT(DISTINCT mp.reppid) AS repps,
+              MIN(mp.nsr) AS primeiro_nsr,
+              MAX(mp.nsr) AS ultimo_nsr
+         FROM marcacoes_ponto mp
+        WHERE mp.empresa_config_id = ?
+          AND mp.provedor = 'exata'
+          AND mp.data_marcacao >= ?
+          AND mp.data_marcacao < DATE_ADD(?, INTERVAL 1 DAY)${filtroPontos}
+        GROUP BY mp.empresasistema, DATE(mp.data_marcacao)
+        ORDER BY mp.empresasistema ASC, dia ASC`,
+      paramsPontos
+    );
+
+    const [resumoRows] = await pool.query(
+      `SELECT mp.empresasistema,
+              COUNT(*) AS total,
+              COUNT(DISTINCT mp.matricula) AS funcionarios,
+              COUNT(DISTINCT mp.reppid) AS repps,
+              SUM(CASE WHEN mp.status_exportacao = 'S' THEN 1 ELSE 0 END) AS exportados,
+              SUM(CASE WHEN mp.status_exportacao IS NULL OR mp.status_exportacao <> 'S' THEN 1 ELSE 0 END) AS pendentes,
+              MIN(mp.data_marcacao) AS primeira_marcacao,
+              MAX(mp.data_marcacao) AS ultima_marcacao
+         FROM marcacoes_ponto mp
+        WHERE mp.empresa_config_id = ?
+          AND mp.provedor = 'exata'
+          AND mp.data_marcacao >= ?
+          AND mp.data_marcacao < DATE_ADD(?, INTERVAL 1 DAY)${filtroPontos}
+        GROUP BY mp.empresasistema`,
+      paramsPontos
+    );
+
+    const [funcionariosGlobais] = await pool.query(
+      `SELECT COUNT(DISTINCT mp.matricula) AS funcionarios
+         FROM marcacoes_ponto mp
+        WHERE mp.empresa_config_id = ?
+          AND mp.provedor = 'exata'
+          AND mp.data_marcacao >= ?
+          AND mp.data_marcacao < DATE_ADD(?, INTERVAL 1 DAY)${filtroPontos}`,
+      paramsPontos
+    );
+
+    const porEmpresa = new Map();
+    for (const row of resumoRows) {
+      porEmpresa.set(Number(row.empresasistema), row);
+    }
+
+    const diasPorEmpresa = new Map();
+    const diasGlobais = new Set();
+    for (const row of diasRows) {
+      const sistema = Number(row.empresasistema);
+      if (!diasPorEmpresa.has(sistema)) diasPorEmpresa.set(sistema, []);
+      diasGlobais.add(row.dia);
+      diasPorEmpresa.get(sistema).push({
+        data: row.dia,
+        total: Number(row.total) || 0,
+        funcionarios: Number(row.funcionarios) || 0,
+        exportados: Number(row.exportados) || 0,
+        pendentes: Number(row.pendentes) || 0,
+        repps: Number(row.repps) || 0,
+        primeiro_nsr: row.primeiro_nsr === null ? null : Number(row.primeiro_nsr),
+        ultimo_nsr: row.ultimo_nsr === null ? null : Number(row.ultimo_nsr),
+      });
+    }
+
+    const empresasResultado = empresas.map((empresa) => {
+      const resumo = porEmpresa.get(Number(empresa.empresasistema)) || {};
+      const dias = diasPorEmpresa.get(Number(empresa.empresasistema)) || [];
+      return {
+        empresa_exata_id: empresa.id,
+        empresasistema: empresa.empresasistema,
+        descricao: empresa.descricao,
+        empresa_id: empresa.empresa_id,
+        empresa_nome: empresa.empresa_nome || null,
+        ativo: Number(empresa.ativo) ? 1 : 0,
+        total: Number(resumo.total) || 0,
+        funcionarios: Number(resumo.funcionarios) || 0,
+        exportados: Number(resumo.exportados) || 0,
+        pendentes: Number(resumo.pendentes) || 0,
+        repps: Number(resumo.repps) || 0,
+        primeira_marcacao: resumo.primeira_marcacao || null,
+        ultima_marcacao: resumo.ultima_marcacao || null,
+        dias,
+      };
+    });
+
+    const resumo = empresasResultado.reduce((acc, empresa) => {
+      acc.total += empresa.total;
+      acc.exportados += empresa.exportados;
+      acc.pendentes += empresa.pendentes;
+      acc.empresas += 1;
+      if (empresa.total > 0) acc.empresasComDados += 1;
+      if (empresa.ativo) acc.empresasAtivas += 1;
+      return acc;
+    }, {
+      total: 0,
+      exportados: 0,
+      pendentes: 0,
+      empresas: 0,
+      empresasComDados: 0,
+      empresasAtivas: 0,
+    });
+    resumo.funcionarios = Number(funcionariosGlobais[0]?.funcionarios) || 0;
+    resumo.dias = diasGlobais.size;
+
+    return {
+      success: true,
+      conta: { id: conta.id, nome: conta.nome, ativo: Number(conta.ativo) ? 1 : 0 },
+      dataInicio: periodo.inicio,
+      dataFim: periodo.fim,
+      resumo,
+      empresas: empresasResultado,
+    };
+  }
+
+  /** Visão de operação: últimas execuções, baixas pendentes e duplicidades. */
+  async function monitoramentoExata({ limite = 10 } = {}) {
+    await ensureSchema();
+    const conta = await getContaExata();
+    const quantidade = Math.min(Math.max(Math.trunc(Number(limite) || 10), 1), 50);
+
+    const [ultimas] = await pool.query(
+      `SELECT id, tipo, status, iniciado_em, finalizado_em, duracao_ms,
+              empresas_processadas, erro
+         FROM sincronizacao_execucao
+        WHERE tipo LIKE 'EXATA_%'
+        ORDER BY id DESC
+        LIMIT ${quantidade}`
+    );
+
+    const [ultimasPorTipo] = await pool.query(
+      `SELECT se.id, se.tipo, se.status, se.iniciado_em, se.finalizado_em,
+              se.duracao_ms, se.empresas_processadas, se.erro
+         FROM sincronizacao_execucao se
+         JOIN (
+           SELECT tipo, MAX(id) AS id
+             FROM sincronizacao_execucao
+            WHERE tipo LIKE 'EXATA_%'
+            GROUP BY tipo
+         ) u ON u.id = se.id
+        ORDER BY se.tipo ASC`
+    );
+
+    const [duplicidades] = await pool.query(
+      `SELECT empresasistema, reppid, nsr, COUNT(*) AS total
+         FROM marcacoes_ponto
+        WHERE empresa_config_id = ? AND provedor = 'exata'
+        GROUP BY empresasistema, reppid, nsr
+       HAVING COUNT(*) > 1
+        ORDER BY total DESC
+        LIMIT 20`,
+      [conta.id]
+    );
+
+    const [pendenciasBaixa] = await pool.query(
+      `SELECT empresasistema, COUNT(*) AS total, MIN(data_marcacao) AS mais_antiga
+         FROM marcacoes_ponto
+        WHERE empresa_config_id = ?
+          AND provedor = 'exata'
+          AND (status_exportacao IS NULL OR status_exportacao <> 'S')
+        GROUP BY empresasistema
+        ORDER BY total DESC`,
+      [conta.id]
+    );
+
+    const [pontosResumo] = await pool.query(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN DATE(data_marcacao) = CURDATE() THEN 1 ELSE 0 END) AS hoje,
+              MIN(data_marcacao) AS primeira_marcacao,
+              MAX(data_marcacao) AS ultima_marcacao
+         FROM marcacoes_ponto
+        WHERE empresa_config_id = ? AND provedor = 'exata'`,
+      [conta.id]
+    );
+
+    const [empresasResumo] = await pool.query(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN ativo = 1 THEN 1 ELSE 0 END) AS ativas,
+              SUM(CASE WHEN empresa_id IS NULL THEN 1 ELSE 0 END) AS sem_mapeamento
+         FROM empresas_exata
+        WHERE empresa_config_id = ?`,
+      [conta.id]
+    );
+
+    const totalPendentes = pendenciasBaixa.reduce(
+      (acc, item) => acc + (Number(item.total) || 0),
+      0
+    );
+    const errosRecentes = ultimas.filter((item) => item.status !== 'CONCLUIDO');
+    const empresaResumo = empresasResumo[0] || {};
+    const pontos = pontosResumo[0] || {};
+
+    const alertas = [];
+    if (Number(empresaResumo.sem_mapeamento) > 0) {
+      alertas.push(`${Number(empresaResumo.sem_mapeamento)} empresa(s) sem empresa local`);
+    }
+    if (duplicidades.length > 0) {
+      alertas.push(`${duplicidades.length} chave(s) duplicada(s) em marcações`);
+    }
+    if (totalPendentes > 0) {
+      alertas.push(`${totalPendentes} marcação(ões) com baixa pendente`);
+    }
+    if (errosRecentes.length > 0) {
+      alertas.push(`${errosRecentes.length} execução(ões) recente(s) com erro`);
+    }
+
+    return {
+      success: true,
+      conta: { id: conta.id, nome: conta.nome, ativo: Number(conta.ativo) ? 1 : 0 },
+      saude: duplicidades.length > 0 || errosRecentes.length > 0
+        ? 'ATENCAO'
+        : (alertas.length > 0 ? 'ATENCAO' : 'OK'),
+      alertas,
+      pontos: {
+        total: Number(pontos.total) || 0,
+        hoje: Number(pontos.hoje) || 0,
+        primeira_marcacao: pontos.primeira_marcacao || null,
+        ultima_marcacao: pontos.ultima_marcacao || null,
+        pendentes_baixa: totalPendentes,
+      },
+      empresas: {
+        total: Number(empresaResumo.total) || 0,
+        ativas: Number(empresaResumo.ativas) || 0,
+        sem_mapeamento: Number(empresaResumo.sem_mapeamento) || 0,
+      },
+      pendenciasBaixa: pendenciasBaixa.map((item) => ({
+        empresasistema: Number(item.empresasistema),
+        total: Number(item.total) || 0,
+        mais_antiga: item.mais_antiga || null,
+      })),
+      duplicidades: duplicidades.map((item) => ({
+        empresasistema: Number(item.empresasistema),
+        reppid: Number(item.reppid),
+        nsr: Number(item.nsr),
+        total: Number(item.total) || 0,
+      })),
+      ultimas,
+      ultimasPorTipo,
+    };
   }
 
   // ── Fase 4 — Status de funcionários (somente leitura) ─────────────────────
@@ -1501,12 +1971,18 @@ function createExataSync({ pool, exataApi }) {
   async function sincronizarStatusFuncionarios({ empresasExataIds, usuario = null } = {}) {
     await ensureSchema();
     const conta = await getContaExata();
+    garantirContaAtiva(conta);
     const empresas = await carregarEmpresasExata(conta.id, empresasExataIds);
     if (empresas.length === 0) {
       throw new Error('Nenhuma empresa Exata ativa encontrada para sincronizar status');
     }
 
     const iniciadoEm = Date.now();
+    logExata('status.inicio', {
+      empresa_config_id: conta.id,
+      empresas: empresas.length,
+      usuario: usuario || '-',
+    });
     const resultados = [];
     let totalComErro = 0;
     const totais = {
@@ -1644,6 +2120,16 @@ function createExataSync({ pool, exataApi }) {
         : null,
     });
 
+    logExata('status.fim', {
+      empresa_config_id: conta.id,
+      status,
+      recebidos: totais.recebidos,
+      eventos_criados: totais.eventosCriados,
+      eventos_atualizados: totais.eventosAtualizados,
+      erros: totalComErro,
+      duracao_ms: duracaoMs,
+    });
+
     return {
       success: totalComErro === 0,
       execucaoId,
@@ -1734,6 +2220,7 @@ function createExataSync({ pool, exataApi }) {
   return {
     ensureSchema,
     getContaExata,
+    atualizarContaExata,
     listarEmpresasExata,
     sincronizarEmpresas,
     atualizarEmpresaExata,
@@ -1745,6 +2232,9 @@ function createExataSync({ pool, exataApi }) {
     sincronizarStatusFuncionarios,
     listarStatusFuncionarios,
     atualizarStatusExata,
+    // Fase 6 — validação, monitoramento e rollout
+    relatorioValidacao,
+    monitoramentoExata,
     // expostos para testes/uso pontual
     normalizarFuncionario,
     parseDateOnly,
@@ -1765,5 +2255,8 @@ module.exports = {
   parseDateTime,
   encontrarEmpresaLocal,
   matriculaToString,
+  gerarCsvValidacao,
+  pontosQtdePadrao,
+  incrementalDiasPadrao,
   EVENTOS_LOCAIS,
 };

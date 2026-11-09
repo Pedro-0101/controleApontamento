@@ -11,6 +11,7 @@ const {
   parseDateTime,
   encontrarEmpresaLocal,
   matriculaToString,
+  gerarCsvValidacao,
 } = require('./exata-sync');
 
 test('matricula é sempre string e preserva zeros à esquerda', () => {
@@ -168,4 +169,52 @@ test('mapeia empresa local por nome exato ou parcial único', () => {
   assert.equal(encontrarEmpresaLocal('SAO JOAO', empresas)?.id, 2);
   assert.equal(encontrarEmpresaLocal('DNP / São João', empresas), null);
   assert.equal(encontrarEmpresaLocal('Empresa desconhecida', empresas), null);
+});
+
+test('gera CSV de validação por empresa/dia com resumo e escape', () => {
+  const csv = gerarCsvValidacao({
+    resumo: { total: 3, funcionarios: 2, exportados: 2, pendentes: 1 },
+    empresas: [
+      {
+        descricao: 'DNP; Matriz',
+        empresasistema: 7,
+        empresa_nome: 'DNP',
+        dias: [
+          {
+            data: '2026-11-01',
+            total: 2,
+            funcionarios: 1,
+            exportados: 2,
+            pendentes: 0,
+            repps: 1,
+            primeiro_nsr: 10,
+            ultimo_nsr: 11,
+          },
+          {
+            data: '2026-11-02',
+            total: 1,
+            funcionarios: 1,
+            exportados: 0,
+            pendentes: 1,
+            repps: 1,
+            primeiro_nsr: 12,
+            ultimo_nsr: 12,
+          },
+        ],
+      },
+      {
+        descricao: 'Sem dados',
+        empresasistema: 8,
+        empresa_nome: null,
+        dias: [],
+      },
+    ],
+  });
+
+  const linhas = csv.split('\r\n');
+  assert.match(linhas[0], /Empresa Exata;empresasistema;Empresa local;Data/);
+  assert.match(linhas[1], /^"DNP; Matriz";7;DNP;2026-11-01;2;1;2;0;1;10;11$/);
+  assert.match(linhas[2], /2026-11-02;1;1;0;1;1;12;12$/);
+  assert.match(linhas[3], /^Sem dados;8;Sem empresa local;;0;0;0;0;0;;$/);
+  assert.match(linhas.at(-1), /^Total geral;;;;3;2;2;1$/);
 });

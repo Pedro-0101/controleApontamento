@@ -2157,6 +2157,63 @@ app.get('/api/sincronizacao/exata/pontos/status', async (req, res) => {
   }
 });
 
+// ── ExataWeb — coexistência, validação e monitoramento (Fase 6) ────────────
+
+// PUT /api/sincronizacao/exata/conta — ativa/desativa a conta global (rollback)
+app.put('/api/sincronizacao/exata/conta', async (req, res) => {
+  const { ativo, usuario } = req.body || {};
+  if (ativo === undefined || ativo === null) {
+    return res.status(400).json({ success: false, error: 'Informe o campo ativo (1 ou 0)' });
+  }
+
+  try {
+    const conta = await exataSync.atualizarContaExata({ ativo, usuario: usuario || null });
+    res.json({ success: true, conta });
+  } catch (e) {
+    console.error('Erro ao atualizar a conta Exata:', e);
+    res.status(400).json({ success: false, error: e.message || 'Erro ao atualizar a conta Exata' });
+  }
+});
+
+// GET /api/sincronizacao/exata/validacao — contagens por empresa/dia
+// Query: dataInicio, dataFim, empresasExataIds (CSV), formato=json|csv
+app.get('/api/sincronizacao/exata/validacao', async (req, res) => {
+  try {
+    const ids = parseQueryList(req.query.empresasExataIds)
+      ?.map(Number)
+      .filter(Number.isFinite);
+    const resultado = await exataSync.relatorioValidacao({
+      dataInicio: req.query.dataInicio,
+      dataFim: req.query.dataFim,
+      empresasExataIds: ids,
+    });
+
+    if (String(req.query.formato || '').toLowerCase() === 'csv') {
+      const csv = exataSync.gerarCsvValidacao(resultado);
+      const nome = `validacao-exata-${resultado.dataInicio}-a-${resultado.dataFim}.csv`;
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${nome}"`);
+      return res.send(`\uFEFF${csv}`);
+    }
+
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro ao gerar a validação da Exata:', e);
+    res.status(400).json({ success: false, error: e.message || 'Erro ao gerar a validação da Exata' });
+  }
+});
+
+// GET /api/sincronizacao/exata/monitoramento — saúde, baixas, duplicidades e execuções
+app.get('/api/sincronizacao/exata/monitoramento', async (req, res) => {
+  try {
+    const resultado = await exataSync.monitoramentoExata({ limite: req.query.limite });
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro ao carregar o monitoramento da Exata:', e);
+    res.status(500).json({ success: false, error: e.message || 'Erro ao carregar o monitoramento da Exata' });
+  }
+});
+
 // ── ExataWeb — status de funcionários (Fase 4, somente leitura) ────────────
 
 // POST /api/sincronizacao/exata/status — importa o catálogo de status

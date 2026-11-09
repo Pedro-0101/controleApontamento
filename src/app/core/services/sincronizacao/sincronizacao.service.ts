@@ -468,6 +468,90 @@ export interface ExataStatusSyncResultado {
   empresas: ExataStatusSyncEmpresa[];
 }
 
+// ── ExataWeb (Fase 6) — validação, monitoramento e coexistência ────────────
+
+export interface ExataValidacaoDia {
+  data: string;
+  total: number;
+  funcionarios: number;
+  exportados: number;
+  pendentes: number;
+  repps: number;
+  primeiro_nsr: number | null;
+  ultimo_nsr: number | null;
+}
+
+export interface ExataValidacaoEmpresa {
+  empresa_exata_id: number;
+  empresasistema: number;
+  descricao: string | null;
+  empresa_id: number | null;
+  empresa_nome: string | null;
+  ativo: number;
+  total: number;
+  funcionarios: number;
+  exportados: number;
+  pendentes: number;
+  repps: number;
+  primeira_marcacao: string | null;
+  ultima_marcacao: string | null;
+  dias: ExataValidacaoDia[];
+}
+
+export interface ExataValidacaoResultado {
+  success: boolean;
+  conta: { id: number; nome: string; ativo: number };
+  dataInicio: string;
+  dataFim: string;
+  resumo: {
+    total: number;
+    funcionarios: number;
+    exportados: number;
+    pendentes: number;
+    empresas: number;
+    empresasComDados: number;
+    empresasAtivas: number;
+    dias: number;
+  };
+  empresas: ExataValidacaoEmpresa[];
+}
+
+export interface ExataMonitoramentoExecucao {
+  id: number;
+  tipo: string;
+  status: 'CONCLUIDO' | 'PARCIAL' | 'ERRO';
+  iniciado_em: string;
+  finalizado_em: string | null;
+  duracao_ms: number | null;
+  empresas_processadas: number | null;
+  erro: string | null;
+}
+
+export interface ExataMonitoramento {
+  success: boolean;
+  conta: { id: number; nome: string; ativo: number };
+  saude: 'OK' | 'ATENCAO';
+  alertas: string[];
+  pontos: {
+    total: number;
+    hoje: number;
+    primeira_marcacao: string | null;
+    ultima_marcacao: string | null;
+    pendentes_baixa: number;
+  };
+  empresas: { total: number; ativas: number; sem_mapeamento: number };
+  pendenciasBaixa: Array<{ empresasistema: number; total: number; mais_antiga: string | null }>;
+  duplicidades: Array<{ empresasistema: number; reppid: number; nsr: number; total: number }>;
+  ultimas: ExataMonitoramentoExecucao[];
+  ultimasPorTipo: ExataMonitoramentoExecucao[];
+}
+
+export interface ExecutarExataValidacaoOptions {
+  dataInicio?: string;
+  dataFim?: string;
+  empresasExataIds?: number[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class SincronizacaoService {
   private http = inject(HttpClient);
@@ -632,5 +716,56 @@ export class SincronizacaoService {
     );
     if (!r.success) throw new Error('Erro ao atualizar o mapeamento do status');
     return r.status;
+  }
+
+  // ── ExataWeb (Fase 6) — coexistência, validação e monitoramento ─────────
+
+  async atualizarContaExata(
+    ativo: number,
+    usuario?: string
+  ): Promise<ExataConta> {
+    const r = await firstValueFrom(
+      this.http.put<{ success: boolean; conta: ExataConta }>(
+        `${this.apiUrl}/exata/conta`,
+        { ativo, usuario }
+      )
+    );
+    if (!r.success) throw new Error('Erro ao atualizar a conta Exata');
+    return r.conta;
+  }
+
+  async validacaoExata(options: ExecutarExataValidacaoOptions = {}): Promise<ExataValidacaoResultado> {
+    return firstValueFrom(
+      this.http.get<ExataValidacaoResultado>(`${this.apiUrl}/exata/validacao`, {
+        params: this.parametrosValidacaoExata(options),
+      })
+    );
+  }
+
+  async exportarValidacaoExata(options: ExecutarExataValidacaoOptions = {}): Promise<Blob> {
+    return firstValueFrom(
+      this.http.get(`${this.apiUrl}/exata/validacao`, {
+        params: { ...this.parametrosValidacaoExata(options), formato: 'csv' },
+        responseType: 'blob',
+      })
+    );
+  }
+
+  private parametrosValidacaoExata(options: ExecutarExataValidacaoOptions): Record<string, string> {
+    const params: Record<string, string> = {};
+    if (options.dataInicio) params['dataInicio'] = options.dataInicio;
+    if (options.dataFim) params['dataFim'] = options.dataFim;
+    if (options.empresasExataIds?.length) {
+      params['empresasExataIds'] = options.empresasExataIds.join(',');
+    }
+    return params;
+  }
+
+  async monitoramentoExata(limite = 10): Promise<ExataMonitoramento> {
+    return firstValueFrom(
+      this.http.get<ExataMonitoramento>(`${this.apiUrl}/exata/monitoramento`, {
+        params: { limite },
+      })
+    );
   }
 }

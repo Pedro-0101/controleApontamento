@@ -3,6 +3,10 @@
 > Documento destinado ao time comercial para avaliação de compatibilidade com sistemas de gestão de ponto.
 > Atualizado em: Novembro 2026
 
+> **Coexistência:** o sistema também integra a **ExataWeb V12** em paralelo, por provedor.
+> Consulte [`docs/resumo-integracao-exata.md`](./resumo-integracao-exata.md) para o status real,
+> endpoints, rollout e rollback da integração Exata.
+
 ---
 
 ## Capacidades de Integração

@@ -8,6 +8,7 @@ import {
   ExataConta,
   ExataEmpresa,
   ExataListaResultado,
+  ExataMonitoramento,
   ExataPontosStatus,
   ExataPontosSyncResultado,
   ExataResumo,
@@ -16,6 +17,7 @@ import {
   ExataStatusSyncResultado,
   ExataSyncEmpresasResultado,
   ExataSyncFuncionariosResultado,
+  ExataValidacaoResultado,
   MarcacoesSyncResultado,
   MarcacoesSyncStats,
   MarcacoesSyncStatus,
@@ -177,6 +179,19 @@ export class EmpresasConfig implements OnInit {
   isSincronizandoExataStatus = signal(false);
   eventosLocais = signal<string[]>([]);
 
+  // ExataWeb — coexistência, validação e monitoramento (Fase 6)
+  exataMonitoramento = signal<ExataMonitoramento | null>(null);
+  isCarregandoMonitoramentoExata = signal(false);
+  exataValidacao = signal<ExataValidacaoResultado | null>(null);
+  exataValidacaoErro = signal<string | null>(null);
+  isCarregandoValidacaoExata = signal(false);
+  exataValidacaoInicio = signal(this.isoDate(this.daysAgo(30)));
+  exataValidacaoFim = signal(this.isoDate(new Date()));
+  exataValidacaoEmpresaId = signal('');
+  isAlterandoContaExata = signal(false);
+  isExecutandoRolloutExata = signal(false);
+  exataRolloutMensagem = signal<string | null>(null);
+
   async ngOnInit() {
     await Promise.all([
       this.carregar(),
@@ -185,6 +200,7 @@ export class EmpresasConfig implements OnInit {
       this.carregarExata(),
       this.carregarStatusPontosExata(),
       this.carregarStatusExata(),
+      this.carregarMonitoramentoExata(),
     ]);
   }
 
@@ -490,6 +506,152 @@ export class EmpresasConfig implements OnInit {
 
   statusEventoLabel(evento: string | null): string {
     return evento || 'Sem mapeamento';
+  }
+
+  // ── ExataWeb — coexistência, validação e monitoramento (Fase 6) ──────────
+
+  async alterarContaExata(ativo: boolean) {
+    const acao = ativo ? 'ativar' : 'desativar (rollback)';
+    if (!window.confirm(`Deseja ${acao} a conta ExataWeb? A Ponto Certificado não será afetada.`)) {
+      return;
+    }
+
+    this.isAlterandoContaExata.set(true);
+    try {
+      await this.syncService.atualizarContaExata(ativo ? 1 : 0);
+      this.toastService.success(`Conta ExataWeb ${ativo ? 'ativada' : 'desativada'}`);
+      await Promise.all([this.carregarExata(), this.carregarMonitoramentoExata()]);
+    } catch (error: any) {
+      this.toastService.error(error?.error?.error || `Erro ao ${acao} a conta Exata`);
+    } finally {
+      this.isAlterandoContaExata.set(false);
+    }
+  }
+
+  /**
+   * Rollout da Fase 6: ativa a conta, descobre todas as empresas e executa as
+   * sincronizações somente leitura (funcionários, status e pontos incrementais).
+   */
+  async executarRolloutExata() {
+    if (this.isExecutandoRolloutExata()) return;
+    if (!window.confirm(
+      'Executar o rollout da ExataWeb? Isso ativa a conta, descobre todas as empresas e ' +
+      'sincroniza funcionários, status e pontos incrementais. A Ponto Certificado continua ativa.'
+    )) {
+      return;
+    }
+
+    this.isExecutandoRolloutExata.set(true);
+    this.exataRolloutMensagem.set('Ativando a conta ExataWeb...');
+    this.exataErro.set(null);
+
+    try {
+      if (!this.exataConta()?.ativo) {
+        await this.syncService.atualizarContaExata(1);
+      }
+
+      this.exataRolloutMensagem.set('Descobrindo empresas...');
+      const empresas = await this.syncService.sincronizarEmpresasExata();
+      this.exataEmpresasResultado.set(empresas);
+
+      this.exataRolloutMensagem.set('Sincronizando funcionários...');
+      const funcionarios = await this.syncService.sincronizarFuncionariosExata();
+      this.exataFuncionariosResultado.set(funcionarios);
+
+      this.exataRolloutMensagem.set('Sincronizando status de funcionários...');
+      const status = await this.syncService.sincronizarStatusExata();
+      this.exataStatusResultado.set(status);
+
+      this.exataRolloutMensagem.set('Importando pontos incrementais...');
+      const pontos = await this.syncService.sincronizarPontosExata({
+        modo: 'incremental',
+        qtde: Number(this.exataQtde()) || 100,
+      });
+      this.exataPontosResultado.set(pontos);
+
+      this.exataRolloutMensagem.set('Atualizando painéis...');
+      await Promise.all([
+        this.carregarExata(),
+        this.carregarStatusPontosExata(),
+        this.carregarStatusExata(),
+        this.carregarMonitoramentoExata(),
+        this.carregarValidacaoExata(),
+      ]);
+
+      const resumo = [
+        `${empresas.recebidas} empresa(s) descoberta(s)`,
+        `${funcionarios.inseridos + funcionarios.atualizados} funcionário(s)`,
+        `${status.eventosCriados + status.eventosAtualizados} evento(s) de status`,
+        `${pontos.inseridos + pontos.atualizados} marcação(ões) importada(s)`,
+      ].join(' · ');
+      this.exataRolloutMensagem.set(`Rollout concluído: ${resumo}`);
+      this.toastService.success('Rollout da ExataWeb concluído');
+    } catch (error: any) {
+      const mensagem = error?.error?.error || 'Erro durante o rollout da ExataWeb';
+      this.exataRolloutMensagem.set(null);
+      this.exataErro.set(mensagem);
+      this.toastService.error(mensagem);
+    } finally {
+      this.isExecutandoRolloutExata.set(false);
+    }
+  }
+
+  async carregarMonitoramentoExata() {
+    this.isCarregandoMonitoramentoExata.set(true);
+    try {
+      this.exataMonitoramento.set(await this.syncService.monitoramentoExata());
+    } catch {
+      // O monitoramento é complementar; não bloqueia o restante da tela.
+    } finally {
+      this.isCarregandoMonitoramentoExata.set(false);
+    }
+  }
+
+  async carregarValidacaoExata() {
+    const dataInicio = this.exataValidacaoInicio();
+    const dataFim = this.exataValidacaoFim();
+    if (dataInicio && dataFim && dataInicio > dataFim) {
+      this.exataValidacaoErro.set('A data inicial deve ser anterior à data final');
+      return;
+    }
+
+    const empresaId = Number(this.exataValidacaoEmpresaId());
+    this.isCarregandoValidacaoExata.set(true);
+    this.exataValidacaoErro.set(null);
+    try {
+      this.exataValidacao.set(await this.syncService.validacaoExata({
+        dataInicio,
+        dataFim,
+        empresasExataIds: Number.isFinite(empresaId) && empresaId > 0 ? [empresaId] : undefined,
+      }));
+    } catch (error: any) {
+      this.exataValidacaoErro.set(
+        error?.error?.error || 'Erro ao carregar as contagens de validação'
+      );
+    } finally {
+      this.isCarregandoValidacaoExata.set(false);
+    }
+  }
+
+  async exportarValidacaoExata() {
+    const dataInicio = this.exataValidacaoInicio();
+    const dataFim = this.exataValidacaoFim();
+    const empresaId = Number(this.exataValidacaoEmpresaId());
+    try {
+      const blob = await this.syncService.exportarValidacaoExata({
+        dataInicio,
+        dataFim,
+        empresasExataIds: Number.isFinite(empresaId) && empresaId > 0 ? [empresaId] : undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `validacao-exata-${dataInicio || 'inicio'}-a-${dataFim || 'fim'}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      this.toastService.error(error?.error?.error || 'Erro ao exportar a validação');
+    }
   }
 
   async carregar() {
