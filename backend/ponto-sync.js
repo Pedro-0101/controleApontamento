@@ -314,7 +314,7 @@ function createPontoSync({ pool, pontoApi }) {
       const [rows] = await pool.query(
         `SELECT id, nome, email, senha, chave, ativo, empresa_id
          FROM empresas_config
-         WHERE ativo = 1 AND id IN (?)
+         WHERE ativo = 1 AND provedor <> 'exata' AND id IN (?)
          ORDER BY nome ASC`,
         [ids]
       );
@@ -324,7 +324,7 @@ function createPontoSync({ pool, pontoApi }) {
     const [rows] = await pool.query(
       `SELECT id, nome, email, senha, chave, ativo, empresa_id
        FROM empresas_config
-       WHERE ativo = 1
+       WHERE ativo = 1 AND provedor <> 'exata'
        ORDER BY nome ASC`
     );
     return rows;
@@ -1030,6 +1030,7 @@ function createPontoSync({ pool, pontoApi }) {
               COALESCE(ms.ultimo_total_importado, 0) AS ultimo_total_importado
        FROM empresas_config ec
        LEFT JOIN marcacao_sync_estado ms ON ms.empresa_config_id = ec.id
+       WHERE ec.provedor <> 'exata'
        ORDER BY ec.nome ASC`
     );
     return rows;

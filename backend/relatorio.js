@@ -125,7 +125,7 @@ function computeStatus({ dataStr, trabalhaSabado, batePonto, marks, evento }) {
 
 async function getActiveTokens(pool) {
   const [companies] = await pool.query(
-    'SELECT id, nome, email, senha, chave FROM empresas_config WHERE ativo = 1'
+    'SELECT id, nome, email, senha, chave FROM empresas_config WHERE ativo = 1 AND provedor <> \'exata\''
   );
   const tokens = await Promise.all(companies.map(async (c) => {
     try {

@@ -247,6 +247,93 @@ export interface SincronizarVinculosOptions {
   usuario?: string;
 }
 
+export interface ExataConta {
+  id: number;
+  nome: string;
+  ativo: number;
+  provedor: string;
+  ultima_execucao: {
+    id: number;
+    tipo: string;
+    status: string;
+    iniciado_em: string;
+    finalizado_em: string | null;
+    duracao_ms: number | null;
+    erro: string | null;
+  } | null;
+}
+
+export interface ExataEmpresa {
+  id: number;
+  empresa_config_id: number;
+  empresasistema: number;
+  empresacliente: number | null;
+  descricao: string | null;
+  empresa_id: number | null;
+  empresa_nome: string | null;
+  ativo: number;
+  sincronizado_em: string | null;
+  total_funcionarios: number;
+}
+
+export interface ExataResumo {
+  total: number;
+  mapeadas: number;
+  semMapeamento: number;
+  inativas: number;
+}
+
+export interface ExataListaResultado {
+  success: boolean;
+  conta: ExataConta;
+  empresas: ExataEmpresa[];
+  resumo: ExataResumo;
+  empresasLocais: Array<{ id: number; nome: string }>;
+}
+
+export interface ExataSyncEmpresasResultado {
+  success: boolean;
+  execucaoId: number;
+  status: 'CONCLUIDO' | 'PARCIAL' | 'ERRO';
+  duracaoMs: number;
+  recebidas: number;
+  inseridas: number;
+  atualizadas: number;
+  ignoradas: number;
+  mapeadas: number;
+  semMapeamento: number;
+  erros: Array<{ empresasistema: number; descricao: string | null; erro: string }>;
+}
+
+export interface ExataSyncFuncionarioEmpresa {
+  empresa_exata_id: number;
+  empresasistema: number;
+  descricao: string | null;
+  empresa_id: number | null;
+  empresa_nome: string | null;
+  recebidos: number;
+  inseridos: number;
+  atualizados: number;
+  ignorados: number;
+  locais_inseridos: number;
+  sem_empresa_local: number;
+  erro: string | null;
+}
+
+export interface ExataSyncFuncionariosResultado {
+  success: boolean;
+  execucaoId: number;
+  status: 'CONCLUIDO' | 'PARCIAL' | 'ERRO';
+  duracaoMs: number;
+  recebidos: number;
+  inseridos: number;
+  atualizados: number;
+  ignorados: number;
+  locaisInseridos: number;
+  semEmpresaLocal: number;
+  empresas: ExataSyncFuncionarioEmpresa[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class SincronizacaoService {
   private http = inject(HttpClient);
@@ -318,5 +405,49 @@ export class SincronizacaoService {
     return r.success
       ? { funcionarios: r.funcionarios || [], relogios: r.relogios || [] }
       : { funcionarios: [], relogios: [] };
+  }
+
+  // ── ExataWeb (Fase 2) ────────────────────────────────────────────────────
+
+  async listarExata(): Promise<ExataListaResultado | null> {
+    const r = await firstValueFrom(
+      this.http.get<ExataListaResultado>(`${this.apiUrl}/exata`)
+    );
+    return r.success ? r : null;
+  }
+
+  async sincronizarEmpresasExata(usuario?: string): Promise<ExataSyncEmpresasResultado> {
+    return firstValueFrom(
+      this.http.post<ExataSyncEmpresasResultado>(
+        `${this.apiUrl}/exata/empresas/sincronizar`,
+        { usuario }
+      )
+    );
+  }
+
+  async atualizarEmpresaExata(
+    id: number,
+    dados: { empresa_id?: number | null; ativo?: number }
+  ): Promise<ExataEmpresa> {
+    const r = await firstValueFrom(
+      this.http.put<{ success: boolean; empresa: ExataEmpresa }>(
+        `${this.apiUrl}/exata/empresas/${id}`,
+        dados
+      )
+    );
+    if (!r.success) throw new Error('Erro ao atualizar empresa da Exata');
+    return r.empresa;
+  }
+
+  async sincronizarFuncionariosExata(
+    empresasExataIds?: number[],
+    usuario?: string
+  ): Promise<ExataSyncFuncionariosResultado> {
+    return firstValueFrom(
+      this.http.post<ExataSyncFuncionariosResultado>(
+        `${this.apiUrl}/exata/funcionarios`,
+        { empresasExataIds, usuario }
+      )
+    );
   }
 }

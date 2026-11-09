@@ -89,6 +89,235 @@
     </div>
   }
 
+  <div class="results-card exata-card">
+    <div class="marcacoes-header">
+      <div>
+        <strong>ExataWeb — empresas e funcionários</strong>
+        <p>
+          Conta global configurada no <code>backend/.env</code>. A integração é somente leitura:
+          descobre todas as empresas da conta, permite ajustar o vínculo com a empresa local e
+          importa os funcionários de cada empresa ativa.
+        </p>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-outline" (click)="sincronizarEmpresasExata()"
+          [disabled]="isSincronizandoExataEmpresas() || isSincronizandoExataFuncionarios()">
+          @if (isSincronizandoExataEmpresas()) {
+            <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+          } @else {
+            <lucide-icon name="building-2" [size]="16"></lucide-icon>
+          }
+          Descobrir empresas
+        </button>
+        <button class="btn btn-primary" (click)="sincronizarFuncionariosExata()"
+          [disabled]="isSincronizandoExataEmpresas() || isSincronizandoExataFuncionarios() || exataEmpresas().length === 0">
+          @if (isSincronizandoExataFuncionarios() && exataEmpresaSyncId() === null) {
+            <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+          } @else {
+            <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
+          }
+          Sincronizar funcionários
+        </button>
+      </div>
+    </div>
+
+    @if (isLoadingExata()) {
+      <div class="loading-container">
+        <div class="spinner"></div>
+        <p>Carregando empresas da Exata...</p>
+      </div>
+    } @else {
+      <div class="vinculos-resumo">
+        @if (exataConta(); as conta) {
+          <span><strong>{{ conta.nome }}</strong> — conta ExataWeb</span>
+          @if (conta.ultima_execucao) {
+            <span>
+              Última execução: {{ conta.ultima_execucao.iniciado_em | date:'dd/MM/yyyy HH:mm' }}
+              <span class="badge"
+                [class.status-ok]="conta.ultima_execucao.status === 'CONCLUIDO'"
+                [class.status-parcial]="conta.ultima_execucao.status === 'PARCIAL'"
+                [class.status-falta]="conta.ultima_execucao.status === 'ERRO'"
+              >{{ conta.ultima_execucao.tipo }}</span>
+            </span>
+          } @else {
+            <span class="texto-suave">Nenhuma sincronização da Exata executada</span>
+          }
+        }
+        @if (exataResumo(); as resumo) {
+          <span><strong>{{ resumo.total }}</strong> empresa(s)</span>
+          <span><strong>{{ resumo.mapeadas }}</strong> mapeada(s)</span>
+          @if (resumo.semMapeamento > 0) {
+            <span class="texto-alerta"><strong>{{ resumo.semMapeamento }}</strong> sem empresa local</span>
+          }
+          @if (resumo.inativas > 0) {
+            <span><strong>{{ resumo.inativas }}</strong> inativa(s)</span>
+          }
+        }
+      </div>
+
+      @if (exataErro()) {
+        <div class="sync-banner erro">
+          <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
+          <span>{{ exataErro() }}</span>
+        </div>
+      }
+
+      @if (exataEmpresasResultado(); as resultado) {
+        <div class="marcacoes-resultado">
+          <div class="sync-resultado-header">
+            <div>
+              <strong>Descoberta de empresas</strong>
+              <span class="sync-duracao">{{ resultado.duracaoMs }} ms</span>
+            </div>
+            <span class="badge"
+              [class.status-ok]="resultado.status === 'CONCLUIDO'"
+              [class.status-parcial]="resultado.status === 'PARCIAL'"
+              [class.status-falta]="resultado.status === 'ERRO'"
+            >{{ resultado.status }}</span>
+          </div>
+          <div class="vinculos-resumo">
+            <span>{{ resultado.recebidas }} recebida(s)</span>
+            <span>{{ resultado.inseridas }} nova(s)</span>
+            <span>{{ resultado.atualizadas }} atualizada(s)</span>
+            <span>{{ resultado.mapeadas }} mapeada(s)</span>
+            @if (resultado.semMapeamento > 0) {
+              <span class="texto-alerta">{{ resultado.semMapeamento }} sem empresa local</span>
+            }
+          </div>
+        </div>
+      }
+
+      @if (exataFuncionariosResultado(); as resultado) {
+        <div class="marcacoes-resultado">
+          <div class="sync-resultado-header">
+            <div>
+              <strong>Sincronização de funcionários</strong>
+              <span class="sync-duracao">{{ resultado.duracaoMs }} ms</span>
+            </div>
+            <span class="badge"
+              [class.status-ok]="resultado.status === 'CONCLUIDO'"
+              [class.status-parcial]="resultado.status === 'PARCIAL'"
+              [class.status-falta]="resultado.status === 'ERRO'"
+            >{{ resultado.status }}</span>
+          </div>
+          <div class="vinculos-resumo">
+            <span>{{ resultado.recebidos }} recebido(s)</span>
+            <span>{{ resumoExataFuncionarios(resultado) }}</span>
+          </div>
+          @if (temErroExataFuncionarios(resultado)) {
+            <div class="sync-empresas">
+              @for (empresa of resultado.empresas; track empresa.empresa_exata_id) {
+                @if (empresa.erro) {
+                  <div class="sync-empresa sync-empresa-erro">
+                    <div class="sync-empresa-titulo">
+                      <strong>{{ empresa.descricao || empresa.empresasistema }}</strong>
+                    </div>
+                    <p class="sync-erro-texto">
+                      <lucide-icon name="alert-circle" [size]="14"></lucide-icon>
+                      {{ empresa.erro }}
+                    </p>
+                  </div>
+                }
+              }
+            </div>
+          }
+        </div>
+      }
+
+      @if (exataEmpresas().length === 0) {
+        <div class="empty-state">
+          <lucide-icon name="building-2" [size]="40"></lucide-icon>
+          <h3>Nenhuma empresa da Exata descoberta</h3>
+          <p>Use "Descobrir empresas" para importar a lista da conta ExataWeb.</p>
+        </div>
+      } @else {
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Empresa Exata</th>
+                <th>Empresa local</th>
+                <th>Funcionários</th>
+                <th>Última descoberta</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (empresa of exataEmpresas(); track empresa.id) {
+                <tr>
+                  <td>
+                    <strong>{{ empresa.descricao || '(sem descrição)' }}</strong>
+                    <span class="texto-suave d-block">
+                      empresasistema {{ empresa.empresasistema }}
+                      @if (empresa.empresacliente !== null) {
+                        · cliente {{ empresa.empresacliente }}
+                      }
+                    </span>
+                  </td>
+                  <td>
+                    <select [value]="empresa.empresa_id ?? ''"
+                      (change)="mapearEmpresaExata(empresa, $any($event.target).value)"
+                      [disabled]="isSincronizandoExataEmpresas() || isSincronizandoExataFuncionarios()">
+                      <option value="">Sem empresa local</option>
+                      @for (local of exataEmpresasLocais(); track local.id) {
+                        <option [value]="local.id">{{ local.nome }}</option>
+                      }
+                    </select>
+                    @if (!empresa.empresa_id) {
+                      <span class="texto-alerta d-block">Mapeamento pendente</span>
+                    }
+                  </td>
+                  <td>{{ empresa.total_funcionarios }}</td>
+                  <td>
+                    @if (empresa.sincronizado_em) {
+                      {{ empresa.sincronizado_em | date:'dd/MM/yyyy HH:mm' }}
+                    } @else {
+                      <span class="texto-suave">—</span>
+                    }
+                  </td>
+                  <td>
+                    @if (empresa.ativo) {
+                      <span class="badge status-ok">Ativa</span>
+                    } @else {
+                      <span class="badge status-falta">Inativa</span>
+                    }
+                  </td>
+                  <td>
+                    <div class="acoes">
+                      <button class="btn btn-outline btn-sm" (click)="sincronizarFuncionariosExata(empresa)"
+                        [disabled]="isSincronizandoExataFuncionarios() || !empresa.ativo"
+                        title="Importar os funcionários desta empresa">
+                        @if (isSincronizandoExataFuncionarios() && exataEmpresaSyncId() === empresa.id) {
+                          <lucide-icon name="loader-circle" [size]="14" class="spin"></lucide-icon>
+                        } @else {
+                          <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
+                        }
+                        Sincronizar
+                      </button>
+                      <button class="btn btn-outline btn-sm" (click)="toggleAtivoExata(empresa)"
+                        [title]="empresa.ativo ? 'Desativar' : 'Ativar'">
+                        <lucide-icon [name]="empresa.ativo ? 'ban' : 'check-circle'" [size]="14"></lucide-icon>
+                        {{ empresa.ativo ? 'Desativar' : 'Ativar' }}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (exataResumo()?.semMapeamento) {
+          <p class="marcacoes-aviso">
+            <lucide-icon name="info" [size]="14"></lucide-icon>
+            Empresas sem empresa local têm os funcionários importados para a Exata, mas não são
+            incluídas no cadastro local até o mapeamento ser ajustado.
+          </p>
+        }
+      }
+    }
+  </div>
+
   <div class="results-card vinculos-card">
     <div class="marcacoes-header">
       <div>
@@ -1086,7 +1315,13 @@
           <tbody>
             @for (e of empresas(); track e.id) {
               <tr>
-                <td><strong>{{ e.nome }}</strong></td>
+                <td>
+                  <strong>{{ e.nome }}</strong>
+                  @if (e.provedor === 'exata') {
+                    <span class="badge status-ok d-block">ExataWeb</span>
+                    <span class="texto-suave">Credenciais em backend/.env</span>
+                  }
+                </td>
                 <td>{{ e.email }}</td>
                 <td class="chave-cell">{{ e.chave }}</td>
                 <td>{{ e.empresa_nome || 'Automático' }}</td>
@@ -1099,6 +1334,9 @@
                 </td>
                 <td>
                   <div class="acoes">
+                    @if (e.provedor === 'exata') {
+                      <span class="texto-suave">Gerencie esta conta no painel ExataWeb acima</span>
+                    } @else {
                     <button class="btn btn-outline btn-sm" (click)="sincronizarEmpresa(e)"
                       [disabled]="isSincronizando() || !e.ativo"
                       title="Sincronizar funcionários e relógios desta empresa">
@@ -1118,6 +1356,7 @@
                       <lucide-icon [name]="e.ativo ? 'ban' : 'check-circle'" [size]="14"></lucide-icon>
                       {{ e.ativo ? 'Desativar' : 'Ativar' }}
                     </button>
+                    }
                   </div>
                 </td>
               </tr>

@@ -5,6 +5,12 @@ import { EmpresaConfig, EmpresaConfigService } from '../../../core/services/empr
 import {
   ExecutarMarcacoesOptions,
   ExecutarVinculosOptions,
+  ExataConta,
+  ExataEmpresa,
+  ExataListaResultado,
+  ExataResumo,
+  ExataSyncEmpresasResultado,
+  ExataSyncFuncionariosResultado,
   MarcacoesSyncResultado,
   MarcacoesSyncStats,
   MarcacoesSyncStatus,
@@ -129,12 +135,150 @@ export class EmpresasConfig implements OnInit {
   webhookType = signal('Marcacao');
   webhookUri = signal('');
 
+  // ExataWeb — empresas e funcionários (Fase 2, somente leitura)
+  exataConta = signal<ExataConta | null>(null);
+  exataEmpresas = signal<ExataEmpresa[]>([]);
+  exataEmpresasLocais = signal<Array<{ id: number; nome: string }>>([]);
+  exataResumo = signal<ExataResumo | null>(null);
+  isLoadingExata = signal(false);
+  isSincronizandoExataEmpresas = signal(false);
+  isSincronizandoExataFuncionarios = signal(false);
+  exataEmpresaSyncId = signal<number | null>(null);
+  exataErro = signal<string | null>(null);
+  exataEmpresasResultado = signal<ExataSyncEmpresasResultado | null>(null);
+  exataFuncionariosResultado = signal<ExataSyncFuncionariosResultado | null>(null);
+
   async ngOnInit() {
     await Promise.all([
       this.carregar(),
       this.carregarStatusMarcacoes(),
       this.carregarStatusVinculos(),
+      this.carregarExata(),
     ]);
+  }
+
+  async carregarExata() {
+    this.isLoadingExata.set(true);
+    this.exataErro.set(null);
+    try {
+      const resultado = await this.syncService.listarExata();
+      if (!resultado) return;
+      this.aplicarEstadoExata(resultado);
+    } catch (error: any) {
+      this.exataErro.set(error?.error?.error || 'Não foi possível carregar as empresas da Exata');
+    } finally {
+      this.isLoadingExata.set(false);
+    }
+  }
+
+  private aplicarEstadoExata(resultado: ExataListaResultado) {
+    this.exataConta.set(resultado.conta);
+    this.exataEmpresas.set(resultado.empresas || []);
+    this.exataEmpresasLocais.set(resultado.empresasLocais || []);
+    this.exataResumo.set(resultado.resumo || null);
+  }
+
+  async sincronizarEmpresasExata() {
+    this.isSincronizandoExataEmpresas.set(true);
+    this.exataErro.set(null);
+    this.exataEmpresasResultado.set(null);
+
+    try {
+      const resultado = await this.syncService.sincronizarEmpresasExata();
+      this.exataEmpresasResultado.set(resultado);
+
+      if (resultado.status === 'CONCLUIDO') {
+        this.toastService.success(`${resultado.recebidas} empresa(s) descoberta(s) na Exata`);
+      } else if (resultado.status === 'PARCIAL') {
+        this.toastService.warning('Descoberta concluída com falhas em algumas empresas');
+      } else {
+        this.toastService.error('Não foi possível descobrir as empresas da Exata');
+      }
+
+      await this.carregarExata();
+      if (this.showHistorico()) await this.carregarHistorico();
+    } catch (error: any) {
+      const mensagem = error?.error?.error || 'Erro ao sincronizar empresas da Exata';
+      this.exataErro.set(mensagem);
+      this.toastService.error(mensagem);
+    } finally {
+      this.isSincronizandoExataEmpresas.set(false);
+    }
+  }
+
+  async sincronizarFuncionariosExata(empresa?: ExataEmpresa) {
+    if (empresa) this.exataEmpresaSyncId.set(empresa.id);
+    this.isSincronizandoExataFuncionarios.set(true);
+    this.exataErro.set(null);
+    this.exataFuncionariosResultado.set(null);
+
+    try {
+      const resultado = await this.syncService.sincronizarFuncionariosExata(
+        empresa ? [empresa.id] : undefined
+      );
+      this.exataFuncionariosResultado.set(resultado);
+
+      if (resultado.status === 'CONCLUIDO') {
+        this.toastService.success(`${resultado.inseridos + resultado.atualizados} funcionário(s) sincronizado(s)`);
+      } else if (resultado.status === 'PARCIAL') {
+        this.toastService.warning('Sincronização concluída com falhas em algumas empresas');
+      } else {
+        this.toastService.error('Não foi possível sincronizar os funcionários da Exata');
+      }
+
+      await this.carregarExata();
+      if (this.showHistorico()) await this.carregarHistorico();
+    } catch (error: any) {
+      const mensagem = error?.error?.error || 'Erro ao sincronizar funcionários da Exata';
+      this.exataErro.set(mensagem);
+      this.toastService.error(mensagem);
+    } finally {
+      this.isSincronizandoExataFuncionarios.set(false);
+      this.exataEmpresaSyncId.set(null);
+    }
+  }
+
+  async mapearEmpresaExata(empresa: ExataEmpresa, valor: string) {
+    const empresaId = valor ? Number(valor) : null;
+    try {
+      const atualizada = await this.syncService.atualizarEmpresaExata(empresa.id, {
+        empresa_id: empresaId,
+      });
+      this.exataEmpresas.update((lista) =>
+        lista.map((item) => (item.id === empresa.id ? { ...item, ...atualizada } : item))
+      );
+      this.toastService.success('Mapeamento atualizado');
+      await this.carregarExata();
+    } catch (error: any) {
+      this.toastService.error(error?.error?.error || 'Erro ao atualizar o mapeamento');
+    }
+  }
+
+  async toggleAtivoExata(empresa: ExataEmpresa) {
+    try {
+      await this.syncService.atualizarEmpresaExata(empresa.id, {
+        ativo: empresa.ativo ? 0 : 1,
+      });
+      this.toastService.success(empresa.ativo ? 'Empresa desativada' : 'Empresa ativada');
+      await this.carregarExata();
+    } catch (error: any) {
+      this.toastService.error(error?.error?.error || 'Erro ao alterar o status da empresa');
+    }
+  }
+
+  resumoExataFuncionarios(resultado: ExataSyncFuncionariosResultado): string {
+    const partes = [
+      `${resultado.inseridos} novo(s)`,
+      `${resultado.atualizados} atualizado(s)`,
+    ];
+    if (resultado.locaisInseridos > 0) partes.push(`${resultado.locaisInseridos} incluído(s) no cadastro local`);
+    if (resultado.semEmpresaLocal > 0) partes.push(`${resultado.semEmpresaLocal} sem empresa local`);
+    if (resultado.ignorados > 0) partes.push(`${resultado.ignorados} ignorado(s)`);
+    return partes.join(' · ');
+  }
+
+  temErroExataFuncionarios(resultado: ExataSyncFuncionariosResultado): boolean {
+    return (resultado.empresas || []).some((empresa) => !!empresa.erro);
   }
 
   async carregar() {

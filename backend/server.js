@@ -12,6 +12,8 @@ const { createPontoVinculos } = require('./ponto-vinculos');
 const { createPontoAfd } = require('./ponto-afd');
 const { createRelatoriosConsolidados } = require('./relatorios-consolidados');
 const { createPontoWebhooks } = require('./ponto-webhooks');
+const { createExataApi } = require('./exata-api');
+const { createExataSync } = require('./exata-sync');
 
 // Carrega backend/.env (Node 20.12+). Se o arquivo não existir, usa o ambiente do processo.
 try {
@@ -106,6 +108,7 @@ let pontoVinculos;
 let pontoAfd;
 let relatoriosConsolidados;
 let pontoWebhooks;
+let exataSync;
 
 async function initializeDatabase() {
   try {
@@ -116,11 +119,12 @@ async function initializeDatabase() {
     pontoAfd = createPontoAfd({ pool, pontoApi });
     relatoriosConsolidados = createRelatoriosConsolidados({ pool });
     pontoWebhooks = createPontoWebhooks({ pool, pontoApi });
+    exataSync = createExataSync({ pool, exataApi: createExataApi() });
     await pontoSync.ensureSchema();
     await pontoVinculos.ensureSchema();
     await pontoAfd.ensureSchema();
     await pontoWebhooks.ensureSchema();
-    
+
     // Criar tabela de auditoria se não existir
     await pool.query(`
       CREATE TABLE IF NOT EXISTS audit_log (
@@ -206,11 +210,16 @@ async function initializeDatabase() {
         senha     VARCHAR(100) NOT NULL,
         chave     VARCHAR(100) NOT NULL,
         ativo     TINYINT(1) NOT NULL DEFAULT 1,
+        provedor  VARCHAR(20) NOT NULL DEFAULT 'pontocertificado',
         criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
         UNIQUE KEY uk_chave (chave)
       )
     `);
     console.log('Tabela empresas_config verificada/criada com sucesso');
+
+    // Migrações da integração ExataWeb (idempotentes). Executadas depois de
+    // empresas_config e marcacoes_ponto existirem.
+    await exataSync.ensureSchema();
 
     // Migração: empresa inicial opcional, configurada por variáveis de ambiente.
     // Nunca deixe credenciais fixas no código.
@@ -1833,7 +1842,7 @@ app.get('/api/empresas-config', async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT ec.id, ec.nome, ec.email, ec.chave, ec.ativo, ec.empresa_id,
-              ec.criado_em, e.nome AS empresa_nome
+              ec.provedor, ec.criado_em, e.nome AS empresa_nome
        FROM empresas_config ec
        LEFT JOIN empresas e ON e.id = ec.empresa_id
        ORDER BY ec.nome ASC`
@@ -1871,7 +1880,7 @@ app.post('/api/empresas-config', async (req, res) => {
     );
     const [rows] = await pool.query(
       `SELECT ec.id, ec.nome, ec.email, ec.chave, ec.ativo, ec.empresa_id,
-              ec.criado_em, e.nome AS empresa_nome
+              ec.provedor, ec.criado_em, e.nome AS empresa_nome
        FROM empresas_config ec
        LEFT JOIN empresas e ON e.id = ec.empresa_id
        WHERE ec.id = ?`,
@@ -1908,7 +1917,7 @@ app.put('/api/empresas-config/:id', async (req, res) => {
     }
     const [rows] = await pool.query(
       `SELECT ec.id, ec.nome, ec.email, ec.chave, ec.ativo, ec.empresa_id,
-              ec.criado_em, e.nome AS empresa_nome
+              ec.provedor, ec.criado_em, e.nome AS empresa_nome
        FROM empresas_config ec
        LEFT JOIN empresas e ON e.id = ec.empresa_id
        WHERE ec.id=?`,
@@ -2035,6 +2044,64 @@ app.get('/api/sincronizacao/marcacoes/status', async (req, res) => {
   } catch (e) {
     console.error('Erro ao consultar status das marcações:', e);
     res.status(500).json({ success: false, error: 'Erro ao consultar status das marcações' });
+  }
+});
+
+// ── ExataWeb — empresas e funcionários (somente leitura) ───────────────────
+
+// GET /api/sincronizacao/exata — empresas descobertas, mapeamento e resumo
+app.get('/api/sincronizacao/exata', async (req, res) => {
+  try {
+    const resultado = await exataSync.listarEmpresasExata();
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro ao listar empresas da Exata:', e);
+    res.status(500).json({ success: false, error: e.message || 'Erro ao listar empresas da Exata' });
+  }
+});
+
+// POST /api/sincronizacao/exata/empresas/sincronizar — descobre empresas
+app.post('/api/sincronizacao/exata/empresas/sincronizar', async (req, res) => {
+  const { usuario } = req.body || {};
+  try {
+    const resultado = await exataSync.sincronizarEmpresas({ usuario: usuario || null });
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro ao sincronizar empresas da Exata:', e);
+    res.status(500).json({ success: false, error: e.message || 'Erro ao sincronizar empresas da Exata' });
+  }
+});
+
+// PUT /api/sincronizacao/exata/empresas/:id — mapeamento manual/ativo
+app.put('/api/sincronizacao/exata/empresas/:id', async (req, res) => {
+  const { id } = req.params;
+  const { empresa_id, ativo } = req.body || {};
+  try {
+    const empresa = await exataSync.atualizarEmpresaExata(id, { empresa_id, ativo });
+    res.json({ success: true, empresa });
+  } catch (e) {
+    console.error('Erro ao atualizar empresa da Exata:', e);
+    res.status(400).json({ success: false, error: e.message || 'Erro ao atualizar empresa da Exata' });
+  }
+});
+
+// POST /api/sincronizacao/exata/funcionarios — importa funcionários (leitura)
+app.post('/api/sincronizacao/exata/funcionarios', async (req, res) => {
+  const { empresasExataIds, usuario } = req.body || {};
+
+  if (empresasExataIds !== undefined && !Array.isArray(empresasExataIds)) {
+    return res.status(400).json({ success: false, error: 'empresasExataIds deve ser um array' });
+  }
+
+  try {
+    const resultado = await exataSync.sincronizarFuncionarios({
+      empresasExataIds,
+      usuario: usuario || null,
+    });
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro ao sincronizar funcionários da Exata:', e);
+    res.status(500).json({ success: false, error: e.message || 'Erro ao sincronizar funcionários da Exata' });
   }
 });
 

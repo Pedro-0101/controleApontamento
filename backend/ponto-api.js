@@ -138,7 +138,7 @@ function createPontoApi(pool) {
 
   async function loadCompanies() {
     const [rows] = await pool.query(
-      'SELECT id, nome, email, senha, chave FROM empresas_config WHERE ativo = 1 ORDER BY nome ASC'
+      'SELECT id, nome, email, senha, chave FROM empresas_config WHERE ativo = 1 AND provedor <> \'exata\' ORDER BY nome ASC'
     );
     return rows;
   }

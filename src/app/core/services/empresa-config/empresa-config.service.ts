@@ -11,6 +11,7 @@ export interface EmpresaConfig {
   ativo: number;
   empresa_id?: number | null;
   empresa_nome?: string | null;
+  provedor?: string;
   criado_em?: string;
 }
 
