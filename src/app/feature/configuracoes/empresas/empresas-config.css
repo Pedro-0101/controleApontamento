@@ -125,6 +125,90 @@
   border-color: var(--st-late-bd);
 }
 
+.marcacoes-card {
+  margin-bottom: var(--spacing-lg);
+  padding: 16px;
+}
+
+.marcacoes-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.marcacoes-header p {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: var(--color-gray-500);
+}
+
+.marcacoes-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  align-items: end;
+  gap: 12px;
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px solid var(--color-gray-200, #e5e7eb);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-gray-50, #f9fafb);
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.campo span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-gray-500);
+}
+
+.campo input,
+.campo select {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--color-gray-300, #d1d5db);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-surface, #fff);
+  color: var(--color-gray-800, #1f2937);
+  font-size: 0.82rem;
+}
+
+.campo input:focus,
+.campo select:focus {
+  outline: 2px solid var(--color-primary, #2563eb);
+  outline-offset: -1px;
+}
+
+.marcacoes-resultado {
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px solid var(--color-gray-200, #e5e7eb);
+  border-radius: var(--radius-md, 8px);
+}
+
+.marcacoes-aviso {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  color: var(--color-gray-500);
+}
+
+.texto-suave {
+  color: var(--color-gray-500);
+  font-size: 0.78rem;
+}
+
 .historico-card {
   margin-bottom: var(--spacing-lg);
 }

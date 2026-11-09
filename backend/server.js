@@ -1968,6 +1968,61 @@ app.get('/api/sincronizacao/historico', async (req, res) => {
   }
 });
 
+// ── Importação de marcações de ponto (Fase 3) ──────────────────────────────
+
+// POST /api/sincronizacao/marcacoes — carga histórica ou incremental
+// Body: { empresaConfigIds?: number[], modo: 'periodo'|'incremental',
+//         dataInicio?: string, dataFim?: string,
+//         matriculaFuncionario?: string, numSerieRelogio?: string, usuario?: string }
+app.post('/api/sincronizacao/marcacoes', async (req, res) => {
+  const {
+    empresaConfigIds,
+    modo,
+    dataInicio,
+    dataFim,
+    matriculaFuncionario,
+    numSerieRelogio,
+    usuario,
+  } = req.body || {};
+
+  if (empresaConfigIds !== undefined && !Array.isArray(empresaConfigIds)) {
+    return res.status(400).json({ success: false, error: 'empresaConfigIds deve ser um array' });
+  }
+  if (modo !== undefined && modo !== 'periodo' && modo !== 'incremental') {
+    return res.status(400).json({ success: false, error: "modo deve ser 'periodo' ou 'incremental'" });
+  }
+  if (modo === 'periodo' && (!dataInicio || !dataFim)) {
+    return res.status(400).json({ success: false, error: 'Informe dataInicio e dataFim para importar por período' });
+  }
+
+  try {
+    const resultado = await pontoSync.runMarcacoesSync({
+      companyIds: empresaConfigIds,
+      modo: modo || 'incremental',
+      dataInicio,
+      dataFim,
+      matriculaFuncionario: matriculaFuncionario || null,
+      numSerieRelogio: numSerieRelogio || null,
+      usuario: usuario || null,
+    });
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro na sincronização de marcações:', e);
+    res.status(500).json({ success: false, error: e.message || 'Erro ao sincronizar marcações' });
+  }
+});
+
+// GET /api/sincronizacao/marcacoes/status — último id importado por empresa
+app.get('/api/sincronizacao/marcacoes/status', async (req, res) => {
+  try {
+    const status = await pontoSync.getMarcacoesStatus();
+    res.json({ success: true, status });
+  } catch (e) {
+    console.error('Erro ao consultar status das marcações:', e);
+    res.status(500).json({ success: false, error: 'Erro ao consultar status das marcações' });
+  }
+});
+
 // Helper: obtém tokens ativos da API Ponto Certificado para todas as empresas.
 // Usa o cache do gerenciador; force=true renova todos.
 async function getActiveTokens({ force = false } = {}) {

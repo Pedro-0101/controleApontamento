@@ -89,6 +89,201 @@
     </div>
   }
 
+  <div class="results-card marcacoes-card">
+    <div class="marcacoes-header">
+      <div>
+        <strong>Marcações de ponto</strong>
+        <p>
+          Importe o histórico por período e mantenha a sincronização incremental
+          pelo último ID importado de cada empresa.
+        </p>
+      </div>
+      <button class="btn btn-outline" (click)="sincronizarIncrementalTodas()"
+        [disabled]="isImportandoMarcacoes()">
+        @if (isImportandoMarcacoes() && sincronizandoIncrementalId() === null) {
+          <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+        } @else {
+          <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
+        }
+        Sincronizar incremental
+      </button>
+    </div>
+
+    <div class="marcacoes-form">
+      <label class="campo">
+        <span>Data inicial</span>
+        <input type="date" [value]="dataInicio()"
+          (input)="dataInicio.set($any($event.target).value)" />
+      </label>
+      <label class="campo">
+        <span>Data final</span>
+        <input type="date" [value]="dataFim()"
+          (input)="dataFim.set($any($event.target).value)" />
+      </label>
+      <label class="campo">
+        <span>Empresa da API</span>
+        <select [value]="empresaMarcacoesFiltro()"
+          (change)="empresaMarcacoesFiltro.set($any($event.target).value)">
+          <option value="">Todas as empresas</option>
+          @for (e of empresas(); track e.id) {
+            <option [value]="e.id">{{ e.nome }}</option>
+          }
+        </select>
+      </label>
+      <label class="campo">
+        <span>Matrícula (opcional)</span>
+        <input type="text" placeholder="Todas" [value]="matriculaFiltro()"
+          (input)="matriculaFiltro.set($any($event.target).value)" />
+      </label>
+      <label class="campo">
+        <span>Relógio (opcional)</span>
+        <input type="text" placeholder="Todos" [value]="relogioFiltro()"
+          (input)="relogioFiltro.set($any($event.target).value)" />
+      </label>
+      <button class="btn btn-primary" (click)="importarPeriodo()"
+        [disabled]="isImportandoMarcacoes()">
+        @if (isImportandoMarcacoes()) {
+          <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+        } @else {
+          <lucide-icon name="calendar-search" [size]="16"></lucide-icon>
+        }
+        Importar período
+      </button>
+    </div>
+
+    @if (marcacoesErro()) {
+      <div class="sync-banner erro">
+        <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
+        <span>{{ marcacoesErro() }}</span>
+      </div>
+    }
+
+    @if (ultimoResultadoMarcacoes(); as resultado) {
+      <div class="marcacoes-resultado">
+        <div class="sync-resultado-header">
+          <div>
+            <strong>Resultado da importação</strong>
+            <span class="sync-duracao">{{ resultado.duracaoMs }} ms</span>
+          </div>
+          <span
+            class="badge"
+            [class.status-ok]="resultado.status === 'CONCLUIDO'"
+            [class.status-parcial]="resultado.status === 'PARCIAL'"
+            [class.status-falta]="resultado.status === 'ERRO'"
+          >{{ resultado.status }}</span>
+        </div>
+
+        <div class="sync-empresas">
+          @for (empresa of resultado.empresas; track empresa.empresa_config_id) {
+            <div class="sync-empresa" [class.sync-empresa-erro]="empresa.erro">
+              <div class="sync-empresa-titulo">
+                <strong>{{ empresa.nome }}</strong>
+                <span class="sync-empresa-local">
+                  @if (empresa.modo === 'periodo') {
+                    {{ empresa.dataInicio }} — {{ empresa.dataFim }}
+                    ({{ empresa.periodos }} dia(s))
+                  } @else {
+                    Incremental
+                  }
+                </span>
+              </div>
+
+              @if (empresa.erro) {
+                <p class="sync-erro-texto">
+                  <lucide-icon name="alert-circle" [size]="14"></lucide-icon>
+                  {{ empresa.erro }}
+                </p>
+              } @else {
+                <div class="sync-linha">
+                  <span class="sync-recurso">Marcações</span>
+                  <span>{{ resumoMarcacoes(empresa.marcacoes) }}</span>
+                </div>
+                <div class="sync-linha">
+                  <span class="sync-recurso">Último ID</span>
+                  <span>{{ empresa.ultimo_id ?? 0 }}</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    @if (isLoadingMarcacoesStatus()) {
+      <div class="loading-container">
+        <div class="spinner"></div>
+        <p>Carregando status das marcações...</p>
+      </div>
+    } @else if (marcacoesStatus().length === 0) {
+      <div class="empty-state">
+        <lucide-icon name="clock" [size]="40"></lucide-icon>
+        <h3>Nenhuma empresa de API cadastrada</h3>
+        <p>Cadastre uma empresa para importar as marcações de ponto.</p>
+      </div>
+    } @else {
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Empresa</th>
+              <th>Última carga</th>
+              <th>Último ID</th>
+              <th>Última importação</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of marcacoesStatus(); track item.empresa_config_id) {
+              <tr>
+                <td>
+                  <strong>{{ item.nome }}</strong>
+                  @if (!item.ativo) {
+                    <span class="badge status-falta">Inativa</span>
+                  }
+                </td>
+                <td>{{ tipoMarcacoesLabel(item.ultima_sincronizacao_tipo) }}</td>
+                <td>
+                  @if (item.ultimo_id > 0) {
+                    {{ item.ultimo_id }}
+                  } @else {
+                    <span class="texto-suave">Nenhuma carga</span>
+                  }
+                </td>
+                <td>
+                  @if (item.ultima_sincronizacao_em) {
+                    {{ item.ultima_sincronizacao_em | date:'dd/MM/yyyy HH:mm' }}
+                    <span class="texto-suave">({{ item.ultimo_total_importado }} registro(s))</span>
+                  } @else {
+                    <span class="texto-suave">—</span>
+                  }
+                </td>
+                <td>
+                  <button class="btn btn-outline btn-sm" (click)="sincronizarIncrementalEmpresa(item)"
+                    [disabled]="isImportandoMarcacoes() || !item.ativo"
+                    title="Importar marcações novas desta empresa">
+                    @if (sincronizandoIncrementalId() === item.empresa_config_id) {
+                      <lucide-icon name="loader-circle" [size]="14" class="spin"></lucide-icon>
+                    } @else {
+                      <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
+                    }
+                    Incremental
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (temEmpresaSemCarga()) {
+        <p class="marcacoes-aviso">
+          <lucide-icon name="info" [size]="14"></lucide-icon>
+          Empresas sem carga realizada: o primeiro incremental importa todo o histórico
+          disponível. Prefira usar <strong>Importar período</strong> na primeira carga.
+        </p>
+      }
+    }
+  </div>
+
   @if (showHistorico()) {
     <div class="results-card historico-card">
       <div class="historico-header">
@@ -113,6 +308,7 @@
             <thead>
               <tr>
                 <th>Data</th>
+                <th>Tipo</th>
                 <th>Status</th>
                 <th>Empresas</th>
                 <th>Duração</th>
@@ -123,6 +319,7 @@
               @for (item of historico(); track item.id) {
                 <tr>
                   <td>{{ item.iniciado_em | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+                  <td>{{ item.tipo }}</td>
                   <td>
                     <span
                       class="badge"

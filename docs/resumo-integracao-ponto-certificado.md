@@ -1,7 +1,7 @@
 # Resumo de Integração — Ponto Certificado
 
 > Documento destinado ao time comercial para avaliação de compatibilidade com sistemas de gestão de ponto.
-> Atualizado em: Setembro 2026
+> Atualizado em: Novembro 2026
 
 ---
 
@@ -222,7 +222,7 @@ Divisão adotada para implementar a integração neste sistema:
 |---|---|---|
 | **Fase 1 — Autenticação e Segurança** | Token por empresa, cache/renovação automática, detecção de token expirado, tratamento de empresas desativadas e remoção de credenciais do frontend. | ✅ **Concluída em 07/11/2026** (commit `725559d`) |
 | **Fase 2 — Sincronização de Funcionários e Relógios** | Carga inicial e sincronização de cadastro de funcionários e REPs. | ✅ **Concluída em 07/11/2026** |
-| **Fase 3 — Marcações** | Carga histórica por período e sincronização incremental por último ID. | ⬜ Pendente |
+| **Fase 3 — Marcações** | Carga histórica por período e sincronização incremental por último ID. | ✅ **Concluída em 09/11/2026** |
 | **Fase 4 — Vínculos Funcionário-Relógio** | Vinculação/desvinculação individual e em lote. | ⬜ Pendente |
 | **Fase 5 — AFD, Relatórios e Webhooks** | Geração de AFD, relatórios consolidados e notificações em tempo real. | ⬜ Pendente |
 
@@ -245,6 +245,16 @@ Divisão adotada para implementar a integração neste sistema:
 - Novos endpoints: `POST /api/sincronizacao/executar` e `GET /api/sincronizacao/historico`.
 - Cada execução é registrada em `sincronizacao_execucao` (status, duração, empresas processadas e resumo em JSON).
 - Tela **Configurações → Empresas da API** ganhou os botões *Sincronizar tudo*, *Sincronizar* (por empresa), *Histórico* e o campo de empresa local padrão por conta da API.
+
+**Entregas da Fase 3 já implementadas:**
+
+- `backend/ponto-sync.js` importa marcações via `SelecionaMarcacoes` (carga por período) e `SelecionaMarcacoesPosteriorIdInformado` (incremental pelo último ID) de todas as empresas ativas ou de uma empresa específica.
+- A carga por período divide o intervalo em blocos diários (máximo de 3.660 dias por execução) para evitar timeouts da API externa; aceita filtros opcionais de matrícula e número de série do relógio.
+- Marcações são gravadas em `marcacoes_ponto` com chave única `(empresa_config_id, marcacao_id)`, em lotes de 500 registros, preservando NSR, GPS, local, tipo de registro, formulário e respostas.
+- A empresa local de cada marcação é resolvida pela matrícula em `qrcod_2023`; quando a matrícula não existe ou pertence a mais de uma empresa, usa-se a empresa padrão da conta da API.
+- O progresso incremental fica em `marcacao_sync_estado` (`ultimo_id`, data/tipo da última sincronização e total importado). O ID só avança, nunca retrocede.
+- Novos endpoints: `POST /api/sincronizacao/marcacoes` (body `empresaConfigIds`, `modo` `periodo`/`incremental`, `dataInicio`, `dataFim`, `matriculaFuncionario`, `numSerieRelogio`) e `GET /api/sincronizacao/marcacoes/status`.
+- Tela **Configurações → Empresas da API** ganhou o painel *Marcações de ponto* com formulário de importação por período (filtros de empresa, matrícula e relógio), botão de sincronização incremental, status por empresa (última carga, último ID e total importado) e aviso para a primeira carga.
 
 ---
 

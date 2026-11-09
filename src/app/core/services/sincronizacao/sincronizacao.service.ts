@@ -55,6 +55,58 @@ export interface ExecutarSincronizacaoOptions {
   usuario?: string;
 }
 
+export interface MarcacoesSyncStats {
+  inseridos: number;
+  atualizados: number;
+  inalterados: number;
+  ignorados: number;
+  total: number;
+  ultimoId: number;
+}
+
+export interface MarcacoesSyncEmpresa {
+  empresa_config_id: number;
+  nome: string;
+  empresa_padrao: string | null;
+  modo: 'periodo' | 'incremental';
+  dataInicio: string | null;
+  dataFim: string | null;
+  periodos: number | null;
+  marcacoes: MarcacoesSyncStats | null;
+  ultimo_id: number | null;
+  ultimo_id_anterior: number | null;
+  erro: string | null;
+}
+
+export interface MarcacoesSyncResultado {
+  success: boolean;
+  execucaoId: number;
+  status: 'CONCLUIDO' | 'PARCIAL' | 'ERRO';
+  modo: 'periodo' | 'incremental';
+  duracaoMs: number;
+  empresas: MarcacoesSyncEmpresa[];
+}
+
+export interface MarcacoesSyncStatus {
+  empresa_config_id: number;
+  nome: string;
+  ativo: number;
+  ultimo_id: number;
+  ultima_sincronizacao_em: string | null;
+  ultima_sincronizacao_tipo: string | null;
+  ultimo_total_importado: number;
+}
+
+export interface ExecutarMarcacoesOptions {
+  empresaConfigIds?: number[];
+  modo: 'periodo' | 'incremental';
+  dataInicio?: string;
+  dataFim?: string;
+  matriculaFuncionario?: string;
+  numSerieRelogio?: string;
+  usuario?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SincronizacaoService {
   private http = inject(HttpClient);
@@ -73,5 +125,20 @@ export class SincronizacaoService {
       )
     );
     return r.success ? r.historico : [];
+  }
+
+  async executarMarcacoes(options: ExecutarMarcacoesOptions): Promise<MarcacoesSyncResultado> {
+    return firstValueFrom(
+      this.http.post<MarcacoesSyncResultado>(`${this.apiUrl}/marcacoes`, options)
+    );
+  }
+
+  async statusMarcacoes(): Promise<MarcacoesSyncStatus[]> {
+    const r = await firstValueFrom(
+      this.http.get<{ success: boolean; status: MarcacoesSyncStatus[] }>(
+        `${this.apiUrl}/marcacoes/status`
+      )
+    );
+    return r.success ? r.status : [];
   }
 }

@@ -1,8 +1,12 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { EmpresaConfig, EmpresaConfigService } from '../../../core/services/empresa-config/empresa-config.service';
 import {
+  ExecutarMarcacoesOptions,
+  MarcacoesSyncResultado,
+  MarcacoesSyncStats,
+  MarcacoesSyncStatus,
   SincronizacaoEmpresa,
   SincronizacaoHistorico,
   SincronizacaoResultado,
@@ -39,8 +43,25 @@ export class EmpresasConfig implements OnInit {
   isLoadingHistorico = signal(false);
   historico = signal<SincronizacaoHistorico[]>([]);
 
+  // Importação de marcações de ponto (Fase 3)
+  isLoadingMarcacoesStatus = signal(false);
+  isImportandoMarcacoes = signal(false);
+  sincronizandoIncrementalId = signal<number | null>(null);
+  marcacoesStatus = signal<MarcacoesSyncStatus[]>([]);
+  ultimoResultadoMarcacoes = signal<MarcacoesSyncResultado | null>(null);
+  marcacoesErro = signal<string | null>(null);
+  temEmpresaSemCarga = computed(() =>
+    this.marcacoesStatus().some((item) => Number(item.ultimo_id) === 0)
+  );
+
+  dataInicio = signal(this.isoDate(this.daysAgo(30)));
+  dataFim = signal(this.isoDate(new Date()));
+  empresaMarcacoesFiltro = signal('');
+  matriculaFiltro = signal('');
+  relogioFiltro = signal('');
+
   async ngOnInit() {
-    await this.carregar();
+    await Promise.all([this.carregar(), this.carregarStatusMarcacoes()]);
   }
 
   async carregar() {
@@ -147,6 +168,114 @@ export class EmpresasConfig implements OnInit {
     } finally {
       this.isLoadingHistorico.set(false);
     }
+  }
+
+  async carregarStatusMarcacoes() {
+    this.isLoadingMarcacoesStatus.set(true);
+    try {
+      this.marcacoesStatus.set(await this.syncService.statusMarcacoes());
+    } catch {
+      // O status é apenas informativo; não bloqueia o restante da tela.
+    } finally {
+      this.isLoadingMarcacoesStatus.set(false);
+    }
+  }
+
+  async importarPeriodo() {
+    const dataInicio = this.dataInicio();
+    const dataFim = this.dataFim();
+
+    if (!dataInicio || !dataFim) {
+      this.toastService.warning('Informe a data inicial e a data final');
+      return;
+    }
+    if (dataInicio > dataFim) {
+      this.toastService.warning('A data inicial deve ser anterior à data final');
+      return;
+    }
+
+    const empresa = this.empresaMarcacoesFiltro();
+    const matricula = this.matriculaFiltro().trim();
+    const relogio = this.relogioFiltro().trim();
+
+    await this.executarMarcacoes({
+      modo: 'periodo',
+      dataInicio,
+      dataFim,
+      empresaConfigIds: empresa ? [Number(empresa)] : undefined,
+      matriculaFuncionario: matricula || undefined,
+      numSerieRelogio: relogio || undefined,
+    });
+  }
+
+  async sincronizarIncrementalTodas() {
+    await this.executarMarcacoes({ modo: 'incremental' });
+  }
+
+  async sincronizarIncrementalEmpresa(empresa: MarcacoesSyncStatus) {
+    this.sincronizandoIncrementalId.set(empresa.empresa_config_id);
+    await this.executarMarcacoes({
+      modo: 'incremental',
+      empresaConfigIds: [empresa.empresa_config_id],
+    });
+  }
+
+  private async executarMarcacoes(options: ExecutarMarcacoesOptions) {
+    this.isImportandoMarcacoes.set(true);
+    this.marcacoesErro.set(null);
+    this.ultimoResultadoMarcacoes.set(null);
+
+    try {
+      const resultado = await this.syncService.executarMarcacoes(options);
+      this.ultimoResultadoMarcacoes.set(resultado);
+
+      if (resultado.status === 'CONCLUIDO') {
+        this.toastService.success('Marcações importadas com sucesso');
+      } else if (resultado.status === 'PARCIAL') {
+        this.toastService.warning('Importação concluída com falhas em algumas empresas');
+      } else {
+        this.toastService.error('Não foi possível importar as marcações');
+      }
+
+      await this.carregarStatusMarcacoes();
+      if (this.showHistorico()) await this.carregarHistorico();
+    } catch (error: any) {
+      const mensagem = error?.error?.error || 'Erro de comunicação com o servidor';
+      this.marcacoesErro.set(mensagem);
+      this.toastService.error(mensagem);
+    } finally {
+      this.isImportandoMarcacoes.set(false);
+      this.sincronizandoIncrementalId.set(null);
+    }
+  }
+
+  resumoMarcacoes(stats: MarcacoesSyncStats | null): string {
+    if (!stats) return '—';
+    const partes = [
+      `${stats.inseridos} nova(s)`,
+      `${stats.atualizados} atualizada(s)`,
+    ];
+    if (stats.ignorados > 0) partes.push(`${stats.ignorados} ignorada(s)`);
+    return partes.join(' · ');
+  }
+
+  tipoMarcacoesLabel(tipo: string | null): string {
+    if (!tipo) return 'Nenhuma carga';
+    if (tipo === 'INCREMENTAL') return 'Incremental';
+    if (tipo === 'PERIODO') return 'Período';
+    return tipo;
+  }
+
+  private daysAgo(days: number): Date {
+    const date = new Date();
+    date.setDate(date.getDate() - days);
+    return date;
+  }
+
+  private isoDate(date: Date): string {
+    const mes = String(date.getMonth() + 1).padStart(2, '0');
+    const dia = String(date.getDate()).padStart(2, '0');
+    return `${date.getFullYear()}-${mes}-${dia}`;
   }
 
   resumoStats(stats: SincronizacaoStats | null): string {

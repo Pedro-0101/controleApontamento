@@ -460,6 +460,11 @@ Guarde o maior `id` importado e chame `SelecionaMarcacoesPosteriorIdInformado` c
   `atualizarStatus`, `usuario`); o histórico fica em
   `GET /api/sincronizacao/historico`. A empresa local padrão dos novos
   funcionários é configurada em `empresas_config.empresa_id`.
+- **Marcações (Fase 3):** `POST /api/sincronizacao/marcacoes` executa
+  `SelecionaMarcacoes` (modo `periodo`, dividido em blocos diários) ou
+  `SelecionaMarcacoesPosteriorIdInformado` (modo `incremental`) e faz upsert em
+  `marcacoes_ponto`. O progresso fica em `marcacao_sync_estado`; o status por
+  empresa é exposto em `GET /api/sincronizacao/marcacoes/status`.
 
 ---
 
