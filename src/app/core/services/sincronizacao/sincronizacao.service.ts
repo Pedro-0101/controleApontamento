@@ -107,6 +107,146 @@ export interface ExecutarMarcacoesOptions {
   usuario?: string;
 }
 
+export type VinculoAcao = 'vincular' | 'desvincular';
+
+export interface VinculoAlteracao {
+  matricula: string;
+  nome: string;
+  empresa_config_id: number;
+  empresa_config_nome: string;
+  relogio_id: number | null;
+  num_serie: string;
+  descricao: string;
+  acao: VinculoAcao;
+}
+
+export interface VinculoPreviewResumo {
+  funcionarios: number;
+  relogios: number;
+  combinacoes: number;
+  alteracoes: number;
+  jaAplicados: number;
+  semEmpresa: number;
+  matriculasNaoEncontradas: number;
+  relogiosDesconhecidos: number;
+}
+
+export interface VinculoPreview {
+  success: boolean;
+  acao: VinculoAcao;
+  resumo: VinculoPreviewResumo;
+  alteracoes: VinculoAlteracao[];
+  truncado: boolean;
+  matriculasNaoEncontradas: string[];
+  relogiosDesconhecidos: string[];
+  semEmpresa: Array<{ matricula: string; nome: string }>;
+}
+
+export interface VinculoEmpresaResultado {
+  empresa_config_id: number;
+  nome: string;
+  vinculados: number;
+  desvinculados: number;
+  erros: number;
+  erro: string | null;
+}
+
+export interface VinculoAplicarResultado {
+  success: boolean;
+  execucaoId: number;
+  status: 'CONCLUIDO' | 'PARCIAL' | 'ERRO';
+  acao: VinculoAcao;
+  duracaoMs: number;
+  resumo: VinculoPreviewResumo;
+  empresas: VinculoEmpresaResultado[];
+  vinculados: number;
+  desvinculados: number;
+  erros: number;
+}
+
+export interface VinculoSyncEmpresaResultado {
+  empresa_config_id: number;
+  nome: string;
+  funcionarios: number;
+  vinculados: number;
+  desvinculados: number;
+  inalterados: number;
+  erros: number;
+  erro: string | null;
+}
+
+export interface VinculoSyncResultado {
+  success: boolean;
+  execucaoId: number;
+  status: 'CONCLUIDO' | 'PARCIAL' | 'ERRO';
+  duracaoMs: number;
+  resumo: {
+    funcionarios: number;
+    vinculados: number;
+    desvinculados: number;
+    inalterados: number;
+    erros: number;
+    semEmpresa: Array<{ matricula: string; nome: string }>;
+    empresas: VinculoSyncEmpresaResultado[];
+  };
+  empresas: VinculoSyncEmpresaResultado[];
+  vinculados: number;
+  desvinculados: number;
+  inalterados: number;
+  erros: number;
+}
+
+export interface VinculoStatus {
+  empresa_config_id: number;
+  nome: string;
+  ativo: number;
+  empresa_id: number | null;
+  empresa_nome: string | null;
+  ultima_sincronizacao_em: string | null;
+  ultima_sincronizacao_tipo: string | null;
+  ultimo_total_vinculado: number;
+  ultimo_total_desvinculado: number;
+  total_funcionarios: number;
+  total_vinculos_ativos: number;
+  total_relogios: number;
+}
+
+export interface VinculoFuncionarioOpcao {
+  id: number;
+  matricula: string;
+  nome: string;
+  ativo: number;
+  empresa_id: number | null;
+  empresa: string;
+}
+
+export interface VinculoRelogioOpcao {
+  id: number;
+  num_serie: string;
+  descricao: string;
+  ativo: number;
+  status: number;
+}
+
+export interface VinculoOpcoes {
+  funcionarios: VinculoFuncionarioOpcao[];
+  relogios: VinculoRelogioOpcao[];
+}
+
+export interface ExecutarVinculosOptions {
+  matriculas: string[];
+  numSeries: string[];
+  acao: VinculoAcao;
+  empresaConfigIds?: number[];
+  usuario?: string;
+}
+
+export interface SincronizarVinculosOptions {
+  empresaConfigIds?: number[];
+  matriculas?: string[];
+  usuario?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SincronizacaoService {
   private http = inject(HttpClient);
@@ -140,5 +280,43 @@ export class SincronizacaoService {
       )
     );
     return r.success ? r.status : [];
+  }
+
+  async previewVinculos(options: ExecutarVinculosOptions): Promise<VinculoPreview> {
+    return firstValueFrom(
+      this.http.post<VinculoPreview>(`${this.apiUrl}/vinculos/preview`, options)
+    );
+  }
+
+  async aplicarVinculos(options: ExecutarVinculosOptions): Promise<VinculoAplicarResultado> {
+    return firstValueFrom(
+      this.http.post<VinculoAplicarResultado>(`${this.apiUrl}/vinculos/aplicar`, options)
+    );
+  }
+
+  async sincronizarVinculos(options: SincronizarVinculosOptions = {}): Promise<VinculoSyncResultado> {
+    return firstValueFrom(
+      this.http.post<VinculoSyncResultado>(`${this.apiUrl}/vinculos/sincronizar`, options)
+    );
+  }
+
+  async statusVinculos(): Promise<VinculoStatus[]> {
+    const r = await firstValueFrom(
+      this.http.get<{ success: boolean; status: VinculoStatus[] }>(
+        `${this.apiUrl}/vinculos/status`
+      )
+    );
+    return r.success ? r.status : [];
+  }
+
+  async opcoesVinculos(): Promise<VinculoOpcoes> {
+    const r = await firstValueFrom(
+      this.http.get<{ success: boolean; funcionarios: VinculoFuncionarioOpcao[]; relogios: VinculoRelogioOpcao[] }>(
+        `${this.apiUrl}/vinculos/opcoes`
+      )
+    );
+    return r.success
+      ? { funcionarios: r.funcionarios || [], relogios: r.relogios || [] }
+      : { funcionarios: [], relogios: [] };
   }
 }

@@ -1,0 +1,296 @@
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1>Relatórios Consolidados</h1>
+      <p>Consolide marcações de várias empresas com filtros por período, relógio, funcionário e local.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" (click)="limparFiltros()" [disabled]="isLoading()">
+        <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
+        Limpar filtros
+      </button>
+      <button class="btn btn-primary" (click)="gerar()" [disabled]="isLoading()">
+        @if (isLoading()) {
+          <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+        } @else {
+          <lucide-icon name="bar-chart-3" [size]="16"></lucide-icon>
+        }
+        Gerar relatório
+      </button>
+    </div>
+  </div>
+
+  <div class="filters-card">
+    <div class="filter-grid">
+      <label class="campo">
+        <span>Data inicial *</span>
+        <input type="date" [value]="dataInicio()" (input)="dataInicio.set($any($event.target).value)"
+          [max]="dataFim()" />
+      </label>
+
+      <label class="campo">
+        <span>Data final *</span>
+        <input type="date" [value]="dataFim()" (input)="dataFim.set($any($event.target).value)"
+          [min]="dataInicio()" />
+      </label>
+
+      <label class="campo">
+        <span>Tipo de registro</span>
+        <select [value]="tipoRegistro() ?? ''"
+          (change)="onTipoRegistroChange($any($event.target).value)">
+          <option value="">Todos</option>
+          <option value="1">Entrada</option>
+          <option value="2">Saída</option>
+          <option value="3">Intervalo</option>
+          <option value="4">Volta intervalo</option>
+        </select>
+      </label>
+
+      <label class="campo campo-busca">
+        <span>Funcionário (nome ou matrícula)</span>
+        <input type="text" placeholder="Buscar funcionário..." [value]="busca()"
+          (input)="busca.set($any($event.target).value)" />
+      </label>
+
+      <div class="campo">
+        <span>Empresas ({{ empresasSelecionadas().length }})</span>
+        <app-multi-select-dropdown
+          [options]="empresaOptions()"
+          labelProp="nome"
+          valueProp="id"
+          [subLabelProp]="null"
+          placeholder="Todas as empresas"
+          searchPlaceholder="Buscar empresa..."
+          (selectionChange)="onEmpresasChange($event)">
+        </app-multi-select-dropdown>
+      </div>
+
+      <div class="campo">
+        <span>Empresas da API ({{ empresasConfigSelecionadas().length }})</span>
+        <app-multi-select-dropdown
+          [options]="empresaConfigOptions()"
+          labelProp="nome"
+          valueProp="id"
+          [subLabelProp]="null"
+          placeholder="Todas as contas"
+          searchPlaceholder="Buscar conta..."
+          (selectionChange)="onEmpresasConfigChange($event)">
+        </app-multi-select-dropdown>
+      </div>
+
+      <div class="campo">
+        <span>Relógios ({{ relogiosSelecionados().length }})</span>
+        <app-multi-select-dropdown
+          [options]="relogioOptions()"
+          labelProp="label"
+          valueProp="value"
+          subLabelProp="serie"
+          placeholder="Todos os relógios"
+          searchPlaceholder="Buscar relógio..."
+          (selectionChange)="onRelogiosChange($event)">
+        </app-multi-select-dropdown>
+      </div>
+
+      <div class="campo">
+        <span>Locais ({{ locaisSelecionados().length }})</span>
+        <app-multi-select-dropdown
+          [options]="localOptions()"
+          [subLabelProp]="null"
+          placeholder="Todos os locais"
+          searchPlaceholder="Buscar local..."
+          (selectionChange)="onLocaisChange($event)">
+        </app-multi-select-dropdown>
+      </div>
+    </div>
+  </div>
+
+  @if (resultado(); as relatorio) {
+    <div class="totais-grid">
+      <div class="total-card">
+        <span class="total-label">Registros</span>
+        <strong class="total-valor">{{ relatorio.totalGeral.registros }}</strong>
+        <span class="total-ajuda">{{ relatorio.periodo.dataInicio }} a {{ relatorio.periodo.dataFim }}</span>
+      </div>
+      <div class="total-card">
+        <span class="total-label">Funcionários</span>
+        <strong class="total-valor">{{ relatorio.totalGeral.funcionarios }}</strong>
+        <span class="total-ajuda">matrículas distintas</span>
+      </div>
+      <div class="total-card">
+        <span class="total-label">Empresas</span>
+        <strong class="total-valor">{{ relatorio.totalGeral.empresas }}</strong>
+        <span class="total-ajuda">com marcações no período</span>
+      </div>
+      <div class="total-card">
+        <span class="total-label">Relógios</span>
+        <strong class="total-valor">{{ relatorio.totalGeral.relogios }}</strong>
+        <span class="total-ajuda">dispositivos distintos</span>
+      </div>
+      <div class="total-card">
+        <span class="total-label">Dias</span>
+        <strong class="total-valor">{{ relatorio.totalGeral.dias }}</strong>
+        <span class="total-ajuda">dias com registros</span>
+      </div>
+    </div>
+
+    @if (relatorio.truncado) {
+      <div class="aviso-card">
+        <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
+        <span>
+          Exibindo os primeiros {{ relatorio.limite }} registros. Refine os filtros para visualizar e
+          exportar o restante.
+        </span>
+      </div>
+    }
+
+    <div class="results-card">
+      <div class="card-header">
+        <div>
+          <strong>Totais por empresa</strong>
+          <p>Consolidação das marcações filtradas por empresa local.</p>
+        </div>
+        <div class="export-actions">
+          <button class="btn btn-outline btn-sm" (click)="exportar('csv')"
+            [disabled]="isExportando() !== null">
+            @if (isExportando() === 'csv') {
+              <lucide-icon name="loader-circle" [size]="14" class="spin"></lucide-icon>
+            } @else {
+              <lucide-icon name="file-code" [size]="14"></lucide-icon>
+            }
+            CSV
+          </button>
+          <button class="btn btn-outline btn-sm" (click)="exportar('xls')"
+            [disabled]="isExportando() !== null">
+            @if (isExportando() === 'xls') {
+              <lucide-icon name="loader-circle" [size]="14" class="spin"></lucide-icon>
+            } @else {
+              <lucide-icon name="file-spreadsheet" [size]="14"></lucide-icon>
+            }
+            Excel
+          </button>
+          <button class="btn btn-outline btn-sm" (click)="exportar('pdf')"
+            [disabled]="isExportando() !== null">
+            @if (isExportando() === 'pdf') {
+              <lucide-icon name="loader-circle" [size]="14" class="spin"></lucide-icon>
+            } @else {
+              <lucide-icon name="printer" [size]="14"></lucide-icon>
+            }
+            PDF
+          </button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Empresa</th>
+              <th>Conta da API</th>
+              <th>Registros</th>
+              <th>Funcionários</th>
+              <th>Relógios</th>
+              <th>Dias</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (empresa of relatorio.porEmpresa; track empresa.empresa_nome + empresa.empresa_config_id) {
+              <tr>
+                <td><strong>{{ empresa.empresa_nome }}</strong></td>
+                <td class="texto-suave">{{ empresa.empresa_config_nome }}</td>
+                <td>{{ empresa.registros }}</td>
+                <td>{{ empresa.funcionarios }}</td>
+                <td>{{ empresa.relogios }}</td>
+                <td>{{ empresa.dias }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6" class="texto-suave">Nenhuma marcação encontrada.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="results-card">
+      <div class="card-header">
+        <div>
+          <strong>Registros consolidados</strong>
+          <p>{{ registros().length }} registro(s) — página {{ paginaAtual() }} de {{ totalPaginas() }}</p>
+        </div>
+        <div class="paginacao">
+          <button class="btn btn-outline btn-sm" (click)="paginaAnterior()"
+            [disabled]="paginaAtual() <= 1">
+            <lucide-icon name="chevron-left" [size]="14"></lucide-icon>
+            Anterior
+          </button>
+          <button class="btn btn-outline btn-sm" (click)="proximaPagina()"
+            [disabled]="paginaAtual() >= totalPaginas()">
+            Próxima
+            <lucide-icon name="chevron-right" [size]="14"></lucide-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-container table-registros">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Data/Hora</th>
+              <th>Matrícula</th>
+              <th>Funcionário</th>
+              <th>Empresa</th>
+              <th>Relógio</th>
+              <th>NSR</th>
+              <th>Tipo</th>
+              <th>Local</th>
+              <th>Fora da cerca</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (registro of registrosPagina(); track registro.id) {
+              <tr>
+                <td>{{ registro.data_marcacao | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+                <td>{{ registro.matricula }}</td>
+                <td>
+                  <strong>{{ registro.funcionario_nome || '—' }}</strong>
+                  @if (registro.cargo) {
+                    <span class="texto-suave d-block">{{ registro.cargo }}</span>
+                  }
+                </td>
+                <td>
+                  {{ registro.empresa_nome }}
+                  <span class="texto-suave d-block">{{ registro.empresa_config_nome }}</span>
+                </td>
+                <td>
+                  {{ registro.relogio_descricao || registro.num_serie_relogio }}
+                  <span class="texto-suave d-block">{{ registro.num_serie_relogio }}</span>
+                </td>
+                <td>{{ registro.nsr ?? '—' }}</td>
+                <td>{{ registro.tipo_registro_label }}</td>
+                <td>{{ registro.local || '—' }}</td>
+                <td>
+                  @if (registro.flag_fora_cerca) {
+                    <span class="badge badge-warning">Sim</span>
+                  } @else {
+                    <span class="texto-suave">Não</span>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="9" class="texto-suave">Nenhum registro para exibir.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  } @else if (!isLoading()) {
+    <div class="results-card empty-state">
+      <lucide-icon name="bar-chart-3" [size]="48"></lucide-icon>
+      <h3>Gere o relatório consolidado</h3>
+      <p>Selecione o período e os filtros desejados e clique em <strong>Gerar relatório</strong>.</p>
+    </div>
+  }
+</div>

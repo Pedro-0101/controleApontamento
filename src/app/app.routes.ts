@@ -24,6 +24,11 @@ export const routes: Routes = [
     canActivate: [authGuardGuard]
   },
   {
+    path: "relatorios-consolidados",
+    loadComponent: () => import('./feature/relatorios-consolidados/relatorios-consolidados').then(m => m.RelatoriosConsolidados),
+    canActivate: [authGuardGuard]
+  },
+  {
     path: "faltas",
     loadComponent: () => import('./feature/faltas/faltas').then(m => m.Faltas),
     canActivate: [authGuardGuard]

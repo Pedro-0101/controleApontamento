@@ -223,8 +223,8 @@ Divisão adotada para implementar a integração neste sistema:
 | **Fase 1 — Autenticação e Segurança** | Token por empresa, cache/renovação automática, detecção de token expirado, tratamento de empresas desativadas e remoção de credenciais do frontend. | ✅ **Concluída em 07/11/2026** (commit `725559d`) |
 | **Fase 2 — Sincronização de Funcionários e Relógios** | Carga inicial e sincronização de cadastro de funcionários e REPs. | ✅ **Concluída em 07/11/2026** |
 | **Fase 3 — Marcações** | Carga histórica por período e sincronização incremental por último ID. | ✅ **Concluída em 09/11/2026** |
-| **Fase 4 — Vínculos Funcionário-Relógio** | Vinculação/desvinculação individual e em lote. | ⬜ Pendente |
-| **Fase 5 — AFD, Relatórios e Webhooks** | Geração de AFD, relatórios consolidados e notificações em tempo real. | ⬜ Pendente |
+| **Fase 4 — Vínculos Funcionário-Relógio** | Vinculação/desvinculação individual e em lote. | ✅ **Concluída em 09/11/2026** |
+| **Fase 5 — AFD, Relatórios e Webhooks** | Geração de AFD, relatórios consolidados e notificações em tempo real. | ✅ **Concluída em 09/11/2026** |
 
 **Entregas da Fase 1 já implementadas:**
 
@@ -255,6 +255,35 @@ Divisão adotada para implementar a integração neste sistema:
 - O progresso incremental fica em `marcacao_sync_estado` (`ultimo_id`, data/tipo da última sincronização e total importado). O ID só avança, nunca retrocede.
 - Novos endpoints: `POST /api/sincronizacao/marcacoes` (body `empresaConfigIds`, `modo` `periodo`/`incremental`, `dataInicio`, `dataFim`, `matriculaFuncionario`, `numSerieRelogio`) e `GET /api/sincronizacao/marcacoes/status`.
 - Tela **Configurações → Empresas da API** ganhou o painel *Marcações de ponto* com formulário de importação por período (filtros de empresa, matrícula e relógio), botão de sincronização incremental, status por empresa (última carga, último ID e total importado) e aviso para a primeira carga.
+
+**Entregas da Fase 4 já implementadas:**
+
+- `backend/ponto-vinculos.js` concentra a prévia, a aplicação e a sincronização de vínculos funcionário-relógio, sempre usando o token centralizado da empresa (`pontoApi.callOperation`) com renovação automática.
+- A prévia calcula o produto cartesiano matrículas × relógios, informa quantos pares realmente mudam de estado e destaca matrículas sem empresa da API, matrículas inexistentes e relógios desconhecidos.
+- A aplicação executa vinculação/desvinculação individual e em lote, agrupa as operações por empresa da API em lotes de 50 pares e usa `VinculaFuncionarioRelogioPorLista` como fallback agrupado por matrícula.
+- Somente os pares cuja chamada à API foi aceita são gravados em `relogio_funcionario`; registros com `status = -1` (exclusão manual) são preservados.
+- A sincronização importa os vínculos existentes via `RetornaRelogiosPorMatricula`, ativa os vínculos novos, desativa os removidos na API e registra o progresso em `vinculo_sync_estado`.
+- Cada operação é registrada em `sincronizacao_execucao` (`VINCULOS` e `VINCULOS_SYNC`) com status, duração, totais e resumo por empresa.
+- Novos endpoints: `POST /api/sincronizacao/vinculos/preview`, `POST /api/sincronizacao/vinculos/aplicar`, `POST /api/sincronizacao/vinculos/sincronizar`, `GET /api/sincronizacao/vinculos/status` e `GET /api/sincronizacao/vinculos/opcoes`.
+- Tela **Configurações → Empresas da API** ganhou o painel *Vínculos funcionário-relógio* com seleção múltipla de funcionários e relógios, ação de vincular/desvincular, prévia das alterações, aplicação em lote, sincronização por empresa e resumo local de vínculos ativos.
+
+**Entregas da Fase 5 já implementadas:**
+
+- `backend/ponto-afd.js` gera AFD pelas cinco operações da API (`GeraAFD`, `GeraAFDUnico`, `GeraAFDmodeloREPP`, `GeraAFDmodeloREPA` e `GeraAFDDataRecepcao`), sempre com o token centralizado da empresa (`pontoApi.callOperation`) e validação de período/relógio.
+- Cada arquivo gerado é persistido em `afd_geracao` com conteúdo, tamanho, empresa, operação, período, relógio e status. O download posterior não depende de nova chamada à API externa.
+- Novos endpoints: `GET /api/afd/operacoes`, `GET /api/afd/geracoes`, `POST /api/afd/gerar` e `GET /api/afd/geracoes/:id/download`.
+- Tela **Configurações → Empresas da API** ganhou o painel *AFD — Portaria 671/MTP* com seleção de empresa/operação/período, geração por relógio ou AFD único, histórico das gerações e download do arquivo `.txt`.
+- `backend/relatorios-consolidados.js` consolida as marcações já importadas em `marcacoes_ponto` de várias empresas, com filtros por período, empresa local, conta da API, funcionário (nome ou matrícula), relógio, local e tipo de registro.
+- O relatório retorna totais gerais (registros, funcionários, empresas, relógios e dias) e totais por empresa, além da listagem detalhada dos registros.
+- Exportações sem dependências externas: **CSV** (UTF-8 com BOM e separador `;`), **Excel** (`.xls` compatível com Excel/LibreOffice) e **PDF** (relatório tabular A4 paisagem com cabeçalho, totais e paginação).
+- Novos endpoints: `GET /api/relatorios/consolidado/opcoes`, `GET /api/relatorios/consolidado` e `GET /api/relatorios/consolidado/exportar?formato=csv|xls|pdf`.
+- Nova tela **Relatórios Consolidados** no menu lateral, com filtros combinados, cartões de totais, totais por empresa, tabela detalhada paginada e botões de exportação.
+- `backend/ponto-webhooks.js` cria, sincroniza e atualiza assinaturas de webhook por empresa (`WebhookSubscription`, `GetSubscriptions`, `GetSubscriptionBySecret` e `UpdateWebhookURI`), persistindo o `secret` em `webhook_assinatura`.
+- Rota pública de callback `POST /api/webhooks/ponto/<secret>` (e alternativa `POST /api/webhooks/ponto` com `x-webhook-secret`) valida o secret contra as assinaturas ativas, grava o evento em `webhook_evento`, atualiza contadores e registra auditoria em `audit_log`.
+- Ao criar uma assinatura, o backend já tenta registrar automaticamente na API externa a URL definitiva de callback contendo o secret; se não conseguir, a tela permite reaplicá-la com a ação *Usar callback local*.
+- Novos endpoints: `GET /api/webhooks`, `POST /api/webhooks`, `POST /api/webhooks/sincronizar`, `POST /api/webhooks/consultar`, `PUT /api/webhooks/:id`, `DELETE /api/webhooks/:id` e `GET /api/webhooks/eventos`.
+- Tela **Configurações → Empresas da API** ganhou o painel *Webhooks* com criação de assinatura, sincronização com a API, URL de callback, cópia do secret, registro do callback local, atualização de URL, desativação e visualização dos eventos recebidos.
+- Para o callback funcionar em produção, configure `PUBLIC_BASE_URL` no `backend/.env` com a URL pública HTTPS do sistema; a API externa precisa conseguir acessar essa URL.
 
 ---
 

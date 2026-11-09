@@ -42,6 +42,7 @@ export class Sidebar {
     { label: 'Colaboradores',     route: '/colaboradores',              icon: 'users'          },
     { label: 'Relógios',          route: '/relogios',                   icon: 'clock'          },
     { label: 'Relatórios',        route: '/relatorios',                 icon: 'file-text'      },
+    { label: 'Relatórios Consolidados', route: '/relatorios-consolidados', icon: 'bar-chart-3' },
     { label: 'Faltas',            route: '/faltas',                     icon: 'calendar-x'     },
     { label: 'Relatórios Agendados', route: '/relatorios-agendados',     icon: 'send'           },
     { label: 'Eventos',           route: '/eventos',                    icon: 'calendar'       },

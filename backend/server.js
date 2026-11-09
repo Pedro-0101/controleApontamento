@@ -8,6 +8,10 @@ const whatsapp = require('./whatsapp');
 const relatorio = require('./relatorio');
 const { createPontoApi, getBaseUrl } = require('./ponto-api');
 const { createPontoSync } = require('./ponto-sync');
+const { createPontoVinculos } = require('./ponto-vinculos');
+const { createPontoAfd } = require('./ponto-afd');
+const { createRelatoriosConsolidados } = require('./relatorios-consolidados');
+const { createPontoWebhooks } = require('./ponto-webhooks');
 
 // Carrega backend/.env (Node 20.12+). Se o arquivo não existir, usa o ambiente do processo.
 try {
@@ -80,7 +84,7 @@ app.use((req, res, next) => {
   }
 
   // Lista de prefixos das nossas rotas locais (excluem o /api inicial no teste de string)
-  const localPrefixes = ['/api/auth', '/api/comments', '/api/marcacoes', '/api/employee', '/api/employees', '/api/health', '/api/audit-logs', '/api/empresas-config', '/api/sincronizacao', '/api/empresas', '/api/locais', '/api/relogios', '/api/relatorios-agendados', '/api/whatsapp'];
+  const localPrefixes = ['/api/auth', '/api/comments', '/api/marcacoes', '/api/employee', '/api/employees', '/api/health', '/api/audit-logs', '/api/empresas-config', '/api/sincronizacao', '/api/empresas', '/api/locais', '/api/relogios', '/api/relatorios-agendados', '/api/relatorios', '/api/afd', '/api/webhooks', '/api/whatsapp'];
   const isLocal = localPrefixes.some(prefix => req.url.startsWith(prefix));
   
   if (isLocal) {
@@ -98,13 +102,24 @@ app.use(express.json({ limit: '10mb' }));
 let pool;
 let pontoApi;
 let pontoSync;
+let pontoVinculos;
+let pontoAfd;
+let relatoriosConsolidados;
+let pontoWebhooks;
 
 async function initializeDatabase() {
   try {
     pool = mysql.createPool(dbConfig);
     pontoApi = createPontoApi(pool);
     pontoSync = createPontoSync({ pool, pontoApi });
+    pontoVinculos = createPontoVinculos({ pool, pontoApi });
+    pontoAfd = createPontoAfd({ pool, pontoApi });
+    relatoriosConsolidados = createRelatoriosConsolidados({ pool });
+    pontoWebhooks = createPontoWebhooks({ pool, pontoApi });
     await pontoSync.ensureSchema();
+    await pontoVinculos.ensureSchema();
+    await pontoAfd.ensureSchema();
+    await pontoWebhooks.ensureSchema();
     
     // Criar tabela de auditoria se não existir
     await pool.query(`
@@ -2020,6 +2035,450 @@ app.get('/api/sincronizacao/marcacoes/status', async (req, res) => {
   } catch (e) {
     console.error('Erro ao consultar status das marcações:', e);
     res.status(500).json({ success: false, error: 'Erro ao consultar status das marcações' });
+  }
+});
+
+// ── Vínculos funcionário-relógio (Fase 4) ──────────────────────────────────
+
+// POST /api/sincronizacao/vinculos/preview — prévia das alterações
+// Body: { matriculas: string[], numSeries: string[],
+//         acao: 'vincular'|'desvincular', empresaConfigIds?: number[] }
+app.post('/api/sincronizacao/vinculos/preview', async (req, res) => {
+  const { matriculas, numSeries, acao, empresaConfigIds } = req.body || {};
+
+  if (!Array.isArray(matriculas) || matriculas.length === 0) {
+    return res.status(400).json({ success: false, error: 'matriculas deve ser um array não vazio' });
+  }
+  if (!Array.isArray(numSeries) || numSeries.length === 0) {
+    return res.status(400).json({ success: false, error: 'numSeries deve ser um array não vazio' });
+  }
+  if (acao !== 'vincular' && acao !== 'desvincular') {
+    return res.status(400).json({ success: false, error: "acao deve ser 'vincular' ou 'desvincular'" });
+  }
+  if (empresaConfigIds !== undefined && !Array.isArray(empresaConfigIds)) {
+    return res.status(400).json({ success: false, error: 'empresaConfigIds deve ser um array' });
+  }
+
+  try {
+    const resultado = await pontoVinculos.previewVinculos({
+      matriculas,
+      numSeries,
+      acao,
+      companyIds: empresaConfigIds,
+    });
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro na prévia de vínculos:', e);
+    res.status(400).json({ success: false, error: e.message || 'Erro ao gerar prévia de vínculos' });
+  }
+});
+
+// POST /api/sincronizacao/vinculos/aplicar — executa a vinculação/desvinculação
+// Body: { matriculas: string[], numSeries: string[], acao: 'vincular'|'desvincular',
+//         empresaConfigIds?: number[], usuario?: string }
+app.post('/api/sincronizacao/vinculos/aplicar', async (req, res) => {
+  const { matriculas, numSeries, acao, empresaConfigIds, usuario } = req.body || {};
+
+  if (!Array.isArray(matriculas) || matriculas.length === 0) {
+    return res.status(400).json({ success: false, error: 'matriculas deve ser um array não vazio' });
+  }
+  if (!Array.isArray(numSeries) || numSeries.length === 0) {
+    return res.status(400).json({ success: false, error: 'numSeries deve ser um array não vazio' });
+  }
+  if (acao !== 'vincular' && acao !== 'desvincular') {
+    return res.status(400).json({ success: false, error: "acao deve ser 'vincular' ou 'desvincular'" });
+  }
+  if (empresaConfigIds !== undefined && !Array.isArray(empresaConfigIds)) {
+    return res.status(400).json({ success: false, error: 'empresaConfigIds deve ser um array' });
+  }
+
+  try {
+    const resultado = await pontoVinculos.aplicarVinculos({
+      matriculas,
+      numSeries,
+      acao,
+      companyIds: empresaConfigIds,
+      usuario: usuario || null,
+    });
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro ao aplicar vínculos:', e);
+    res.status(400).json({ success: false, error: e.message || 'Erro ao aplicar vínculos' });
+  }
+});
+
+// POST /api/sincronizacao/vinculos/sincronizar — importa os vínculos da API
+// Body: { empresaConfigIds?: number[], matriculas?: string[], usuario?: string }
+app.post('/api/sincronizacao/vinculos/sincronizar', async (req, res) => {
+  const { empresaConfigIds, matriculas, usuario } = req.body || {};
+
+  if (empresaConfigIds !== undefined && !Array.isArray(empresaConfigIds)) {
+    return res.status(400).json({ success: false, error: 'empresaConfigIds deve ser um array' });
+  }
+  if (matriculas !== undefined && !Array.isArray(matriculas)) {
+    return res.status(400).json({ success: false, error: 'matriculas deve ser um array' });
+  }
+
+  try {
+    const resultado = await pontoVinculos.runVinculosSync({
+      companyIds: empresaConfigIds,
+      matriculas,
+      usuario: usuario || null,
+    });
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro ao sincronizar vínculos:', e);
+    res.status(500).json({ success: false, error: e.message || 'Erro ao sincronizar vínculos' });
+  }
+});
+
+// GET /api/sincronizacao/vinculos/status — resumo local por empresa
+app.get('/api/sincronizacao/vinculos/status', async (req, res) => {
+  try {
+    const status = await pontoVinculos.getVinculosStatus();
+    res.json({ success: true, status });
+  } catch (e) {
+    console.error('Erro ao consultar status dos vínculos:', e);
+    res.status(500).json({ success: false, error: 'Erro ao consultar status dos vínculos' });
+  }
+});
+
+// GET /api/sincronizacao/vinculos/opcoes — funcionários e relógios locais
+app.get('/api/sincronizacao/vinculos/opcoes', async (req, res) => {
+  try {
+    const opcoes = await pontoVinculos.getOpcoes();
+    res.json({ success: true, ...opcoes });
+  } catch (e) {
+    console.error('Erro ao carregar opções de vínculos:', e);
+    res.status(500).json({ success: false, error: 'Erro ao carregar opções de vínculos' });
+  }
+});
+
+// ── AFD — Portaria 671/MTP (Fase 5) ────────────────────────────────────────
+
+// GET /api/afd/operacoes — operações de AFD disponíveis
+app.get('/api/afd/operacoes', (req, res) => {
+  res.json({ success: true, operacoes: pontoAfd.listarOperacoes() });
+});
+
+// GET /api/afd/geracoes — histórico de arquivos gerados
+app.get('/api/afd/geracoes', async (req, res) => {
+  try {
+    const geracoes = await pontoAfd.listarGeracoes({ limit: req.query.limit });
+    res.json({ success: true, geracoes });
+  } catch (e) {
+    console.error('Erro ao listar gerações de AFD:', e);
+    res.status(500).json({ success: false, error: 'Erro ao listar gerações de AFD' });
+  }
+});
+
+// POST /api/afd/gerar — gera o AFD de uma ou mais empresas
+// Body: { empresaConfigIds?: number[], operacao: 'GeraAFD'|'GeraAFDUnico'|
+//         'GeraAFDmodeloREPP'|'GeraAFDmodeloREPA'|'GeraAFDDataRecepcao',
+//         dataInicial, dataFim, numeroSerie?, numeroRelogioCabecalho?, usuario? }
+app.post('/api/afd/gerar', async (req, res) => {
+  const {
+    empresaConfigIds,
+    operacao,
+    dataInicial,
+    dataFim,
+    numeroSerie,
+    numeroRelogioCabecalho,
+    usuario,
+  } = req.body || {};
+
+  if (empresaConfigIds !== undefined && !Array.isArray(empresaConfigIds)) {
+    return res.status(400).json({ success: false, error: 'empresaConfigIds deve ser um array' });
+  }
+
+  try {
+    const resultado = await pontoAfd.gerarAfd({
+      empresaConfigIds,
+      operacao,
+      dataInicial,
+      dataFim,
+      numeroSerie,
+      numeroRelogioCabecalho,
+      usuario: usuario || null,
+    });
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro ao gerar AFD:', e);
+    res.status(400).json({ success: false, error: e.message || 'Erro ao gerar AFD' });
+  }
+});
+
+// GET /api/afd/geracoes/:id/download — baixa o arquivo .txt gerado
+app.get('/api/afd/geracoes/:id/download', async (req, res) => {
+  try {
+    const arquivo = await pontoAfd.obterArquivo(req.params.id);
+    if (!arquivo) {
+      return res.status(404).json({ success: false, error: 'Arquivo AFD não encontrado' });
+    }
+
+    const nome = String(arquivo.nome_arquivo || `afd-${arquivo.id}.txt`)
+      .replace(/[\\/:*?"<>|]/g, '-');
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${nome}"`);
+    res.send(Buffer.from(arquivo.conteudo, 'utf8'));
+  } catch (e) {
+    console.error('Erro ao baixar AFD:', e);
+    res.status(500).json({ success: false, error: e.message || 'Erro ao baixar AFD' });
+  }
+});
+
+// ── Relatórios consolidados multiempresa (Fase 5) ──────────────────────────
+
+function parseQueryList(value) {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => String(item).split(',')).map((item) => item.trim()).filter(Boolean);
+  }
+  return String(value).split(',').map((item) => item.trim()).filter(Boolean);
+}
+
+function filtrosConsolidado(req) {
+  const source = req.method === 'GET' ? req.query : req.body || {};
+  return {
+    dataInicio: source.dataInicio,
+    dataFim: source.dataFim,
+    empresaIds: parseQueryList(source.empresaIds),
+    empresaConfigIds: parseQueryList(source.empresaConfigIds),
+    matriculas: parseQueryList(source.matriculas),
+    numSeries: parseQueryList(source.numSeries),
+    locais: parseQueryList(source.locais),
+    busca: source.busca || '',
+    tipoRegistro: source.tipoRegistro,
+  };
+}
+
+// GET /api/relatorios/consolidado/opcoes — filtros disponíveis
+app.get('/api/relatorios/consolidado/opcoes', async (req, res) => {
+  try {
+    const opcoes = await relatoriosConsolidados.carregarOpcoes();
+    res.json({ success: true, ...opcoes });
+  } catch (e) {
+    console.error('Erro ao carregar opções do relatório consolidado:', e);
+    res.status(500).json({ success: false, error: 'Erro ao carregar opções do relatório' });
+  }
+});
+
+// GET /api/relatorios/consolidado — consulta consolidada em JSON
+app.get('/api/relatorios/consolidado', async (req, res) => {
+  try {
+    const resultado = await relatoriosConsolidados.consultar(filtrosConsolidado(req));
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro ao consultar relatório consolidado:', e);
+    res.status(400).json({ success: false, error: e.message || 'Erro ao consultar relatório' });
+  }
+});
+
+// GET /api/relatorios/consolidado/exportar?formato=csv|xls|pdf
+app.get('/api/relatorios/consolidado/exportar', async (req, res) => {
+  try {
+    const formato = req.query.formato || 'csv';
+    const arquivo = await relatoriosConsolidados.exportar(filtrosConsolidado(req), formato);
+    res.setHeader('Content-Type', arquivo.contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${arquivo.nome}"`);
+    res.send(arquivo.buffer);
+  } catch (e) {
+    console.error('Erro ao exportar relatório consolidado:', e);
+    res.status(400).json({ success: false, error: e.message || 'Erro ao exportar relatório' });
+  }
+});
+
+// ── Webhooks (Fase 5) ──────────────────────────────────────────────────────
+
+function baseUrlWebhook(req) {
+  const configurada = String(process.env.PUBLIC_BASE_URL || '').trim();
+  if (configurada) return configurada.replace(/\/+$/, '');
+  return `${req.protocol}://${req.get('host')}`;
+}
+
+/**
+ * Base HTTPS usada para registrar a URL de callback na API externa.
+ * Prioriza PUBLIC_BASE_URL; se ausente, tenta aproveitar o host HTTPS da URL
+ * provisória informada pelo usuário (ex.: túnel ngrok).
+ */
+function callbackBaseParaWebhook(req, webhookUri) {
+  const configurada = String(process.env.PUBLIC_BASE_URL || '').trim();
+  if (configurada) return configurada.replace(/\/+$/, '');
+
+  try {
+    const url = new URL(String(webhookUri || ''));
+    if (url.protocol === 'https:') return url.origin;
+  } catch {
+    // segue para o host da requisição
+  }
+
+  const base = baseUrlWebhook(req);
+  return /^https:\/\//i.test(base) ? base : null;
+}
+
+function assinaturaComCallback(req, assinatura) {
+  const base = baseUrlWebhook(req);
+  const registrada = String(assinatura.webhook_uri || '');
+  const callback = registrada.includes('/api/webhooks/ponto/')
+    ? registrada
+    : `${base}/api/webhooks/ponto/${assinatura.secret}`;
+  return {
+    ...assinatura,
+    secret_mascarado: assinatura.secret
+      ? `${String(assinatura.secret).slice(0, 4)}…${String(assinatura.secret).slice(-4)}`
+      : '',
+    callback_url: callback,
+  };
+}
+
+// GET /api/webhooks — assinaturas locais
+app.get('/api/webhooks', async (req, res) => {
+  try {
+    const empresaConfigIds = parseQueryList(req.query.empresaConfigIds);
+    const assinaturas = await pontoWebhooks.listarAssinaturas({
+      empresaConfigIds: empresaConfigIds ? empresaConfigIds.map(Number) : undefined,
+    });
+    res.json({
+      success: true,
+      assinaturas: assinaturas.map((item) => assinaturaComCallback(req, item)),
+    });
+  } catch (e) {
+    console.error('Erro ao listar webhooks:', e);
+    res.status(500).json({ success: false, error: 'Erro ao listar webhooks' });
+  }
+});
+
+// POST /api/webhooks/sincronizar — importa as assinaturas da API externa
+app.post('/api/webhooks/sincronizar', async (req, res) => {
+  const { empresaConfigIds, usuario } = req.body || {};
+  if (empresaConfigIds !== undefined && !Array.isArray(empresaConfigIds)) {
+    return res.status(400).json({ success: false, error: 'empresaConfigIds deve ser um array' });
+  }
+
+  try {
+    const resultado = await pontoWebhooks.sincronizarAssinaturas({
+      empresaConfigIds,
+      usuario: usuario || null,
+    });
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro ao sincronizar webhooks:', e);
+    res.status(500).json({ success: false, error: e.message || 'Erro ao sincronizar webhooks' });
+  }
+});
+
+// POST /api/webhooks — cria uma assinatura na API externa
+// Body: { empresaConfigId, webhookType, webhookUri, usuario? }
+app.post('/api/webhooks', async (req, res) => {
+  const { empresaConfigId, webhookType, usuario } = req.body || {};
+  const webhookUri =
+    String(req.body?.webhookUri || '').trim() ||
+    `${baseUrlWebhook(req)}/api/webhooks/ponto`;
+
+  try {
+    const assinatura = await pontoWebhooks.criarAssinatura({
+      empresaConfigId,
+      webhookType,
+      webhookUri,
+      callbackBaseUrl: callbackBaseParaWebhook(req, webhookUri),
+      usuario: usuario || null,
+    });
+    res.json({ success: true, assinatura: assinaturaComCallback(req, assinatura) });
+  } catch (e) {
+    console.error('Erro ao criar webhook:', e);
+    res.status(400).json({ success: false, error: e.message || 'Erro ao criar webhook' });
+  }
+});
+
+// POST /api/webhooks/consultar — consulta uma assinatura pelo secret na API
+app.post('/api/webhooks/consultar', async (req, res) => {
+  const { empresaConfigId, secret } = req.body || {};
+  try {
+    const assinatura = await pontoWebhooks.consultarPorSecret({ empresaConfigId, secret });
+    res.json({ success: true, assinatura });
+  } catch (e) {
+    console.error('Erro ao consultar webhook por secret:', e);
+    res.status(400).json({ success: false, error: e.message || 'Erro ao consultar webhook' });
+  }
+});
+
+// PUT /api/webhooks/:id — atualiza a URL de callback
+app.put('/api/webhooks/:id', async (req, res) => {
+  const { webhookUri, usuario } = req.body || {};
+  try {
+    const assinatura = await pontoWebhooks.atualizarUri({
+      id: req.params.id,
+      webhookUri,
+      usuario: usuario || null,
+    });
+    res.json({ success: true, assinatura: assinaturaComCallback(req, assinatura) });
+  } catch (e) {
+    console.error('Erro ao atualizar webhook:', e);
+    res.status(400).json({ success: false, error: e.message || 'Erro ao atualizar webhook' });
+  }
+});
+
+// DELETE /api/webhooks/:id — desativa a assinatura localmente
+app.delete('/api/webhooks/:id', async (req, res) => {
+  try {
+    const assinatura = await pontoWebhooks.desativarAssinatura({
+      id: req.params.id,
+      usuario: req.body?.usuario || null,
+    });
+    res.json({ success: true, assinatura: assinaturaComCallback(req, assinatura) });
+  } catch (e) {
+    console.error('Erro ao desativar webhook:', e);
+    res.status(400).json({ success: false, error: e.message || 'Erro ao desativar webhook' });
+  }
+});
+
+// GET /api/webhooks/eventos — eventos recebidos
+app.get('/api/webhooks/eventos', async (req, res) => {
+  try {
+    const empresaConfigIds = parseQueryList(req.query.empresaConfigIds);
+    const eventos = await pontoWebhooks.listarEventos({
+      limit: req.query.limit,
+      empresaConfigIds: empresaConfigIds ? empresaConfigIds.map(Number) : undefined,
+      secret: req.query.secret,
+    });
+    res.json({ success: true, eventos });
+  } catch (e) {
+    console.error('Erro ao listar eventos de webhook:', e);
+    res.status(500).json({ success: false, error: 'Erro ao listar eventos de webhook' });
+  }
+});
+
+// POST /api/webhooks/ponto/:secret — callback público da API externa
+app.post('/api/webhooks/ponto/:secret', async (req, res) => {
+  try {
+    const evento = await pontoWebhooks.registrarEvento({
+      secret: req.params.secret,
+      payload: req.body,
+      headers: req.headers,
+      origemIp: req.ip || req.socket?.remoteAddress || null,
+    });
+    res.json({ success: true, evento });
+  } catch (e) {
+    console.warn('[Webhooks] Callback recusado:', e.message);
+    res.status(e.statusCode || 400).json({ success: false, error: e.message });
+  }
+});
+
+// POST /api/webhooks/ponto — alternativa sem secret na URL
+// Secret em `x-webhook-secret`, `?secret=` ou no corpo (`secret`).
+app.post('/api/webhooks/ponto', async (req, res) => {
+  const secret = req.headers['x-webhook-secret'] || req.query.secret || req.body?.secret;
+  try {
+    const evento = await pontoWebhooks.registrarEvento({
+      secret,
+      payload: req.body,
+      headers: req.headers,
+      origemIp: req.ip || req.socket?.remoteAddress || null,
+    });
+    res.json({ success: true, evento });
+  } catch (e) {
+    console.warn('[Webhooks] Callback recusado:', e.message);
+    res.status(e.statusCode || 400).json({ success: false, error: e.message });
   }
 });
 

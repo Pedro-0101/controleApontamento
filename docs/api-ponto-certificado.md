@@ -465,6 +465,23 @@ Guarde o maior `id` importado e chame `SelecionaMarcacoesPosteriorIdInformado` c
   `SelecionaMarcacoesPosteriorIdInformado` (modo `incremental`) e faz upsert em
   `marcacoes_ponto`. O progresso fica em `marcacao_sync_estado`; o status por
   empresa é exposto em `GET /api/sincronizacao/marcacoes/status`.
+- **Vínculos (Fase 4):** `backend/ponto-vinculos.js` faz a prévia, a aplicação e
+  a sincronização de vínculos funcionário-relógio via
+  `vinculaFuncionarioRelogio` / `VinculaFuncionarioRelogioPorLista` e
+  `RetornaRelogiosPorMatricula`, com endpoints sob `/api/sincronizacao/vinculos`.
+- **AFD (Fase 5):** `backend/ponto-afd.js` gera e persiste arquivos AFD pelas
+  operações `GeraAFD`, `GeraAFDUnico`, `GeraAFDmodeloREPP`,
+  `GeraAFDmodeloREPA` e `GeraAFDDataRecepcao`. Os endpoints ficam em `/api/afd`
+  e o arquivo `.txt` é baixado por `GET /api/afd/geracoes/:id/download`.
+- **Relatórios consolidados (Fase 5):** `backend/relatorios-consolidados.js`
+  consolida as marcações de `marcacoes_ponto` de várias empresas e exporta em
+  CSV, Excel (`.xls`) e PDF. Endpoints em `/api/relatorios/consolidado`.
+- **Webhooks (Fase 5):** `backend/ponto-webhooks.js` gerencia
+  `WebhookSubscription`, `GetSubscriptions`, `GetSubscriptionBySecret` e
+  `UpdateWebhookURI`. O callback público é
+  `POST /api/webhooks/ponto/<secret>`; o evento é validado pelo secret,
+  persistido em `webhook_evento` e auditado. Configure `PUBLIC_BASE_URL` com a
+  URL pública HTTPS para que a API externa alcance o callback.
 
 ---
 
