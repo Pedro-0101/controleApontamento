@@ -67,6 +67,8 @@ export class EmpresasConfig implements OnInit {
   empresas   = signal<EmpresaConfig[]>([]);
   isLoading  = signal(false);
 
+  abaAtiva = signal<'empresas' | 'exata' | 'ponto' | 'webhooks' | 'historico'>('empresas');
+
   /** Empresas que de fato usam a Ponto Certificado (sem a conta Exata). */
   empresasPontocertificado = computed(() =>
     this.empresas().filter((empresa) => empresa.provedor !== 'exata')
@@ -745,13 +747,23 @@ export class EmpresasConfig implements OnInit {
     }
   }
 
+  async selecionarAba(aba: 'empresas' | 'exata' | 'ponto' | 'webhooks' | 'historico') {
+    this.abaAtiva.set(aba);
+    if (aba === 'historico') {
+      await this.carregarHistorico();
+    }
+    if (aba === 'webhooks') {
+      await this.carregarWebhooks();
+    }
+  }
+
   async toggleHistorico() {
     const abrir = !this.showHistorico();
     this.showHistorico.set(abrir);
     if (abrir) await this.carregarHistorico();
   }
 
-  private async carregarHistorico() {
+  async carregarHistorico() {
     this.isLoadingHistorico.set(true);
     try {
       this.historico.set(await this.syncService.historico(10));

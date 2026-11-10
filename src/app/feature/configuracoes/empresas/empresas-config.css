@@ -2,10 +2,14 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: var(--spacing-2xl);
+  gap: 16px;
+  margin-bottom: var(--spacing-lg);
 }
 
 .page-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: var(--font-size-2xl);
   font-weight: 600;
   margin: 0 0 var(--spacing-sm) 0;
@@ -17,11 +21,190 @@
   margin: 0;
 }
 
+.page-header .subtitle {
+  font-size: 0.9rem;
+}
+
 .header-actions {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+/* ── Abas ─────────────────────────────────────────────────────────────── */
+
+.tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  border-bottom: 2px solid var(--color-gray-200);
+  background: var(--color-gray-50);
+  padding: 0 var(--spacing-md);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-gray-500);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab:hover {
+  color: var(--color-gray-700);
+}
+
+.tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.tab-panel {
+  margin-top: var(--spacing-lg);
+}
+
+/* ── Cards e cabeçalhos de seção ──────────────────────────────────────── */
+
+.results-card {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-gray-200, #e5e7eb);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: var(--spacing-lg);
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.section-header strong {
+  font-size: 0.95rem;
+  color: var(--color-gray-900);
+}
+
+.section-header p {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: var(--color-gray-500);
+}
+
+.resumo-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin-bottom: 12px;
+  font-size: 0.82rem;
+  color: var(--color-gray-600, #4b5563);
+}
+
+.resumo-strip strong {
+  color: var(--color-gray-900, #111827);
+}
+
+/* ── Subseções recolhíveis ────────────────────────────────────────────── */
+
+.subcard {
+  margin-top: 16px;
+  border: 1px solid var(--color-gray-200, #e5e7eb);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-gray-50, #f9fafb);
+}
+
+.subcard summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-gray-800, #1f2937);
+}
+
+.subcard summary::-webkit-details-marker {
+  display: none;
+}
+
+.subcard summary::before {
+  content: '▸';
+  margin-right: 8px;
+  color: var(--color-gray-400, #9ca3af);
+  transition: transform 0.15s;
+}
+
+.subcard[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.subcard summary > span:first-of-type {
+  flex: 1;
+}
+
+.summary-hint {
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--color-gray-500);
+}
+
+.subcard-body {
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--color-gray-200, #e5e7eb);
+  background: var(--color-surface, #fff);
+  border-radius: 0 0 var(--radius-md, 8px) var(--radius-md, 8px);
+}
+
+.subcard-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+}
+
+.subcard-toolbar p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-gray-500);
+}
+
+.subcard-body .marcacoes-form {
+  margin-top: 4px;
+}
+
+.validation-block {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-gray-200, #e5e7eb);
+}
+
+@media (max-width: 720px) {
+  .page-header {
+    flex-direction: column;
+  }
+
+  .section-header,
+  .subcard-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 .sync-banner {

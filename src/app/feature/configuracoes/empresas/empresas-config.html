@@ -1,1207 +1,102 @@
 <div class="page-container">
   <div class="page-header">
-    <div>
-      <h1>Empresas da API</h1>
-      <p>Gerencie as empresas cujos dados são integrados no sistema</p>
+    <div class="header-content">
+      <h1>
+        <lucide-icon name="building-2" [size]="28"></lucide-icon>
+        Empresas da API
+      </h1>
+      <p class="subtitle">Empresas conectadas ao Ponto Certificado e à ExataWeb</p>
     </div>
-    <div class="header-actions">
-      <button class="btn btn-outline" (click)="toggleHistorico()" [disabled]="isSincronizando()">
-        <lucide-icon name="history" [size]="16"></lucide-icon>
-        Histórico
-      </button>
-      @if (temPontoCertificado()) {
-        <button class="btn btn-outline" (click)="sincronizarTudo()" [disabled]="isSincronizando()">
-          @if (isSincronizando() && sincronizandoEmpresaId() === null) {
-            <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
-          } @else {
-            <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
-          }
-          Sincronizar tudo
-        </button>
-      }
-      <button class="btn btn-primary" (click)="abrirCriar()">
-        <lucide-icon name="plus" [size]="16"></lucide-icon>
-        Nova Empresa
-      </button>
-    </div>
+    <button class="btn btn-primary" (click)="abrirCriar()">
+      <lucide-icon name="plus" [size]="16"></lucide-icon>
+      Nova empresa
+    </button>
   </div>
 
-  @if (isSincronizando()) {
-    <div class="sync-banner">
-      <lucide-icon name="loader-circle" [size]="18" class="spin"></lucide-icon>
-      <span>
-        Sincronizando cadastro de funcionários e relógios...
-        @if (sincronizandoEmpresaId() !== null) {
-          (empresa selecionada)
-        }
-      </span>
-    </div>
-  }
+  <div class="tab-bar" role="tablist">
+    <button
+      class="tab"
+      role="tab"
+      [class.active]="abaAtiva() === 'empresas'"
+      [attr.aria-selected]="abaAtiva() === 'empresas'"
+      (click)="selecionarAba('empresas')"
+    >
+      <lucide-icon name="building-2" [size]="16"></lucide-icon>
+      Empresas
+    </button>
 
-  @if (syncErro()) {
-    <div class="sync-banner erro">
-      <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
-      <span>{{ syncErro() }}</span>
-    </div>
-  }
+    <button
+      class="tab"
+      role="tab"
+      [class.active]="abaAtiva() === 'exata'"
+      [attr.aria-selected]="abaAtiva() === 'exata'"
+      (click)="selecionarAba('exata')"
+    >
+      <lucide-icon name="plug" [size]="16"></lucide-icon>
+      ExataWeb
+    </button>
 
-  @if (ultimoResultado(); as resultado) {
-    <div class="sync-resultado">
-      <div class="sync-resultado-header">
-        <div>
-          <strong>Resultado da sincronização</strong>
-          <span class="sync-duracao">{{ resultado.duracaoMs }} ms</span>
-        </div>
-        <span
-          class="badge"
-          [class.status-ok]="resultado.status === 'CONCLUIDO'"
-          [class.status-parcial]="resultado.status === 'PARCIAL'"
-          [class.status-falta]="resultado.status === 'ERRO'"
-        >{{ resultado.status }}</span>
-      </div>
+    @if (temPontoCertificado()) {
+      <button
+        class="tab"
+        role="tab"
+        [class.active]="abaAtiva() === 'ponto'"
+        [attr.aria-selected]="abaAtiva() === 'ponto'"
+        (click)="selecionarAba('ponto')"
+      >
+        <lucide-icon name="clock" [size]="16"></lucide-icon>
+        Ponto Certificado
+      </button>
 
-      <div class="sync-empresas">
-        @for (empresa of resultado.empresas; track empresa.empresa_config_id) {
-          <div class="sync-empresa" [class.sync-empresa-erro]="empresa.erro">
-            <div class="sync-empresa-titulo">
-              <strong>{{ empresa.nome }}</strong>
-              <span class="sync-empresa-local">
-                Empresa local: {{ empresa.empresa_padrao || 'não definida' }}
-              </span>
-            </div>
-
-            @if (empresa.erro) {
-              <p class="sync-erro-texto">
-                <lucide-icon name="alert-circle" [size]="14"></lucide-icon>
-                {{ empresa.erro }}
-              </p>
-            } @else {
-              <div class="sync-linha">
-                <span class="sync-recurso">Funcionários</span>
-                <span>{{ resumoStats(empresa.funcionarios) }}</span>
-              </div>
-              <div class="sync-linha">
-                <span class="sync-recurso">Relógios (REPs)</span>
-                <span>{{ resumoStats(empresa.relogios) }}</span>
-              </div>
-            }
-          </div>
-        }
-      </div>
-    </div>
-  }
-
-  <div class="results-card exata-card">
-    <div class="marcacoes-header">
-      <div>
-        <strong>ExataWeb — empresas e funcionários</strong>
-        <p>
-          Conta global configurada no <code>backend/.env</code>. A integração é somente leitura:
-          descobre todas as empresas da conta, permite ajustar o vínculo com a empresa local e
-          importa os funcionários de cada empresa ativa.
-        </p>
-      </div>
-      <div class="header-actions">
-        <button class="btn btn-outline" (click)="sincronizarEmpresasExata()"
-          [disabled]="isSincronizandoExataEmpresas() || isSincronizandoExataFuncionarios()">
-          @if (isSincronizandoExataEmpresas()) {
-            <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
-          } @else {
-            <lucide-icon name="building-2" [size]="16"></lucide-icon>
-          }
-          Descobrir empresas
-        </button>
-        <button class="btn btn-primary" (click)="sincronizarFuncionariosExata()"
-          [disabled]="isSincronizandoExataEmpresas() || isSincronizandoExataFuncionarios() || exataEmpresas().length === 0">
-          @if (isSincronizandoExataFuncionarios() && exataEmpresaSyncId() === null) {
-            <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
-          } @else {
-            <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
-          }
-          Sincronizar funcionários
-        </button>
-      </div>
-    </div>
-
-    @if (isLoadingExata()) {
-      <div class="loading-container">
-        <div class="spinner"></div>
-        <p>Carregando empresas da Exata...</p>
-      </div>
-    } @else {
-      <div class="vinculos-resumo">
-        @if (exataConta(); as conta) {
-          <span><strong>{{ conta.nome }}</strong> — conta ExataWeb</span>
-          @if (conta.ultima_execucao) {
-            <span>
-              Última execução: {{ conta.ultima_execucao.iniciado_em | date:'dd/MM/yyyy HH:mm' }}
-              <span class="badge"
-                [class.status-ok]="conta.ultima_execucao.status === 'CONCLUIDO'"
-                [class.status-parcial]="conta.ultima_execucao.status === 'PARCIAL'"
-                [class.status-falta]="conta.ultima_execucao.status === 'ERRO'"
-              >{{ conta.ultima_execucao.tipo }}</span>
-            </span>
-          } @else {
-            <span class="texto-suave">Nenhuma sincronização da Exata executada</span>
-          }
-        }
-        @if (exataResumo(); as resumo) {
-          <span><strong>{{ resumo.total }}</strong> empresa(s)</span>
-          <span><strong>{{ resumo.mapeadas }}</strong> mapeada(s)</span>
-          @if (resumo.semMapeamento > 0) {
-            <span class="texto-alerta"><strong>{{ resumo.semMapeamento }}</strong> sem empresa local</span>
-          }
-          @if (resumo.inativas > 0) {
-            <span><strong>{{ resumo.inativas }}</strong> inativa(s)</span>
-          }
-        }
-      </div>
-
-      @if (exataErro()) {
-        <div class="sync-banner erro">
-          <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
-          <span>{{ exataErro() }}</span>
-        </div>
-      }
-
-      @if (exataEmpresasResultado(); as resultado) {
-        <div class="marcacoes-resultado">
-          <div class="sync-resultado-header">
-            <div>
-              <strong>Descoberta de empresas</strong>
-              <span class="sync-duracao">{{ resultado.duracaoMs }} ms</span>
-            </div>
-            <span class="badge"
-              [class.status-ok]="resultado.status === 'CONCLUIDO'"
-              [class.status-parcial]="resultado.status === 'PARCIAL'"
-              [class.status-falta]="resultado.status === 'ERRO'"
-            >{{ resultado.status }}</span>
-          </div>
-          <div class="vinculos-resumo">
-            <span>{{ resultado.recebidas }} recebida(s)</span>
-            <span>{{ resultado.inseridas }} nova(s)</span>
-            <span>{{ resultado.atualizadas }} atualizada(s)</span>
-            <span>{{ resultado.mapeadas }} mapeada(s)</span>
-            @if (resultado.semMapeamento > 0) {
-              <span class="texto-alerta">{{ resultado.semMapeamento }} sem empresa local</span>
-            }
-          </div>
-        </div>
-      }
-
-      @if (exataFuncionariosResultado(); as resultado) {
-        <div class="marcacoes-resultado">
-          <div class="sync-resultado-header">
-            <div>
-              <strong>Sincronização de funcionários</strong>
-              <span class="sync-duracao">{{ resultado.duracaoMs }} ms</span>
-            </div>
-            <span class="badge"
-              [class.status-ok]="resultado.status === 'CONCLUIDO'"
-              [class.status-parcial]="resultado.status === 'PARCIAL'"
-              [class.status-falta]="resultado.status === 'ERRO'"
-            >{{ resultado.status }}</span>
-          </div>
-          <div class="vinculos-resumo">
-            <span>{{ resultado.recebidos }} recebido(s)</span>
-            <span>{{ resumoExataFuncionarios(resultado) }}</span>
-          </div>
-          @if (temErroExataFuncionarios(resultado)) {
-            <div class="sync-empresas">
-              @for (empresa of resultado.empresas; track empresa.empresa_exata_id) {
-                @if (empresa.erro) {
-                  <div class="sync-empresa sync-empresa-erro">
-                    <div class="sync-empresa-titulo">
-                      <strong>{{ empresa.descricao || empresa.empresasistema }}</strong>
-                    </div>
-                    <p class="sync-erro-texto">
-                      <lucide-icon name="alert-circle" [size]="14"></lucide-icon>
-                      {{ empresa.erro }}
-                    </p>
-                  </div>
-                }
-              }
-            </div>
-          }
-        </div>
-      }
-
-      @if (exataEmpresas().length === 0) {
-        <div class="empty-state">
-          <lucide-icon name="building-2" [size]="40"></lucide-icon>
-          <h3>Nenhuma empresa da Exata descoberta</h3>
-          <p>Use "Descobrir empresas" para importar a lista da conta ExataWeb.</p>
-        </div>
-      } @else {
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Empresa Exata</th>
-                <th>Empresa local</th>
-                <th>Funcionários</th>
-                <th>Última descoberta</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (empresa of exataEmpresas(); track empresa.id) {
-                <tr>
-                  <td>
-                    <strong>{{ empresa.descricao || '(sem descrição)' }}</strong>
-                    <span class="texto-suave d-block">
-                      empresasistema {{ empresa.empresasistema }}
-                      @if (empresa.empresacliente !== null) {
-                        · cliente {{ empresa.empresacliente }}
-                      }
-                    </span>
-                  </td>
-                  <td>
-                    <select [value]="empresa.empresa_id ?? ''"
-                      (change)="mapearEmpresaExata(empresa, $any($event.target).value)"
-                      [disabled]="isSincronizandoExataEmpresas() || isSincronizandoExataFuncionarios()">
-                      <option value="">Sem empresa local</option>
-                      @for (local of exataEmpresasLocais(); track local.id) {
-                        <option [value]="local.id">{{ local.nome }}</option>
-                      }
-                    </select>
-                    @if (!empresa.empresa_id) {
-                      <span class="texto-alerta d-block">Mapeamento pendente</span>
-                    }
-                  </td>
-                  <td>{{ empresa.total_funcionarios }}</td>
-                  <td>
-                    @if (empresa.sincronizado_em) {
-                      {{ empresa.sincronizado_em | date:'dd/MM/yyyy HH:mm' }}
-                    } @else {
-                      <span class="texto-suave">—</span>
-                    }
-                  </td>
-                  <td>
-                    @if (empresa.ativo) {
-                      <span class="badge status-ok">Ativa</span>
-                    } @else {
-                      <span class="badge status-falta">Inativa</span>
-                    }
-                  </td>
-                  <td>
-                    <div class="acoes">
-                      <button class="btn btn-outline btn-sm" (click)="sincronizarFuncionariosExata(empresa)"
-                        [disabled]="isSincronizandoExataFuncionarios() || !empresa.ativo"
-                        title="Importar os funcionários desta empresa">
-                        @if (isSincronizandoExataFuncionarios() && exataEmpresaSyncId() === empresa.id) {
-                          <lucide-icon name="loader-circle" [size]="14" class="spin"></lucide-icon>
-                        } @else {
-                          <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
-                        }
-                        Sincronizar
-                      </button>
-                      <button class="btn btn-outline btn-sm" (click)="toggleAtivoExata(empresa)"
-                        [title]="empresa.ativo ? 'Desativar' : 'Ativar'">
-                        <lucide-icon [name]="empresa.ativo ? 'ban' : 'check-circle'" [size]="14"></lucide-icon>
-                        {{ empresa.ativo ? 'Desativar' : 'Ativar' }}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-        @if (exataResumo()?.semMapeamento) {
-          <p class="marcacoes-aviso">
-            <lucide-icon name="info" [size]="14"></lucide-icon>
-            Empresas sem empresa local têm os funcionários importados para a Exata, mas não são
-            incluídas no cadastro local até o mapeamento ser ajustado.
-          </p>
-        }
-      }
+      <button
+        class="tab"
+        role="tab"
+        [class.active]="abaAtiva() === 'webhooks'"
+        [attr.aria-selected]="abaAtiva() === 'webhooks'"
+        (click)="selecionarAba('webhooks')"
+      >
+        <lucide-icon name="link" [size]="16"></lucide-icon>
+        Webhooks
+      </button>
     }
 
-    <!-- Fase 3 — marcações de ponto da Exata -->
-    <div class="marcacoes-subcard">
-      <div class="marcacoes-header">
-        <div>
-          <strong>Marcações de ponto — ExataWeb</strong>
-          <p>
-            Importe o histórico por período ou busque os pontos não exportados (<code>status=N</code>).
-            Após persistir, os pontos são confirmados na Exata via <code>baixaponto671</code>.
-          </p>
-        </div>
-        <button class="btn btn-outline" (click)="sincronizarIncrementalExata()"
-          [disabled]="isSincronizandoExataPontos()">
-          @if (isSincronizandoExataPontos() && exataPontosModo() === 'incremental') {
-            <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
-          } @else {
-            <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
-          }
-          Sincronizar incremental
-        </button>
-      </div>
-
-      <div class="marcacoes-form">
-        <label class="campo">
-          <span>Empresa Exata</span>
-          <select [value]="exataEmpresaPontosId()"
-            (change)="exataEmpresaPontosId.set($any($event.target).value)">
-            <option value="">Todas as empresas</option>
-            @for (empresa of exataEmpresas(); track empresa.id) {
-              @if (empresa.ativo) {
-                <option [value]="empresa.id">
-                  {{ empresa.descricao || ('Empresa ' + empresa.empresasistema) }}
-                </option>
-              }
-            }
-          </select>
-        </label>
-        <label class="campo">
-          <span>Data inicial</span>
-          <input type="date" [value]="exataDataInicio()"
-            (input)="exataDataInicio.set($any($event.target).value)" />
-        </label>
-        <label class="campo">
-          <span>Data final</span>
-          <input type="date" [value]="exataDataFim()"
-            (input)="exataDataFim.set($any($event.target).value)" />
-        </label>
-        <label class="campo">
-          <span>Lote (qtde)</span>
-          <input type="number" min="1" max="1000" [value]="exataQtde()"
-            (input)="exataQtde.set(+$any($event.target).value || 100)" />
-        </label>
-        <button class="btn btn-primary" (click)="importarPeriodoExata()"
-          [disabled]="isSincronizandoExataPontos()">
-          @if (isSincronizandoExataPontos() && exataPontosModo() === 'periodo') {
-            <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
-          } @else {
-            <lucide-icon name="calendar-search" [size]="16"></lucide-icon>
-          }
-          Importar período
-        </button>
-      </div>
-
-      @if (exataPontosErro()) {
-        <div class="sync-banner erro">
-          <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
-          <span>{{ exataPontosErro() }}</span>
-        </div>
-      }
-
-      @if (exataPontosResultado(); as resultado) {
-        <div class="marcacoes-resultado">
-          <div class="sync-resultado-header">
-            <div>
-              <strong>Resultado da importação — {{ resultado.modo === 'periodo' ? 'período' : 'incremental' }}</strong>
-              <span class="sync-duracao">{{ resultado.duracaoMs }} ms</span>
-            </div>
-            <span class="badge"
-              [class.status-ok]="resultado.status === 'CONCLUIDO'"
-              [class.status-parcial]="resultado.status === 'PARCIAL'"
-              [class.status-falta]="resultado.status === 'ERRO'"
-            >{{ resultado.status }}</span>
-          </div>
-          <div class="vinculos-resumo">
-            <span>{{ resumoPontosExata(resultado) }}</span>
-          </div>
-          <div class="sync-empresas">
-            @for (empresa of resultado.empresas; track empresa.empresa_exata_id) {
-              <div class="sync-empresa" [class.sync-empresa-erro]="empresa.erro">
-                <div class="sync-empresa-titulo">
-                  <strong>{{ empresa.descricao || empresa.empresasistema }}</strong>
-                  <span class="sync-empresa-local">
-                    {{ empresa.buscados }} buscada(s) · {{ empresa.inseridos }} nova(s) ·
-                    {{ empresa.atualizados }} atualizada(s) · {{ empresa.baixados }} baixada(s)
-                  </span>
-                </div>
-                @if (empresa.erro) {
-                  <p class="sync-erro-texto">
-                    <lucide-icon name="alert-circle" [size]="14"></lucide-icon>
-                    {{ empresa.erro }}
-                  </p>
-                }
-              </div>
-            }
-          </div>
-        </div>
-      }
-
-      @if (exataPontosStatus(); as status) {
-        @if (status.empresas.length > 0) {
-          <div class="table-container">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Empresa Exata</th>
-                  <th>Marcações importadas</th>
-                  <th>Último dia</th>
-                  <th>Último NSR / REPP</th>
-                  <th>Última execução</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (item of status.empresas; track item.id) {
-                  <tr>
-                    <td>
-                      <strong>{{ item.descricao || ('Empresa ' + item.empresasistema) }}</strong>
-                      <span class="texto-suave d-block">empresasistema {{ item.empresasistema }}</span>
-                    </td>
-                    <td>{{ item.total_marcacoes }}</td>
-                    <td>{{ item.ultima_data || '—' }}</td>
-                    <td>
-                      {{ item.ultimo_nsr ?? '—' }}
-                      @if (item.ultimo_reppid) { · REPP {{ item.ultimo_reppid }} }
-                    </td>
-                    <td>
-                      @if (item.ultima_execucao_em) {
-                        {{ item.ultima_execucao_em | date:'dd/MM/yyyy HH:mm' }}
-                      } @else {
-                        <span class="texto-suave">Nenhuma carga</span>
-                      }
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        }
-      }
-    </div>
-
-    <!-- Fase 4 — status de funcionários da Exata -->
-    <div class="marcacoes-subcard">
-      <div class="marcacoes-header">
-        <div>
-          <strong>Status de funcionários — ExataWeb</strong>
-          <p>
-            Somente leitura: importa o catálogo de status da Exata e reflete o status atual dos
-            funcionários no painel e nos relatórios. Nenhuma escrita é enviada à Exata.
-          </p>
-        </div>
-        <button class="btn btn-primary" (click)="sincronizarStatusExata()"
-          [disabled]="isSincronizandoExataStatus()">
-          @if (isSincronizandoExataStatus()) {
-            <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
-          } @else {
-            <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
-          }
-          Sincronizar status
-        </button>
-      </div>
-
-      @if (exataStatusErro()) {
-        <div class="sync-banner erro">
-          <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
-          <span>{{ exataStatusErro() }}</span>
-        </div>
-      }
-
-      @if (exataStatusResultado(); as resultado) {
-        <div class="marcacoes-resultado">
-          <div class="sync-resultado-header">
-            <div>
-              <strong>Resultado da sincronização de status</strong>
-              <span class="sync-duracao">{{ resultado.duracaoMs }} ms</span>
-            </div>
-            <span class="badge"
-              [class.status-ok]="resultado.status === 'CONCLUIDO'"
-              [class.status-parcial]="resultado.status === 'PARCIAL'"
-              [class.status-falta]="resultado.status === 'ERRO'"
-            >{{ resultado.status }}</span>
-          </div>
-          <div class="vinculos-resumo">
-            <span>{{ resumoStatusExata(resultado) }}</span>
-          </div>
-        </div>
-      }
-
-      @if (exataStatusLista(); as lista) {
-        @for (empresa of lista.empresas; track empresa.id) {
-          @if (empresa.statuses.length > 0) {
-            <div class="status-exata-grupo">
-              <div class="sync-empresa-titulo">
-                <strong>{{ empresa.descricao || ('Empresa ' + empresa.empresasistema) }}</strong>
-                <span class="sync-empresa-local">
-                  {{ empresa.statuses.length }} status · {{ empresa.eventos_mapeados }} com evento local
-                </span>
-              </div>
-              <div class="table-container">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>Status</th>
-                      <th>Código de integração</th>
-                      <th>Ponto liberado</th>
-                      <th>Ativo</th>
-                      <th>Evento local</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (status of empresa.statuses; track status.id) {
-                      <tr>
-                        <td><strong>{{ status.descricao || '—' }}</strong></td>
-                        <td>{{ status.status_integra || '—' }}</td>
-                        <td>{{ status.ponto_liberado === 'S' ? 'Sim' : 'Não' }}</td>
-                        <td>{{ status.ativo === 'S' ? 'Sim' : 'Não' }}</td>
-                        <td>
-                          <select [value]="status.evento_local || ''"
-                            (change)="mapearStatusExata(status, $any($event.target).value)">
-                            <option value="">Sem mapeamento</option>
-                            @for (evento of eventosLocais(); track evento) {
-                              <option [value]="evento">{{ evento }}</option>
-                            }
-                          </select>
-                          @if (status.mapeamento_manual) {
-                            <span class="texto-suave d-block">ajuste manual</span>
-                          }
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          }
-        }
-      }
-    </div>
-
-    <!-- Fase 6 — coexistência, validação e monitoramento -->
-    <div class="marcacoes-subcard">
-      <div class="marcacoes-header">
-        <div>
-          <strong>Rollout e coexistência — ExataWeb</strong>
-          <p>
-            Ative a conta, sincronize todas as empresas e acompanhe a saúde da integração.
-            O rollback apenas desativa a conta Exata: os dados importados são preservados e a
-            Ponto Certificado continua funcionando normalmente.
-          </p>
-        </div>
-        <div class="header-actions">
-          @if (exataConta(); as conta) {
-            @if (conta.ativo) {
-              <button class="btn btn-outline" (click)="alterarContaExata(false)"
-                [disabled]="isAlterandoContaExata() || isExecutandoRolloutExata()">
-                <lucide-icon name="power" [size]="16"></lucide-icon>
-                Desativar conta (rollback)
-              </button>
-            } @else {
-              <button class="btn btn-outline" (click)="alterarContaExata(true)"
-                [disabled]="isAlterandoContaExata() || isExecutandoRolloutExata()">
-                <lucide-icon name="power" [size]="16"></lucide-icon>
-                Ativar conta
-              </button>
-            }
-          }
-          <button class="btn btn-primary" (click)="executarRolloutExata()"
-            [disabled]="isExecutandoRolloutExata()">
-            @if (isExecutandoRolloutExata()) {
-              <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
-            } @else {
-              <lucide-icon name="rocket" [size]="16"></lucide-icon>
-            }
-            Executar rollout
-          </button>
-        </div>
-      </div>
-
-      @if (exataRolloutMensagem(); as mensagem) {
-        <div class="sync-banner">
-          <lucide-icon name="info" [size]="18"></lucide-icon>
-          <span>{{ mensagem }}</span>
-        </div>
-      }
-
-      @if (exataMonitoramento(); as monitor) {
-        <div class="vinculos-resumo">
-          <span>
-            Saúde:
-            <span class="badge" [class.status-ok]="monitor.saude === 'OK'"
-              [class.status-parcial]="monitor.saude !== 'OK'">{{ monitor.saude }}</span>
-          </span>
-          <span>Conta: <strong>{{ monitor.conta.ativo ? 'ativa' : 'desativada' }}</strong></span>
-          <span><strong>{{ monitor.pontos.total }}</strong> marcação(ões)</span>
-          <span><strong>{{ monitor.pontos.hoje }}</strong> hoje</span>
-          <span><strong>{{ monitor.pontos.pendentes_baixa }}</strong> com baixa pendente</span>
-          <span><strong>{{ monitor.empresas.sem_mapeamento }}</strong> empresa(s) sem empresa local</span>
-          <button class="btn btn-outline btn-sm" (click)="carregarMonitoramentoExata()"
-            [disabled]="isCarregandoMonitoramentoExata()">
-            @if (isCarregandoMonitoramentoExata()) {
-              <lucide-icon name="loader-circle" [size]="14" class="spin"></lucide-icon>
-            } @else {
-              <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
-            }
-            Atualizar
-          </button>
-        </div>
-
-        @if (monitor.alertas.length > 0) {
-          <div class="sync-banner erro">
-            <lucide-icon name="alert-triangle" [size]="18"></lucide-icon>
-            <span>{{ monitor.alertas.join(' · ') }}</span>
-          </div>
-        }
-
-        @if (monitor.pendenciasBaixa.length > 0 || monitor.duplicidades.length > 0) {
-          <div class="marcacoes-form">
-            @if (monitor.pendenciasBaixa.length > 0) {
-              <div class="sync-empresa">
-                <div class="sync-empresa-titulo">
-                  <strong>Baixas pendentes por empresa</strong>
-                </div>
-                @for (item of monitor.pendenciasBaixa; track item.empresasistema) {
-                  <div class="sync-linha">
-                    <span class="sync-recurso">empresasistema {{ item.empresasistema }}</span>
-                    <span>{{ item.total }} pendente(s)</span>
-                    @if (item.mais_antiga) {
-                      <span>desde {{ item.mais_antiga | date:'dd/MM/yyyy HH:mm' }}</span>
-                    }
-                  </div>
-                }
-              </div>
-            }
-            @if (monitor.duplicidades.length > 0) {
-              <div class="sync-empresa sync-empresa-erro">
-                <div class="sync-empresa-titulo">
-                  <strong>Duplicidades detectadas</strong>
-                </div>
-                @for (item of monitor.duplicidades; track item.reppid + '-' + item.nsr) {
-                  <div class="sync-linha">
-                    <span class="sync-recurso">empresa {{ item.empresasistema }}</span>
-                    <span>REPP {{ item.reppid }} · NSR {{ item.nsr }}</span>
-                    <span>{{ item.total }} ocorrência(s)</span>
-                  </div>
-                }
-              </div>
-            }
-          </div>
-        }
-
-        @if (monitor.ultimas.length > 0) {
-          <div class="table-container">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Tipo</th>
-                  <th>Status</th>
-                  <th>Início</th>
-                  <th>Empresas</th>
-                  <th>Erro</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (execucao of monitor.ultimas; track execucao.id) {
-                  <tr>
-                    <td><strong>{{ execucao.tipo }}</strong></td>
-                    <td>
-                      <span class="badge"
-                        [class.status-ok]="execucao.status === 'CONCLUIDO'"
-                        [class.status-parcial]="execucao.status !== 'CONCLUIDO'"
-                      >{{ execucao.status }}</span>
-                    </td>
-                    <td>{{ execucao.iniciado_em | date:'dd/MM/yyyy HH:mm' }}</td>
-                    <td>{{ execucao.empresas_processadas ?? '—' }}</td>
-                    <td>
-                      @if (execucao.erro) {
-                        <span class="texto-alerta">{{ execucao.erro }}</span>
-                      } @else {
-                        <span class="texto-suave">—</span>
-                      }
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        }
-      }
-
-      <div class="marcacoes-header" style="margin-top: 18px;">
-        <div>
-          <strong>Contagens para validação (empresa/dia)</strong>
-          <p>
-            Confira com o solicitante os totais importados, exportados e pendentes antes de
-            encerrar o rollout. O CSV usa separador <code>;</code> e abre no Excel.
-          </p>
-        </div>
-        <button class="btn btn-outline" (click)="exportarValidacaoExata()"
-          [disabled]="isCarregandoValidacaoExata()">
-          <lucide-icon name="download" [size]="16"></lucide-icon>
-          Exportar CSV
-        </button>
-      </div>
-
-      <div class="marcacoes-form">
-        <label class="campo">
-          <span>Empresa Exata</span>
-          <select [value]="exataValidacaoEmpresaId()"
-            (change)="exataValidacaoEmpresaId.set($any($event.target).value)">
-            <option value="">Todas as empresas</option>
-            @for (empresa of exataEmpresas(); track empresa.id) {
-              <option [value]="empresa.id">
-                {{ empresa.descricao || ('Empresa ' + empresa.empresasistema) }}
-              </option>
-            }
-          </select>
-        </label>
-        <label class="campo">
-          <span>Data inicial</span>
-          <input type="date" [value]="exataValidacaoInicio()"
-            (input)="exataValidacaoInicio.set($any($event.target).value)" />
-        </label>
-        <label class="campo">
-          <span>Data final</span>
-          <input type="date" [value]="exataValidacaoFim()"
-            (input)="exataValidacaoFim.set($any($event.target).value)" />
-        </label>
-        <button class="btn btn-primary" (click)="carregarValidacaoExata()"
-          [disabled]="isCarregandoValidacaoExata()">
-          @if (isCarregandoValidacaoExata()) {
-            <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
-          } @else {
-            <lucide-icon name="list-checks" [size]="16"></lucide-icon>
-          }
-          Gerar contagens
-        </button>
-      </div>
-
-      @if (exataValidacaoErro()) {
-        <div class="sync-banner erro">
-          <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
-          <span>{{ exataValidacaoErro() }}</span>
-        </div>
-      }
-
-      @if (exataValidacao(); as validacao) {
-        <div class="vinculos-resumo">
-          <span>Período: <strong>{{ validacao.dataInicio }}</strong> a <strong>{{ validacao.dataFim }}</strong></span>
-          <span><strong>{{ validacao.resumo.total }}</strong> marcação(ões)</span>
-          <span><strong>{{ validacao.resumo.funcionarios }}</strong> funcionário(s)</span>
-          <span><strong>{{ validacao.resumo.exportados }}</strong> exportada(s)</span>
-          <span><strong>{{ validacao.resumo.pendentes }}</strong> pendente(s)</span>
-          <span><strong>{{ validacao.resumo.empresasComDados }}/{{ validacao.resumo.empresas }}</strong> empresa(s) com dados</span>
-        </div>
-
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Empresa Exata</th>
-                <th>Empresa local</th>
-                <th>Data</th>
-                <th>Marcações</th>
-                <th>Funcionários</th>
-                <th>Exportadas</th>
-                <th>Pendentes</th>
-                <th>NSR</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (empresa of validacao.empresas; track empresa.empresa_exata_id) {
-                @if (empresa.dias.length === 0) {
-                  <tr>
-                    <td>{{ empresa.descricao || ('Empresa ' + empresa.empresasistema) }}</td>
-                    <td>{{ empresa.empresa_nome || 'Sem empresa local' }}</td>
-                    <td colspan="6" class="texto-suave">Nenhuma marcação no período</td>
-                  </tr>
-                }
-                @for (dia of empresa.dias; track dia.data) {
-                  <tr>
-                    <td>
-                      <strong>{{ empresa.descricao || ('Empresa ' + empresa.empresasistema) }}</strong>
-                      <span class="texto-suave d-block">empresasistema {{ empresa.empresasistema }}</span>
-                    </td>
-                    <td>{{ empresa.empresa_nome || 'Sem empresa local' }}</td>
-                    <td>{{ dia.data | date:'dd/MM/yyyy' }}</td>
-                    <td>{{ dia.total }}</td>
-                    <td>{{ dia.funcionarios }}</td>
-                    <td>{{ dia.exportados }}</td>
-                    <td [class.texto-alerta]="dia.pendentes > 0">{{ dia.pendentes }}</td>
-                    <td>
-                      {{ dia.primeiro_nsr ?? '—' }} a {{ dia.ultimo_nsr ?? '—' }}
-                    </td>
-                  </tr>
-                }
-              }
-            </tbody>
-          </table>
-        </div>
-      }
-    </div>
+    <button
+      class="tab"
+      role="tab"
+      [class.active]="abaAtiva() === 'historico'"
+      [attr.aria-selected]="abaAtiva() === 'historico'"
+      (click)="selecionarAba('historico')"
+    >
+      <lucide-icon name="history" [size]="16"></lucide-icon>
+      Histórico
+    </button>
   </div>
 
-  @if (temPontoCertificado()) {
-  <div class="results-card vinculos-card">
-    <div class="marcacoes-header">
-      <div>
-        <strong>Vínculos funcionário-relógio</strong>
-        <p>
-          Vincule ou desvincule vários funcionários de vários relógios em uma única operação.
-          Gere a prévia antes de aplicar e sincronize os vínculos já existentes na API.
-        </p>
-      </div>
-      <div class="header-actions">
-        <button class="btn btn-outline" (click)="sincronizarVinculos()"
-          [disabled]="isSincronizandoVinculos() || isAplicandoVinculos()">
-          @if (isSincronizandoVinculos()) {
-            <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
-          } @else {
-            <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
-          }
-          Sincronizar da API
-        </button>
-        <button class="btn btn-primary" (click)="toggleVinculos()">
-          <lucide-icon [name]="showVinculos() ? 'chevron-up' : 'link'" [size]="16"></lucide-icon>
-          {{ showVinculos() ? 'Fechar gerenciador' : 'Gerenciar vínculos' }}
-        </button>
-      </div>
-    </div>
-
-    @if (showVinculos()) {
-      @if (isLoadingVinculosOpcoes()) {
-        <div class="loading-container">
-          <div class="spinner"></div>
-          <p>Carregando funcionários e relógios...</p>
-        </div>
-      } @else {
-        <div class="vinculos-form">
-          <label class="campo">
-            <span>Empresa da API</span>
-            <select [value]="empresaVinculosFiltro()"
-              (change)="onEmpresaVinculosChange($any($event.target).value)">
-              <option value="">Todas as empresas</option>
-              @for (e of empresasPontocertificado(); track e.id) {
-                <option [value]="e.id">{{ e.nome }}</option>
-              }
-            </select>
-          </label>
-
-          <label class="campo">
-            <span>Ação</span>
-            <select [value]="vinculosAcao()"
-              (change)="onVinculosAcaoChange($any($event.target).value)">
-              <option value="vincular">Vincular</option>
-              <option value="desvincular">Desvincular</option>
-            </select>
-          </label>
-
-          <div class="campo campo-vinculos">
-            <span>Funcionários ({{ vinculosMatriculas().length }} selecionado(s))</span>
-            <app-multi-select-dropdown
-              [options]="vinculosOpcoes().funcionarios"
-              labelProp="nome"
-              valueProp="matricula"
-              subLabelProp="empresa"
-              placeholder="Selecione os funcionários"
-              searchPlaceholder="Buscar por nome ou matrícula..."
-              [titleCaseLabel]="true"
-              (selectionChange)="onVinculosMatriculasChange($event)">
-            </app-multi-select-dropdown>
-          </div>
-
-          <div class="campo campo-vinculos">
-            <span>Relógios ({{ vinculosNumSeries().length }} selecionado(s))</span>
-            <app-multi-select-dropdown
-              [options]="vinculosOpcoes().relogios"
-              labelProp="descricao"
-              valueProp="num_serie"
-              subLabelProp="num_serie"
-              placeholder="Selecione os relógios"
-              searchPlaceholder="Buscar por descrição ou número de série..."
-              (selectionChange)="onVinculosNumSeriesChange($event)">
-            </app-multi-select-dropdown>
-          </div>
-
-          <div class="vinculos-acoes">
-            <button class="btn btn-outline" (click)="gerarPreviewVinculos()"
-              [disabled]="isPreviewVinculos() || isAplicandoVinculos()">
-              @if (isPreviewVinculos()) {
-                <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
-              } @else {
-                <lucide-icon name="clipboard-list" [size]="16"></lucide-icon>
-              }
-              Gerar prévia
-            </button>
-            <button class="btn btn-primary" (click)="aplicarVinculos()"
-              [disabled]="isAplicandoVinculos() || !vinculosPreview() || vinculosPreview()!.resumo.alteracoes === 0">
-              @if (isAplicandoVinculos()) {
-                <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
-              } @else {
-                <lucide-icon name="check-circle" [size]="16"></lucide-icon>
-              }
-              Aplicar alterações
-            </button>
-          </div>
-        </div>
-      }
-
-      @if (vinculosErro()) {
-        <div class="sync-banner erro">
-          <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
-          <span>{{ vinculosErro() }}</span>
-        </div>
-      }
-
-      @if (vinculosPreview(); as preview) {
-        <div class="marcacoes-resultado">
-          <div class="sync-resultado-header">
-            <div>
-              <strong>Prévia — {{ preview.acao === 'vincular' ? 'vinculação' : 'desvinculação' }}</strong>
-              <span class="sync-duracao">
-                {{ preview.resumo.alteracoes }} alteração(ões) de {{ preview.resumo.combinacoes }} combinação(ões)
-              </span>
-            </div>
-            <span class="badge" [class.status-ok]="preview.resumo.alteracoes > 0"
-              [class.status-falta]="preview.resumo.alteracoes === 0">
-              {{ preview.resumo.alteracoes }} pendente(s)
-            </span>
-          </div>
-
-          <div class="vinculos-resumo">
-            <span><strong>{{ preview.resumo.funcionarios }}</strong> funcionário(s)</span>
-            <span><strong>{{ preview.resumo.relogios }}</strong> relógio(s)</span>
-            <span><strong>{{ preview.resumo.jaAplicados }}</strong> já no estado desejado</span>
-            @if (preview.resumo.semEmpresa > 0) {
-              <span class="texto-alerta"><strong>{{ preview.resumo.semEmpresa }}</strong> sem empresa da API</span>
-            }
-            @if (preview.resumo.matriculasNaoEncontradas > 0) {
-              <span class="texto-alerta"><strong>{{ preview.resumo.matriculasNaoEncontradas }}</strong> matrícula(s) não encontrada(s)</span>
-            }
-            @if (preview.resumo.relogiosDesconhecidos > 0) {
-              <span class="texto-alerta"><strong>{{ preview.resumo.relogiosDesconhecidos }}</strong> relógio(s) desconhecido(s)</span>
-            }
-          </div>
-
-          @if (preview.alteracoes.length > 0) {
-            <div class="table-container vinculos-tabela">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Matrícula</th>
-                    <th>Funcionário</th>
-                    <th>Relógio</th>
-                    <th>Empresa da API</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (item of preview.alteracoes; track item.matricula + '|' + item.num_serie) {
-                    <tr>
-                      <td>{{ item.matricula }}</td>
-                      <td>{{ item.nome || '—' }}</td>
-                      <td>{{ item.descricao || item.num_serie }} <span class="texto-suave">({{ item.num_serie }})</span></td>
-                      <td>{{ item.empresa_config_nome }}</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-              @if (preview.truncado) {
-                <p class="marcacoes-aviso">
-                  <lucide-icon name="info" [size]="14"></lucide-icon>
-                  Exibindo os primeiros {{ preview.alteracoes.length }} registros. Todas as alterações serão aplicadas.
-                </p>
-              }
-            </div>
-          }
-        </div>
-      }
-
-      @if (vinculosResultado(); as resultado) {
-        <div class="marcacoes-resultado">
-          <div class="sync-resultado-header">
-            <div>
-              <strong>Resultado da aplicação</strong>
-              <span class="sync-duracao">{{ resultado.duracaoMs }} ms</span>
-            </div>
-            <span class="badge"
-              [class.status-ok]="resultado.status === 'CONCLUIDO'"
-              [class.status-parcial]="resultado.status === 'PARCIAL'"
-              [class.status-falta]="resultado.status === 'ERRO'"
-            >{{ resultado.status }}</span>
-          </div>
-          <div class="vinculos-resumo">
-            <span><strong>{{ resultado.vinculados }}</strong> vinculado(s)</span>
-            <span><strong>{{ resultado.desvinculados }}</strong> desvinculado(s)</span>
-            <span><strong>{{ resultado.erros }}</strong> erro(s)</span>
-          </div>
-          <div class="sync-empresas">
-            @for (empresa of resultado.empresas; track empresa.empresa_config_id) {
-              <div class="sync-empresa" [class.sync-empresa-erro]="empresa.erro || empresa.erros > 0">
-                <div class="sync-empresa-titulo">
-                  <strong>{{ empresa.nome }}</strong>
-                  <span class="sync-empresa-local">
-                    {{ empresa.vinculados }} vinculado(s) · {{ empresa.desvinculados }} desvinculado(s)
-                  </span>
-                </div>
-                @if (empresa.erro) {
-                  <p class="sync-erro-texto">
-                    <lucide-icon name="alert-circle" [size]="14"></lucide-icon>
-                    {{ empresa.erro }}
-                  </p>
-                }
-              </div>
-            }
-          </div>
-        </div>
-      }
-
-      @if (vinculosSyncResultado(); as resultado) {
-        <div class="marcacoes-resultado">
-          <div class="sync-resultado-header">
-            <div>
-              <strong>Resultado da sincronização</strong>
-              <span class="sync-duracao">
-                {{ resultado.resumo.funcionarios }} funcionário(s) · {{ resultado.duracaoMs }} ms
-              </span>
-            </div>
-            <span class="badge"
-              [class.status-ok]="resultado.status === 'CONCLUIDO'"
-              [class.status-parcial]="resultado.status === 'PARCIAL'"
-              [class.status-falta]="resultado.status === 'ERRO'"
-            >{{ resultado.status }}</span>
-          </div>
-          <div class="vinculos-resumo">
-            <span>{{ resumoVinculos(resultado) }}</span>
-          </div>
-        </div>
-      }
-
-      @if (isLoadingVinculosStatus()) {
-        <div class="loading-container">
-          <div class="spinner"></div>
-          <p>Carregando status dos vínculos...</p>
-        </div>
-      } @else if (vinculosStatus().length > 0) {
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Empresa</th>
-                <th>Funcionários</th>
-                <th>Vínculos ativos</th>
-                <th>Relógios</th>
-                <th>Última sincronização</th>
-                <th>Ação</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (item of vinculosStatus(); track item.empresa_config_id) {
-                <tr>
-                  <td>
-                    <strong>{{ item.nome }}</strong>
-                    <span class="texto-suave d-block">
-                      {{ item.empresa_nome || 'Empresa local não definida' }}
-                    </span>
-                  </td>
-                  <td>{{ item.total_funcionarios }}</td>
-                  <td>{{ item.total_vinculos_ativos }}</td>
-                  <td>{{ item.total_relogios }}</td>
-                  <td>
-                    @if (item.ultima_sincronizacao_em) {
-                      {{ item.ultima_sincronizacao_em | date:'dd/MM/yyyy HH:mm' }}
-                      <span class="texto-suave">
-                        ({{ item.ultima_sincronizacao_tipo }})
-                      </span>
-                    } @else {
-                      <span class="texto-suave">—</span>
-                    }
-                  </td>
-                  <td>
-                    <button class="btn btn-outline btn-sm" (click)="sincronizarVinculosEmpresa(item)"
-                      [disabled]="isSincronizandoVinculos() || !item.ativo"
-                      title="Importar os vínculos desta empresa a partir da API">
-                      @if (isSincronizandoVinculos()) {
-                        <lucide-icon name="loader-circle" [size]="14" class="spin"></lucide-icon>
-                      } @else {
-                        <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
-                      }
-                      Sincronizar
-                    </button>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      }
-    }
-  </div>
-
-  <div class="results-card marcacoes-card">
-    <div class="marcacoes-header">
-      <div>
-        <strong>Marcações de ponto</strong>
-        <p>
-          Importe o histórico por período e mantenha a sincronização incremental
-          pelo último ID importado de cada empresa.
-        </p>
-      </div>
-      <button class="btn btn-outline" (click)="sincronizarIncrementalTodas()"
-        [disabled]="isImportandoMarcacoes()">
-        @if (isImportandoMarcacoes() && sincronizandoIncrementalId() === null) {
-          <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
-        } @else {
-          <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
-        }
-        Sincronizar incremental
-      </button>
-    </div>
-
-    <div class="marcacoes-form">
-      <label class="campo">
-        <span>Data inicial</span>
-        <input type="date" [value]="dataInicio()"
-          (input)="dataInicio.set($any($event.target).value)" />
-      </label>
-      <label class="campo">
-        <span>Data final</span>
-        <input type="date" [value]="dataFim()"
-          (input)="dataFim.set($any($event.target).value)" />
-      </label>
-      <label class="campo">
-        <span>Empresa da API</span>
-        <select [value]="empresaMarcacoesFiltro()"
-          (change)="empresaMarcacoesFiltro.set($any($event.target).value)">
-          <option value="">Todas as empresas</option>
-          @for (e of empresasPontocertificado(); track e.id) {
-            <option [value]="e.id">{{ e.nome }}</option>
-          }
-        </select>
-      </label>
-      <label class="campo">
-        <span>Matrícula (opcional)</span>
-        <input type="text" placeholder="Todas" [value]="matriculaFiltro()"
-          (input)="matriculaFiltro.set($any($event.target).value)" />
-      </label>
-      <label class="campo">
-        <span>Relógio (opcional)</span>
-        <input type="text" placeholder="Todos" [value]="relogioFiltro()"
-          (input)="relogioFiltro.set($any($event.target).value)" />
-      </label>
-      <button class="btn btn-primary" (click)="importarPeriodo()"
-        [disabled]="isImportandoMarcacoes()">
-        @if (isImportandoMarcacoes()) {
-          <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
-        } @else {
-          <lucide-icon name="calendar-search" [size]="16"></lucide-icon>
-        }
-        Importar período
-      </button>
-    </div>
-
-    @if (marcacoesErro()) {
+  <!-- ───────────────────────── Empresas ───────────────────────── -->
+  <section class="tab-panel" role="tabpanel" [hidden]="abaAtiva() !== 'empresas'">
+    @if (syncErro()) {
       <div class="sync-banner erro">
         <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
-        <span>{{ marcacoesErro() }}</span>
+        <span>{{ syncErro() }}</span>
       </div>
     }
 
-    @if (ultimoResultadoMarcacoes(); as resultado) {
-      <div class="marcacoes-resultado">
+    @if (isSincronizando()) {
+      <div class="sync-banner">
+        <lucide-icon name="loader-circle" [size]="18" class="spin"></lucide-icon>
+        <span>
+          Sincronizando cadastro de funcionários e relógios...
+          @if (sincronizandoEmpresaId() !== null) {
+            (empresa selecionada)
+          }
+        </span>
+      </div>
+    }
+
+    @if (ultimoResultado(); as resultado) {
+      <div class="sync-resultado">
         <div class="sync-resultado-header">
-          <div>
-            <strong>Resultado da importação</strong>
-            <span class="sync-duracao">{{ resultado.duracaoMs }} ms</span>
-          </div>
+          <strong>Resultado da sincronização</strong>
           <span
             class="badge"
             [class.status-ok]="resultado.status === 'CONCLUIDO'"
@@ -1216,12 +111,7 @@
               <div class="sync-empresa-titulo">
                 <strong>{{ empresa.nome }}</strong>
                 <span class="sync-empresa-local">
-                  @if (empresa.modo === 'periodo') {
-                    {{ empresa.dataInicio }} — {{ empresa.dataFim }}
-                    ({{ empresa.periodos }} dia(s))
-                  } @else {
-                    Incremental
-                  }
+                  Empresa local: {{ empresa.empresa_padrao || 'não definida' }}
                 </span>
               </div>
 
@@ -1232,12 +122,12 @@
                 </p>
               } @else {
                 <div class="sync-linha">
-                  <span class="sync-recurso">Marcações</span>
-                  <span>{{ resumoMarcacoes(empresa.marcacoes) }}</span>
+                  <span class="sync-recurso">Funcionários</span>
+                  <span>{{ resumoStats(empresa.funcionarios) }}</span>
                 </div>
                 <div class="sync-linha">
-                  <span class="sync-recurso">Último ID</span>
-                  <span>{{ empresa.ultimo_id ?? 0 }}</span>
+                  <span class="sync-recurso">Relógios</span>
+                  <span>{{ resumoStats(empresa.relogios) }}</span>
                 </div>
               }
             </div>
@@ -1246,426 +136,55 @@
       </div>
     }
 
-    @if (isLoadingMarcacoesStatus()) {
-      <div class="loading-container">
-        <div class="spinner"></div>
-        <p>Carregando status das marcações...</p>
-      </div>
-    } @else if (marcacoesStatus().length === 0) {
-      <div class="empty-state">
-        <lucide-icon name="clock" [size]="40"></lucide-icon>
-        <h3>Nenhuma empresa de API cadastrada</h3>
-        <p>Cadastre uma empresa para importar as marcações de ponto.</p>
-      </div>
-    } @else {
-      <div class="table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Empresa</th>
-              <th>Última carga</th>
-              <th>Último ID</th>
-              <th>Última importação</th>
-              <th>Ação</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (item of marcacoesStatus(); track item.empresa_config_id) {
-              <tr>
-                <td>
-                  <strong>{{ item.nome }}</strong>
-                  @if (!item.ativo) {
-                    <span class="badge status-falta">Inativa</span>
-                  }
-                </td>
-                <td>{{ tipoMarcacoesLabel(item.ultima_sincronizacao_tipo) }}</td>
-                <td>
-                  @if (item.ultimo_id > 0) {
-                    {{ item.ultimo_id }}
-                  } @else {
-                    <span class="texto-suave">Nenhuma carga</span>
-                  }
-                </td>
-                <td>
-                  @if (item.ultima_sincronizacao_em) {
-                    {{ item.ultima_sincronizacao_em | date:'dd/MM/yyyy HH:mm' }}
-                    <span class="texto-suave">({{ item.ultimo_total_importado }} registro(s))</span>
-                  } @else {
-                    <span class="texto-suave">—</span>
-                  }
-                </td>
-                <td>
-                  <button class="btn btn-outline btn-sm" (click)="sincronizarIncrementalEmpresa(item)"
-                    [disabled]="isImportandoMarcacoes() || !item.ativo"
-                    title="Importar marcações novas desta empresa">
-                    @if (sincronizandoIncrementalId() === item.empresa_config_id) {
-                      <lucide-icon name="loader-circle" [size]="14" class="spin"></lucide-icon>
-                    } @else {
-                      <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
-                    }
-                    Incremental
-                  </button>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-      @if (temEmpresaSemCarga()) {
-        <p class="marcacoes-aviso">
-          <lucide-icon name="info" [size]="14"></lucide-icon>
-          Empresas sem carga realizada: o primeiro incremental importa todo o histórico
-          disponível. Prefira usar <strong>Importar período</strong> na primeira carga.
-        </p>
-      }
-    }
-  </div>
-
-  <div class="results-card afd-card">
-    <div class="marcacoes-header">
-      <div>
-        <strong>AFD — Portaria 671/MTP</strong>
-        <p>
-          Gere o Arquivo Fonte de Dados por relógio, modelo REPP/REPA ou AFD único.
-          O arquivo fica disponível para download em formato <code>.txt</code>.
-        </p>
-      </div>
-      <button class="btn btn-primary" (click)="toggleAfd()">
-        <lucide-icon [name]="showAfd() ? 'chevron-up' : 'file-text'" [size]="16"></lucide-icon>
-        {{ showAfd() ? 'Fechar AFD' : 'Gerar AFD' }}
-      </button>
-    </div>
-
-    @if (showAfd()) {
-      @if (isLoadingAfd()) {
-        <div class="loading-container">
-          <div class="spinner"></div>
-          <p>Carregando operações e histórico de AFD...</p>
+    <div class="results-card">
+      <div class="section-header">
+        <div>
+          <strong>Empresas do Ponto Certificado</strong>
+          <p>Empresas com credenciais próprias para importar funcionários e relógios.</p>
         </div>
-      } @else {
-        <div class="marcacoes-form afd-form">
-          <label class="campo">
-            <span>Empresa da API</span>
-            <select [value]="afdEmpresaFiltro()"
-              (change)="afdEmpresaFiltro.set($any($event.target).value)">
-              <option value="">Todas as empresas</option>
-              @for (e of empresasPontocertificado(); track e.id) {
-                <option [value]="e.id">{{ e.nome }}</option>
-              }
-            </select>
-          </label>
-
-          <label class="campo">
-            <span>Operação</span>
-            <select [value]="afdOperacao()"
-              (change)="afdOperacao.set($any($event.target).value)">
-              @for (op of afdOperacoes(); track op.chave) {
-                <option [value]="op.chave">{{ op.label }}</option>
-              }
-            </select>
-          </label>
-
-          <label class="campo">
-            <span>Data inicial</span>
-            <input type="date" [value]="afdDataInicio()"
-              (input)="afdDataInicio.set($any($event.target).value)" />
-          </label>
-
-          <label class="campo">
-            <span>Data final</span>
-            <input type="date" [value]="afdDataFim()"
-              (input)="afdDataFim.set($any($event.target).value)" />
-          </label>
-
-          @if (afdExigeRelogio()) {
-            <label class="campo">
-              <span>Número de série do relógio</span>
-              <input type="text" placeholder="Ex.: 338101079864" [value]="afdNumeroSerie()"
-                (input)="afdNumeroSerie.set($any($event.target).value)" />
-            </label>
-          }
-
-          @if (afdOperacao() === 'GeraAFDUnico') {
-            <label class="campo">
-              <span>Relógio do cabeçalho (opcional)</span>
-              <input type="text" placeholder="Opcional" [value]="afdCabecalho()"
-                (input)="afdCabecalho.set($any($event.target).value)" />
-            </label>
-          }
-
-          <button class="btn btn-primary" (click)="gerarAfd()" [disabled]="isGerandoAfd()">
-            @if (isGerandoAfd()) {
+        @if (temPontoCertificado()) {
+          <button class="btn btn-outline" (click)="sincronizarTudo()" [disabled]="isSincronizando()">
+            @if (isSincronizando() && sincronizandoEmpresaId() === null) {
               <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
             } @else {
-              <lucide-icon name="download" [size]="16"></lucide-icon>
+              <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
             }
-            Gerar AFD
+            Sincronizar tudo
           </button>
-        </div>
-
-        @if (afdOperacaoAtual(); as op) {
-          <p class="marcacoes-aviso">
-            <lucide-icon name="info" [size]="14"></lucide-icon>
-            {{ op.descricao }}
-          </p>
         }
-      }
-
-      @if (afdErro()) {
-        <div class="sync-banner erro">
-          <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
-          <span>{{ afdErro() }}</span>
-        </div>
-      }
-
-      @if (afdResultado(); as resultado) {
-        <div class="marcacoes-resultado">
-          <div class="sync-resultado-header">
-            <div>
-              <strong>Resultado da geração — {{ resultado.operacaoLabel }}</strong>
-              <span class="sync-duracao">
-                {{ resultado.sucesso }} de {{ resultado.total }} empresa(s)
-              </span>
-            </div>
-            <span class="badge"
-              [class.status-ok]="resultado.success"
-              [class.status-parcial]="!resultado.success && resultado.sucesso > 0"
-              [class.status-falta]="resultado.sucesso === 0"
-            >{{ resultado.success ? 'CONCLUÍDO' : (resultado.sucesso > 0 ? 'PARCIAL' : 'ERRO') }}</span>
-          </div>
-
-          <div class="sync-empresas">
-            @for (empresa of resultado.empresas; track empresa.empresa_config_id) {
-              <div class="sync-empresa" [class.sync-empresa-erro]="empresa.status === 'ERRO'">
-                <div class="sync-empresa-titulo">
-                  <strong>{{ empresa.empresa_config_nome }}</strong>
-                  <span class="sync-empresa-local">
-                    {{ tamanhoArquivo(empresa.tamanho_bytes) }}
-                  </span>
-                </div>
-                @if (empresa.status === 'ERRO') {
-                  <p class="sync-erro-texto">
-                    <lucide-icon name="alert-circle" [size]="14"></lucide-icon>
-                    {{ empresa.erro }}
-                  </p>
-                } @else {
-                  <button class="btn btn-outline btn-sm" (click)="baixarAfd(empresa)">
-                    <lucide-icon name="download" [size]="14"></lucide-icon>
-                    Baixar {{ empresa.nome_arquivo }}
-                  </button>
-                }
-              </div>
-            }
-          </div>
-        </div>
-      }
-
-      @if (afdGeracoes().length > 0) {
-        <div class="table-container afd-tabela">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Empresa</th>
-                <th>Operação</th>
-                <th>Período</th>
-                <th>Relógio</th>
-                <th>Tamanho</th>
-                <th>Status</th>
-                <th>Ação</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (item of afdGeracoes(); track item.id) {
-                <tr>
-                  <td>{{ item.criado_em | date:'dd/MM/yyyy HH:mm' }}</td>
-                  <td>{{ item.empresa_config_nome }}</td>
-                  <td>{{ item.operacao }}</td>
-                  <td>
-                    {{ item.data_inicial || '—' }}
-                    @if (item.data_final) { — {{ item.data_final }} }
-                  </td>
-                  <td>{{ item.numero_serie || '—' }}</td>
-                  <td>{{ tamanhoArquivo(item.tamanho_bytes) }}</td>
-                  <td>
-                    @if (item.status === 'CONCLUIDO') {
-                      <span class="badge status-ok">Concluído</span>
-                    } @else {
-                      <span class="badge status-falta" [title]="item.erro || ''">Erro</span>
-                    }
-                  </td>
-                  <td>
-                    @if (item.status === 'CONCLUIDO') {
-                      <button class="btn btn-outline btn-sm" (click)="baixarAfd(item)">
-                        <lucide-icon name="download" [size]="14"></lucide-icon>
-                        Baixar
-                      </button>
-                    } @else {
-                      <span class="texto-suave">{{ item.erro }}</span>
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      }
-    }
-  </div>
-
-  <div class="results-card webhooks-card">
-    <div class="marcacoes-header">
-      <div>
-        <strong>Webhooks</strong>
-        <p>
-          Assine notificações em tempo real da API e acompanhe os eventos recebidos.
-          A API exige uma URL pública HTTPS; após criar a assinatura, a URL é
-          atualizada automaticamente para <code>/api/webhooks/ponto/&lt;secret&gt;</code>.
-        </p>
-      </div>
-      <div class="header-actions">
-        <button class="btn btn-outline" (click)="sincronizarWebhooks()"
-          [disabled]="isSincronizandoWebhooks()">
-          @if (isSincronizandoWebhooks()) {
-            <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
-          } @else {
-            <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
-          }
-          Sincronizar da API
-        </button>
-        <button class="btn btn-primary" (click)="toggleWebhooks()">
-          <lucide-icon [name]="showWebhooks() ? 'chevron-up' : 'link'" [size]="16"></lucide-icon>
-          {{ showWebhooks() ? 'Fechar webhooks' : 'Gerenciar webhooks' }}
-        </button>
-      </div>
-    </div>
-
-    @if (showWebhooks()) {
-      <div class="marcacoes-form webhook-form">
-        <label class="campo">
-          <span>Empresa da API</span>
-          <select [value]="webhookEmpresaId()"
-            (change)="webhookEmpresaId.set($any($event.target).value)">
-            <option value="">Selecione...</option>
-            @for (e of empresasPontocertificado(); track e.id) {
-              <option [value]="e.id">{{ e.nome }}</option>
-            }
-          </select>
-        </label>
-
-        <label class="campo">
-          <span>Tipo do webhook</span>
-          <input type="text" placeholder="Ex.: Marcacao" [value]="webhookType()"
-            (input)="webhookType.set($any($event.target).value)" />
-        </label>
-
-        <label class="campo campo-uri">
-          <span>URL pública HTTPS provisória (opcional)</span>
-          <input type="url" placeholder="Padrão: URL pública deste sistema" [value]="webhookUri()"
-            (input)="webhookUri.set($any($event.target).value)" />
-        </label>
-
-        <button class="btn btn-primary" (click)="criarWebhook()" [disabled]="isCriandoWebhook()">
-          @if (isCriandoWebhook()) {
-            <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
-          } @else {
-            <lucide-icon name="plus" [size]="16"></lucide-icon>
-          }
-          Criar assinatura
-        </button>
       </div>
 
-      @if (webhookErro()) {
-        <div class="sync-banner erro">
-          <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
-          <span>{{ webhookErro() }}</span>
-        </div>
-      }
-
-      @if (webhookSyncResultado(); as resultado) {
-        <div class="marcacoes-resultado">
-          <div class="sync-resultado-header">
-            <div>
-              <strong>Resultado da sincronização de webhooks</strong>
-              <span class="sync-duracao">{{ resultado.total }} assinatura(s)</span>
-            </div>
-            <span class="badge"
-              [class.status-ok]="resultado.success"
-              [class.status-parcial]="!resultado.success"
-            >{{ resultado.success ? 'CONCLUÍDO' : 'PARCIAL' }}</span>
-          </div>
-          <div class="sync-empresas">
-            @for (empresa of resultado.empresas; track empresa.empresa_config_id) {
-              <div class="sync-empresa" [class.sync-empresa-erro]="empresa.erro">
-                <div class="sync-empresa-titulo">
-                  <strong>{{ empresa.nome }}</strong>
-                  <span class="sync-empresa-local">{{ empresa.assinaturas }} assinatura(s)</span>
-                </div>
-                @if (empresa.erro) {
-                  <p class="sync-erro-texto">
-                    <lucide-icon name="alert-circle" [size]="14"></lucide-icon>
-                    {{ empresa.erro }}
-                  </p>
-                }
-              </div>
-            }
-          </div>
-        </div>
-      }
-
-      @if (isLoadingWebhooks()) {
+      @if (isLoading()) {
         <div class="loading-container">
           <div class="spinner"></div>
-          <p>Carregando webhooks e eventos...</p>
+          <p>Carregando empresas...</p>
         </div>
-      } @else if (webhookAssinaturas().length === 0) {
+      } @else if (empresasPontocertificado().length === 0) {
         <div class="empty-state">
-          <lucide-icon name="link" [size]="40"></lucide-icon>
-          <h3>Nenhuma assinatura de webhook</h3>
-          <p>Crie uma assinatura ou sincronize as existentes na API externa.</p>
+          <lucide-icon name="building-2" [size]="48"></lucide-icon>
+          <h3>Nenhuma empresa do Ponto Certificado</h3>
+          <p>Adicione uma empresa ou gerencie a conta ExataWeb na aba correspondente.</p>
         </div>
       } @else {
         <div class="table-container">
           <table class="data-table">
             <thead>
               <tr>
-                <th>Empresa</th>
-                <th>Tipo</th>
-                <th>URL cadastrada</th>
-                <th>Callback local</th>
-                <th>Eventos</th>
+                <th>Nome</th>
+                <th>E-mail</th>
+                <th>Empresa local</th>
                 <th>Status</th>
                 <th>Ações</th>
               </tr>
             </thead>
             <tbody>
-              @for (item of webhookAssinaturas(); track item.id) {
+              @for (e of empresasPontocertificado(); track e.id) {
                 <tr>
-                  <td><strong>{{ item.empresa_config_nome }}</strong></td>
-                  <td>{{ item.webhook_type }}</td>
-                  <td class="webhook-uri">{{ item.webhook_uri }}</td>
+                  <td><strong>{{ e.nome }}</strong></td>
+                  <td>{{ e.email }}</td>
+                  <td>{{ e.empresa_nome || 'Automático' }}</td>
                   <td>
-                    <div class="webhook-callback">
-                      <code class="webhook-secret">{{ item.callback_url }}</code>
-                      <button class="btn btn-outline btn-sm" (click)="copiar(item.callback_url, 'URL de callback copiada')">
-                        <lucide-icon name="clipboard-list" [size]="14"></lucide-icon>
-                      </button>
-                    </div>
-                    <button class="btn btn-outline btn-sm" (click)="copiar(item.secret, 'Secret copiado')">
-                      <lucide-icon name="key-round" [size]="14"></lucide-icon>
-                      Copiar secret ({{ item.secret_mascarado }})
-                    </button>
-                  </td>
-                  <td>
-                    {{ item.total_eventos }}
-                    @if (item.ultimo_evento_em) {
-                      <span class="texto-suave d-block">
-                        {{ item.ultimo_evento_em | date:'dd/MM/yyyy HH:mm' }}
-                      </span>
-                    }
-                  </td>
-                  <td>
-                    @if (item.ativo) {
+                    @if (e.ativo) {
                       <span class="badge status-ok">Ativa</span>
                     } @else {
                       <span class="badge status-falta">Inativa</span>
@@ -1673,21 +192,25 @@
                   </td>
                   <td>
                     <div class="acoes">
-                      <button class="btn btn-outline btn-sm" (click)="usarCallbackLocal(item)"
-                        title="Registrar na API a URL de callback local com o secret">
-                        <lucide-icon name="link" [size]="14"></lucide-icon>
-                        Usar callback local
+                      <button class="btn btn-outline btn-sm" (click)="sincronizarEmpresa(e)"
+                        [disabled]="isSincronizando() || !e.ativo"
+                        title="Sincronizar funcionários e relógios desta empresa">
+                        @if (isSincronizando() && sincronizandoEmpresaId() === e.id) {
+                          <lucide-icon name="loader-circle" [size]="14" class="spin"></lucide-icon>
+                        } @else {
+                          <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
+                        }
+                        Sincronizar
                       </button>
-                      <button class="btn btn-outline btn-sm" (click)="atualizarWebhook(item)" title="Atualizar URL">
+                      <button class="btn btn-outline btn-sm" (click)="abrirEditar(e)" title="Editar">
                         <lucide-icon name="edit-2" [size]="14"></lucide-icon>
-                        URL
+                        Editar
                       </button>
-                      @if (item.ativo) {
-                        <button class="btn btn-outline btn-sm" (click)="desativarWebhook(item)" title="Desativar">
-                          <lucide-icon name="ban" [size]="14"></lucide-icon>
-                          Desativar
-                        </button>
-                      }
+                      <button class="btn btn-outline btn-sm" (click)="toggleAtivo(e)"
+                        [title]="e.ativo ? 'Desativar' : 'Ativar'">
+                        <lucide-icon [name]="e.ativo ? 'ban' : 'check-circle'" [size]="14"></lucide-icon>
+                        {{ e.ativo ? 'Desativar' : 'Ativar' }}
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -1696,55 +219,1528 @@
           </table>
         </div>
       }
+    </div>
+  </section>
 
-      @if (webhookEventos().length > 0) {
-        <div class="webhook-eventos">
-          <div class="sync-resultado-header">
-            <div>
-              <strong>Eventos recebidos</strong>
-              <span class="sync-duracao">últimos {{ webhookEventos().length }}</span>
+  <!-- ───────────────────────── ExataWeb ───────────────────────── -->
+  <section class="tab-panel" role="tabpanel" [hidden]="abaAtiva() !== 'exata'">
+    <div class="results-card">
+      <div class="section-header">
+        <div>
+          <strong>ExataWeb</strong>
+          <p>Integração somente leitura: empresas, funcionários, marcações e status.</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-outline" (click)="sincronizarEmpresasExata()"
+            [disabled]="isSincronizandoExataEmpresas() || isSincronizandoExataFuncionarios()">
+            @if (isSincronizandoExataEmpresas()) {
+              <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+            } @else {
+              <lucide-icon name="building-2" [size]="16"></lucide-icon>
+            }
+            Descobrir empresas
+          </button>
+          <button class="btn btn-primary" (click)="sincronizarFuncionariosExata()"
+            [disabled]="isSincronizandoExataEmpresas() || isSincronizandoExataFuncionarios() || exataEmpresas().length === 0">
+            @if (isSincronizandoExataFuncionarios() && exataEmpresaSyncId() === null) {
+              <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+            } @else {
+              <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
+            }
+            Sincronizar funcionários
+          </button>
+        </div>
+      </div>
+
+      @if (isLoadingExata()) {
+        <div class="loading-container">
+          <div class="spinner"></div>
+          <p>Carregando empresas da Exata...</p>
+        </div>
+      } @else {
+        <div class="resumo-strip">
+          @if (exataConta(); as conta) {
+            <span>
+              <strong>{{ conta.nome }}</strong>
+              <span class="badge" [class.status-ok]="conta.ativo" [class.status-falta]="!conta.ativo">
+                {{ conta.ativo ? 'Conta ativa' : 'Conta desativada' }}
+              </span>
+            </span>
+            @if (conta.ultima_execucao) {
+              <span>
+                Última execução {{ conta.ultima_execucao.iniciado_em | date:'dd/MM/yyyy HH:mm' }}
+              </span>
+            } @else {
+              <span class="texto-suave">Nenhuma sincronização executada</span>
+            }
+          }
+          @if (exataResumo(); as resumo) {
+            <span><strong>{{ resumo.total }}</strong> empresa(s)</span>
+            <span><strong>{{ resumo.mapeadas }}</strong> mapeada(s)</span>
+            @if (resumo.semMapeamento > 0) {
+              <span class="texto-alerta"><strong>{{ resumo.semMapeamento }}</strong> sem empresa local</span>
+            }
+            @if (resumo.inativas > 0) {
+              <span><strong>{{ resumo.inativas }}</strong> inativa(s)</span>
+            }
+          }
+        </div>
+
+        @if (exataErro()) {
+          <div class="sync-banner erro">
+            <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
+            <span>{{ exataErro() }}</span>
+          </div>
+        }
+
+        @if (exataEmpresasResultado(); as resultado) {
+          <div class="marcacoes-resultado">
+            <div class="sync-resultado-header">
+              <strong>Descoberta de empresas</strong>
+              <span class="badge"
+                [class.status-ok]="resultado.status === 'CONCLUIDO'"
+                [class.status-parcial]="resultado.status === 'PARCIAL'"
+                [class.status-falta]="resultado.status === 'ERRO'"
+              >{{ resultado.status }}</span>
+            </div>
+            <div class="resumo-strip">
+              <span>{{ resultado.recebidas }} recebida(s)</span>
+              <span>{{ resultado.inseridas }} nova(s)</span>
+              <span>{{ resultado.atualizadas }} atualizada(s)</span>
+              <span>{{ resultado.mapeadas }} mapeada(s)</span>
+              @if (resultado.semMapeamento > 0) {
+                <span class="texto-alerta">{{ resultado.semMapeamento }} sem empresa local</span>
+              }
             </div>
           </div>
+        }
+
+        @if (exataFuncionariosResultado(); as resultado) {
+          <div class="marcacoes-resultado">
+            <div class="sync-resultado-header">
+              <strong>Sincronização de funcionários</strong>
+              <span class="badge"
+                [class.status-ok]="resultado.status === 'CONCLUIDO'"
+                [class.status-parcial]="resultado.status === 'PARCIAL'"
+                [class.status-falta]="resultado.status === 'ERRO'"
+              >{{ resultado.status }}</span>
+            </div>
+            <div class="resumo-strip">
+              <span>{{ resultado.recebidos }} recebido(s)</span>
+              <span>{{ resumoExataFuncionarios(resultado) }}</span>
+            </div>
+            @if (temErroExataFuncionarios(resultado)) {
+              <div class="sync-empresas">
+                @for (empresa of resultado.empresas; track empresa.empresa_exata_id) {
+                  @if (empresa.erro) {
+                    <div class="sync-empresa sync-empresa-erro">
+                      <div class="sync-empresa-titulo">
+                        <strong>{{ empresa.descricao || empresa.empresasistema }}</strong>
+                      </div>
+                      <p class="sync-erro-texto">
+                        <lucide-icon name="alert-circle" [size]="14"></lucide-icon>
+                        {{ empresa.erro }}
+                      </p>
+                    </div>
+                  }
+                }
+              </div>
+            }
+          </div>
+        }
+
+        @if (exataEmpresas().length === 0) {
+          <div class="empty-state">
+            <lucide-icon name="building-2" [size]="40"></lucide-icon>
+            <h3>Nenhuma empresa da Exata descoberta</h3>
+            <p>Use "Descobrir empresas" para importar a lista da conta ExataWeb.</p>
+          </div>
+        } @else {
           <div class="table-container">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Recebido em</th>
-                  <th>Empresa</th>
-                  <th>Tipo</th>
-                  <th>Origem</th>
-                  <th>Payload</th>
+                  <th>Empresa Exata</th>
+                  <th>Empresa local</th>
+                  <th>Funcionários</th>
+                  <th>Última descoberta</th>
+                  <th>Status</th>
+                  <th>Ações</th>
                 </tr>
               </thead>
               <tbody>
-                @for (evento of webhookEventos(); track evento.id) {
+                @for (empresa of exataEmpresas(); track empresa.id) {
                   <tr>
-                    <td>{{ evento.recebido_em | date:'dd/MM/yyyy HH:mm:ss' }}</td>
-                    <td>{{ evento.empresa_config_nome || '—' }}</td>
-                    <td>{{ evento.tipo_evento || '—' }}</td>
-                    <td class="texto-suave">{{ evento.origem_ip || '—' }}</td>
+                    <td><strong>{{ empresa.descricao || '(sem descrição)' }}</strong></td>
                     <td>
-                      <code class="webhook-payload" [title]="evento.payload || ''">
-                        {{ evento.payload_preview || '—' }}
-                      </code>
+                      <select [value]="empresa.empresa_id ?? ''"
+                        (change)="mapearEmpresaExata(empresa, $any($event.target).value)"
+                        [disabled]="isSincronizandoExataEmpresas() || isSincronizandoExataFuncionarios()">
+                        <option value="">Sem empresa local</option>
+                        @for (local of exataEmpresasLocais(); track local.id) {
+                          <option [value]="local.id">{{ local.nome }}</option>
+                        }
+                      </select>
+                      @if (!empresa.empresa_id) {
+                        <span class="texto-alerta d-block">Mapeamento pendente</span>
+                      }
+                    </td>
+                    <td>{{ empresa.total_funcionarios }}</td>
+                    <td>
+                      @if (empresa.sincronizado_em) {
+                        {{ empresa.sincronizado_em | date:'dd/MM/yyyy HH:mm' }}
+                      } @else {
+                        <span class="texto-suave">—</span>
+                      }
+                    </td>
+                    <td>
+                      @if (empresa.ativo) {
+                        <span class="badge status-ok">Ativa</span>
+                      } @else {
+                        <span class="badge status-falta">Inativa</span>
+                      }
+                    </td>
+                    <td>
+                      <div class="acoes">
+                        <button class="btn btn-outline btn-sm" (click)="sincronizarFuncionariosExata(empresa)"
+                          [disabled]="isSincronizandoExataFuncionarios() || !empresa.ativo"
+                          title="Importar os funcionários desta empresa">
+                          @if (isSincronizandoExataFuncionarios() && exataEmpresaSyncId() === empresa.id) {
+                            <lucide-icon name="loader-circle" [size]="14" class="spin"></lucide-icon>
+                          } @else {
+                            <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
+                          }
+                          Sincronizar
+                        </button>
+                        <button class="btn btn-outline btn-sm" (click)="toggleAtivoExata(empresa)"
+                          [title]="empresa.ativo ? 'Desativar' : 'Ativar'">
+                          <lucide-icon [name]="empresa.ativo ? 'ban' : 'check-circle'" [size]="14"></lucide-icon>
+                          {{ empresa.ativo ? 'Desativar' : 'Ativar' }}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 }
               </tbody>
             </table>
           </div>
-        </div>
+          @if (exataResumo()?.semMapeamento) {
+            <p class="marcacoes-aviso">
+              <lucide-icon name="info" [size]="14"></lucide-icon>
+              Empresas sem empresa local não entram no cadastro local até o mapeamento ser ajustado.
+            </p>
+          }
+        }
       }
+
+      <details class="subcard">
+        <summary>
+          <span>Marcações de ponto</span>
+          <span class="summary-hint">Importar histórico por período ou incremental</span>
+        </summary>
+        <div class="subcard-body">
+          <div class="subcard-toolbar">
+            <p>Importe por período ou busque os pontos ainda não exportados.</p>
+            <button class="btn btn-outline" (click)="sincronizarIncrementalExata()"
+              [disabled]="isSincronizandoExataPontos()">
+              @if (isSincronizandoExataPontos() && exataPontosModo() === 'incremental') {
+                <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+              } @else {
+                <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
+              }
+              Sincronizar incremental
+            </button>
+          </div>
+
+          <div class="marcacoes-form">
+            <label class="campo">
+              <span>Empresa Exata</span>
+              <select [value]="exataEmpresaPontosId()"
+                (change)="exataEmpresaPontosId.set($any($event.target).value)">
+                <option value="">Todas as empresas</option>
+                @for (empresa of exataEmpresas(); track empresa.id) {
+                  @if (empresa.ativo) {
+                    <option [value]="empresa.id">
+                      {{ empresa.descricao || ('Empresa ' + empresa.empresasistema) }}
+                    </option>
+                  }
+                }
+              </select>
+            </label>
+            <label class="campo">
+              <span>Data inicial</span>
+              <input type="date" [value]="exataDataInicio()"
+                (input)="exataDataInicio.set($any($event.target).value)" />
+            </label>
+            <label class="campo">
+              <span>Data final</span>
+              <input type="date" [value]="exataDataFim()"
+                (input)="exataDataFim.set($any($event.target).value)" />
+            </label>
+            <label class="campo">
+              <span>Lote</span>
+              <input type="number" min="1" max="1000" [value]="exataQtde()"
+                (input)="exataQtde.set(+$any($event.target).value || 100)" />
+            </label>
+            <button class="btn btn-primary" (click)="importarPeriodoExata()"
+              [disabled]="isSincronizandoExataPontos()">
+              @if (isSincronizandoExataPontos() && exataPontosModo() === 'periodo') {
+                <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+              } @else {
+                <lucide-icon name="calendar-search" [size]="16"></lucide-icon>
+              }
+              Importar período
+            </button>
+          </div>
+
+          @if (exataPontosErro()) {
+            <div class="sync-banner erro">
+              <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
+              <span>{{ exataPontosErro() }}</span>
+            </div>
+          }
+
+          @if (exataPontosResultado(); as resultado) {
+            <div class="marcacoes-resultado">
+              <div class="sync-resultado-header">
+                <strong>Resultado da importação — {{ resultado.modo === 'periodo' ? 'período' : 'incremental' }}</strong>
+                <span class="badge"
+                  [class.status-ok]="resultado.status === 'CONCLUIDO'"
+                  [class.status-parcial]="resultado.status === 'PARCIAL'"
+                  [class.status-falta]="resultado.status === 'ERRO'"
+                >{{ resultado.status }}</span>
+              </div>
+              <div class="resumo-strip">
+                <span>{{ resumoPontosExata(resultado) }}</span>
+              </div>
+              <div class="sync-empresas">
+                @for (empresa of resultado.empresas; track empresa.empresa_exata_id) {
+                  <div class="sync-empresa" [class.sync-empresa-erro]="empresa.erro">
+                    <div class="sync-empresa-titulo">
+                      <strong>{{ empresa.descricao || empresa.empresasistema }}</strong>
+                      <span class="sync-empresa-local">
+                        {{ empresa.buscados }} buscada(s) · {{ empresa.inseridos }} nova(s) ·
+                        {{ empresa.atualizados }} atualizada(s) · {{ empresa.baixados }} baixada(s)
+                      </span>
+                    </div>
+                    @if (empresa.erro) {
+                      <p class="sync-erro-texto">
+                        <lucide-icon name="alert-circle" [size]="14"></lucide-icon>
+                        {{ empresa.erro }}
+                      </p>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          @if (exataPontosStatus(); as status) {
+            @if (status.empresas.length > 0) {
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Empresa Exata</th>
+                      <th>Marcações importadas</th>
+                      <th>Último dia</th>
+                      <th>Último NSR</th>
+                      <th>Última execução</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of status.empresas; track item.id) {
+                      <tr>
+                        <td><strong>{{ item.descricao || ('Empresa ' + item.empresasistema) }}</strong></td>
+                        <td>{{ item.total_marcacoes }}</td>
+                        <td>{{ item.ultima_data || '—' }}</td>
+                        <td>{{ item.ultimo_nsr ?? '—' }}</td>
+                        <td>
+                          @if (item.ultima_execucao_em) {
+                            {{ item.ultima_execucao_em | date:'dd/MM/yyyy HH:mm' }}
+                          } @else {
+                            <span class="texto-suave">Nenhuma carga</span>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          }
+        </div>
+      </details>
+
+      <details class="subcard">
+        <summary>
+          <span>Status de funcionários</span>
+          <span class="summary-hint">Catálogo de status da Exata</span>
+        </summary>
+        <div class="subcard-body">
+          <div class="subcard-toolbar">
+            <p>Importa o catálogo de status e reflete o status atual nos painéis e relatórios.</p>
+            <button class="btn btn-primary" (click)="sincronizarStatusExata()"
+              [disabled]="isSincronizandoExataStatus()">
+              @if (isSincronizandoExataStatus()) {
+                <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+              } @else {
+                <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
+              }
+              Sincronizar status
+            </button>
+          </div>
+
+          @if (exataStatusErro()) {
+            <div class="sync-banner erro">
+              <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
+              <span>{{ exataStatusErro() }}</span>
+            </div>
+          }
+
+          @if (exataStatusResultado(); as resultado) {
+            <div class="marcacoes-resultado">
+              <div class="sync-resultado-header">
+                <strong>Resultado da sincronização de status</strong>
+                <span class="badge"
+                  [class.status-ok]="resultado.status === 'CONCLUIDO'"
+                  [class.status-parcial]="resultado.status === 'PARCIAL'"
+                  [class.status-falta]="resultado.status === 'ERRO'"
+                >{{ resultado.status }}</span>
+              </div>
+              <div class="resumo-strip">
+                <span>{{ resumoStatusExata(resultado) }}</span>
+              </div>
+            </div>
+          }
+
+          @if (exataStatusLista(); as lista) {
+            @for (empresa of lista.empresas; track empresa.id) {
+              @if (empresa.statuses.length > 0) {
+                <div class="status-exata-grupo">
+                  <div class="sync-empresa-titulo">
+                    <strong>{{ empresa.descricao || ('Empresa ' + empresa.empresasistema) }}</strong>
+                    <span class="sync-empresa-local">
+                      {{ empresa.statuses.length }} status · {{ empresa.eventos_mapeados }} com evento local
+                    </span>
+                  </div>
+                  <div class="table-container">
+                    <table class="data-table">
+                      <thead>
+                        <tr>
+                          <th>Status</th>
+                          <th>Ponto liberado</th>
+                          <th>Ativo</th>
+                          <th>Evento local</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (status of empresa.statuses; track status.id) {
+                          <tr>
+                            <td><strong>{{ status.descricao || '—' }}</strong></td>
+                            <td>{{ status.ponto_liberado === 'S' ? 'Sim' : 'Não' }}</td>
+                            <td>{{ status.ativo === 'S' ? 'Sim' : 'Não' }}</td>
+                            <td>
+                              <select [value]="status.evento_local || ''"
+                                (change)="mapearStatusExata(status, $any($event.target).value)">
+                                <option value="">Sem mapeamento</option>
+                                @for (evento of eventosLocais(); track evento) {
+                                  <option [value]="evento">{{ evento }}</option>
+                                }
+                              </select>
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              }
+            }
+          }
+        </div>
+      </details>
+
+      <details class="subcard">
+        <summary>
+          <span>Rollout e validação</span>
+          <span class="summary-hint">Saúde da integração e contagens</span>
+        </summary>
+        <div class="subcard-body">
+          <div class="subcard-toolbar">
+            <p>Ative a conta, execute o rollout e acompanhe a saúde da integração.</p>
+            <div class="header-actions">
+              @if (exataConta(); as conta) {
+                @if (conta.ativo) {
+                  <button class="btn btn-outline" (click)="alterarContaExata(false)"
+                    [disabled]="isAlterandoContaExata() || isExecutandoRolloutExata()">
+                    <lucide-icon name="ban" [size]="16"></lucide-icon>
+                    Desativar conta
+                  </button>
+                } @else {
+                  <button class="btn btn-outline" (click)="alterarContaExata(true)"
+                    [disabled]="isAlterandoContaExata() || isExecutandoRolloutExata()">
+                    <lucide-icon name="check-circle" [size]="16"></lucide-icon>
+                    Ativar conta
+                  </button>
+                }
+              }
+              <button class="btn btn-primary" (click)="executarRolloutExata()"
+                [disabled]="isExecutandoRolloutExata()">
+                @if (isExecutandoRolloutExata()) {
+                  <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+                } @else {
+                  <lucide-icon name="check-circle" [size]="16"></lucide-icon>
+                }
+                Executar rollout
+              </button>
+            </div>
+          </div>
+
+          @if (exataRolloutMensagem(); as mensagem) {
+            <div class="sync-banner">
+              <lucide-icon name="info" [size]="18"></lucide-icon>
+              <span>{{ mensagem }}</span>
+            </div>
+          }
+
+          @if (exataMonitoramento(); as monitor) {
+            <div class="resumo-strip">
+              <span>
+                Saúde:
+                <span class="badge" [class.status-ok]="monitor.saude === 'OK'"
+                  [class.status-parcial]="monitor.saude !== 'OK'">{{ monitor.saude }}</span>
+              </span>
+              <span><strong>{{ monitor.pontos.total }}</strong> marcação(ões)</span>
+              <span><strong>{{ monitor.pontos.hoje }}</strong> hoje</span>
+              <span><strong>{{ monitor.pontos.pendentes_baixa }}</strong> com baixa pendente</span>
+              <span><strong>{{ monitor.empresas.sem_mapeamento }}</strong> empresa(s) sem empresa local</span>
+              <button class="btn btn-outline btn-sm" (click)="carregarMonitoramentoExata()"
+                [disabled]="isCarregandoMonitoramentoExata()">
+                @if (isCarregandoMonitoramentoExata()) {
+                  <lucide-icon name="loader-circle" [size]="14" class="spin"></lucide-icon>
+                } @else {
+                  <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
+                }
+                Atualizar
+              </button>
+            </div>
+
+            @if (monitor.alertas.length > 0) {
+              <div class="sync-banner erro">
+                <lucide-icon name="alert-triangle" [size]="18"></lucide-icon>
+                <span>{{ monitor.alertas.join(' · ') }}</span>
+              </div>
+            }
+
+            @if (monitor.pendenciasBaixa.length > 0 || monitor.duplicidades.length > 0) {
+              <div class="marcacoes-form">
+                @if (monitor.pendenciasBaixa.length > 0) {
+                  <div class="sync-empresa">
+                    <div class="sync-empresa-titulo">
+                      <strong>Baixas pendentes por empresa</strong>
+                    </div>
+                    @for (item of monitor.pendenciasBaixa; track item.empresasistema) {
+                      <div class="sync-linha">
+                        <span class="sync-recurso">empresasistema {{ item.empresasistema }}</span>
+                        <span>{{ item.total }} pendente(s)</span>
+                        @if (item.mais_antiga) {
+                          <span>desde {{ item.mais_antiga | date:'dd/MM/yyyy HH:mm' }}</span>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+                @if (monitor.duplicidades.length > 0) {
+                  <div class="sync-empresa sync-empresa-erro">
+                    <div class="sync-empresa-titulo">
+                      <strong>Duplicidades detectadas</strong>
+                    </div>
+                    @for (item of monitor.duplicidades; track item.reppid + '-' + item.nsr) {
+                      <div class="sync-linha">
+                        <span class="sync-recurso">empresa {{ item.empresasistema }}</span>
+                        <span>REPP {{ item.reppid }} · NSR {{ item.nsr }}</span>
+                        <span>{{ item.total }} ocorrência(s)</span>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          }
+
+          <div class="validation-block">
+            <div class="subcard-toolbar">
+              <p>Contagens por empresa e dia para conferência do período importado.</p>
+              <button class="btn btn-outline" (click)="exportarValidacaoExata()"
+                [disabled]="isCarregandoValidacaoExata()">
+                <lucide-icon name="download" [size]="16"></lucide-icon>
+                Exportar CSV
+              </button>
+            </div>
+
+            <div class="marcacoes-form">
+              <label class="campo">
+                <span>Empresa Exata</span>
+                <select [value]="exataValidacaoEmpresaId()"
+                  (change)="exataValidacaoEmpresaId.set($any($event.target).value)">
+                  <option value="">Todas as empresas</option>
+                  @for (empresa of exataEmpresas(); track empresa.id) {
+                    <option [value]="empresa.id">
+                      {{ empresa.descricao || ('Empresa ' + empresa.empresasistema) }}
+                    </option>
+                  }
+                </select>
+              </label>
+              <label class="campo">
+                <span>Data inicial</span>
+                <input type="date" [value]="exataValidacaoInicio()"
+                  (input)="exataValidacaoInicio.set($any($event.target).value)" />
+              </label>
+              <label class="campo">
+                <span>Data final</span>
+                <input type="date" [value]="exataValidacaoFim()"
+                  (input)="exataValidacaoFim.set($any($event.target).value)" />
+              </label>
+              <button class="btn btn-primary" (click)="carregarValidacaoExata()"
+                [disabled]="isCarregandoValidacaoExata()">
+                @if (isCarregandoValidacaoExata()) {
+                  <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+                } @else {
+                  <lucide-icon name="clipboard-list" [size]="16"></lucide-icon>
+                }
+                Gerar contagens
+              </button>
+            </div>
+
+            @if (exataValidacaoErro()) {
+              <div class="sync-banner erro">
+                <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
+                <span>{{ exataValidacaoErro() }}</span>
+              </div>
+            }
+
+            @if (exataValidacao(); as validacao) {
+              <div class="resumo-strip">
+                <span>Período: <strong>{{ validacao.dataInicio }}</strong> a <strong>{{ validacao.dataFim }}</strong></span>
+                <span><strong>{{ validacao.resumo.total }}</strong> marcação(ões)</span>
+                <span><strong>{{ validacao.resumo.funcionarios }}</strong> funcionário(s)</span>
+                <span><strong>{{ validacao.resumo.exportados }}</strong> exportada(s)</span>
+                <span><strong>{{ validacao.resumo.pendentes }}</strong> pendente(s)</span>
+                <span><strong>{{ validacao.resumo.empresasComDados }}/{{ validacao.resumo.empresas }}</strong> empresa(s) com dados</span>
+              </div>
+
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Empresa Exata</th>
+                      <th>Empresa local</th>
+                      <th>Data</th>
+                      <th>Marcações</th>
+                      <th>Funcionários</th>
+                      <th>Exportadas</th>
+                      <th>Pendentes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (empresa of validacao.empresas; track empresa.empresa_exata_id) {
+                      @if (empresa.dias.length === 0) {
+                        <tr>
+                          <td>{{ empresa.descricao || ('Empresa ' + empresa.empresasistema) }}</td>
+                          <td>{{ empresa.empresa_nome || 'Sem empresa local' }}</td>
+                          <td colspan="5" class="texto-suave">Nenhuma marcação no período</td>
+                        </tr>
+                      }
+                      @for (dia of empresa.dias; track dia.data) {
+                        <tr>
+                          <td><strong>{{ empresa.descricao || ('Empresa ' + empresa.empresasistema) }}</strong></td>
+                          <td>{{ empresa.empresa_nome || 'Sem empresa local' }}</td>
+                          <td>{{ dia.data | date:'dd/MM/yyyy' }}</td>
+                          <td>{{ dia.total }}</td>
+                          <td>{{ dia.funcionarios }}</td>
+                          <td>{{ dia.exportados }}</td>
+                          <td [class.texto-alerta]="dia.pendentes > 0">{{ dia.pendentes }}</td>
+                        </tr>
+                      }
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── Ponto Certificado ───────────────────────── -->
+  <section class="tab-panel" role="tabpanel" [hidden]="abaAtiva() !== 'ponto'">
+    @if (!temPontoCertificado()) {
+      <div class="results-card">
+        <div class="empty-state">
+          <lucide-icon name="clock" [size]="48"></lucide-icon>
+          <h3>Nenhuma empresa do Ponto Certificado</h3>
+          <p>Cadastre uma empresa na aba "Empresas" para importar marcações e gerenciar vínculos.</p>
+        </div>
+      </div>
+    } @else {
+      <div class="results-card">
+        <div class="section-header">
+          <div>
+            <strong>Marcações de ponto</strong>
+            <p>Importe o histórico por período ou mantenha a sincronização incremental.</p>
+          </div>
+          <button class="btn btn-outline" (click)="sincronizarIncrementalTodas()"
+            [disabled]="isImportandoMarcacoes()">
+            @if (isImportandoMarcacoes() && sincronizandoIncrementalId() === null) {
+              <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+            } @else {
+              <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
+            }
+            Sincronizar incremental
+          </button>
+        </div>
+
+        <div class="marcacoes-form">
+          <label class="campo">
+            <span>Data inicial</span>
+            <input type="date" [value]="dataInicio()"
+              (input)="dataInicio.set($any($event.target).value)" />
+          </label>
+          <label class="campo">
+            <span>Data final</span>
+            <input type="date" [value]="dataFim()"
+              (input)="dataFim.set($any($event.target).value)" />
+          </label>
+          <label class="campo">
+            <span>Empresa</span>
+            <select [value]="empresaMarcacoesFiltro()"
+              (change)="empresaMarcacoesFiltro.set($any($event.target).value)">
+              <option value="">Todas as empresas</option>
+              @for (e of empresasPontocertificado(); track e.id) {
+                <option [value]="e.id">{{ e.nome }}</option>
+              }
+            </select>
+          </label>
+          <label class="campo">
+            <span>Matrícula (opcional)</span>
+            <input type="text" placeholder="Todas" [value]="matriculaFiltro()"
+              (input)="matriculaFiltro.set($any($event.target).value)" />
+          </label>
+          <label class="campo">
+            <span>Relógio (opcional)</span>
+            <input type="text" placeholder="Todos" [value]="relogioFiltro()"
+              (input)="relogioFiltro.set($any($event.target).value)" />
+          </label>
+          <button class="btn btn-primary" (click)="importarPeriodo()"
+            [disabled]="isImportandoMarcacoes()">
+            @if (isImportandoMarcacoes()) {
+              <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+            } @else {
+              <lucide-icon name="calendar-search" [size]="16"></lucide-icon>
+            }
+            Importar período
+          </button>
+        </div>
+
+        @if (marcacoesErro()) {
+          <div class="sync-banner erro">
+            <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
+            <span>{{ marcacoesErro() }}</span>
+          </div>
+        }
+
+        @if (ultimoResultadoMarcacoes(); as resultado) {
+          <div class="marcacoes-resultado">
+            <div class="sync-resultado-header">
+              <strong>Resultado da importação</strong>
+              <span
+                class="badge"
+                [class.status-ok]="resultado.status === 'CONCLUIDO'"
+                [class.status-parcial]="resultado.status === 'PARCIAL'"
+                [class.status-falta]="resultado.status === 'ERRO'"
+              >{{ resultado.status }}</span>
+            </div>
+
+            <div class="sync-empresas">
+              @for (empresa of resultado.empresas; track empresa.empresa_config_id) {
+                <div class="sync-empresa" [class.sync-empresa-erro]="empresa.erro">
+                  <div class="sync-empresa-titulo">
+                    <strong>{{ empresa.nome }}</strong>
+                    <span class="sync-empresa-local">
+                      @if (empresa.modo === 'periodo') {
+                        {{ empresa.dataInicio }} — {{ empresa.dataFim }}
+                        ({{ empresa.periodos }} dia(s))
+                      } @else {
+                        Incremental
+                      }
+                    </span>
+                  </div>
+
+                  @if (empresa.erro) {
+                    <p class="sync-erro-texto">
+                      <lucide-icon name="alert-circle" [size]="14"></lucide-icon>
+                      {{ empresa.erro }}
+                    </p>
+                  } @else {
+                    <div class="sync-linha">
+                      <span class="sync-recurso">Marcações</span>
+                      <span>{{ resumoMarcacoes(empresa.marcacoes) }}</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        @if (isLoadingMarcacoesStatus()) {
+          <div class="loading-container">
+            <div class="spinner"></div>
+            <p>Carregando status das marcações...</p>
+          </div>
+        } @else if (marcacoesStatus().length === 0) {
+          <div class="empty-state">
+            <lucide-icon name="clock" [size]="40"></lucide-icon>
+            <h3>Nenhuma empresa de API cadastrada</h3>
+            <p>Cadastre uma empresa para importar as marcações de ponto.</p>
+          </div>
+        } @else {
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Empresa</th>
+                  <th>Última carga</th>
+                  <th>Última importação</th>
+                  <th>Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of marcacoesStatus(); track item.empresa_config_id) {
+                  <tr>
+                    <td>
+                      <strong>{{ item.nome }}</strong>
+                      @if (!item.ativo) {
+                        <span class="badge status-falta">Inativa</span>
+                      }
+                    </td>
+                    <td>{{ tipoMarcacoesLabel(item.ultima_sincronizacao_tipo) }}</td>
+                    <td>
+                      @if (item.ultima_sincronizacao_em) {
+                        {{ item.ultima_sincronizacao_em | date:'dd/MM/yyyy HH:mm' }}
+                        <span class="texto-suave">({{ item.ultimo_total_importado }} registro(s))</span>
+                      } @else {
+                        <span class="texto-suave">—</span>
+                      }
+                    </td>
+                    <td>
+                      <button class="btn btn-outline btn-sm" (click)="sincronizarIncrementalEmpresa(item)"
+                        [disabled]="isImportandoMarcacoes() || !item.ativo"
+                        title="Importar marcações novas desta empresa">
+                        @if (sincronizandoIncrementalId() === item.empresa_config_id) {
+                          <lucide-icon name="loader-circle" [size]="14" class="spin"></lucide-icon>
+                        } @else {
+                          <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
+                        }
+                        Incremental
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (temEmpresaSemCarga()) {
+            <p class="marcacoes-aviso">
+              <lucide-icon name="info" [size]="14"></lucide-icon>
+              Empresas sem carga realizada: o primeiro incremental importa todo o histórico disponível.
+              Prefira usar <strong>Importar período</strong> na primeira carga.
+            </p>
+          }
+        }
+      </div>
+
+      <div class="results-card">
+        <div class="section-header">
+          <div>
+            <strong>Vínculos funcionário-relógio</strong>
+            <p>Vincule ou desvincule vários funcionários de vários relógios em uma única operação.</p>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-outline" (click)="sincronizarVinculos()"
+              [disabled]="isSincronizandoVinculos() || isAplicandoVinculos()">
+              @if (isSincronizandoVinculos()) {
+                <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+              } @else {
+                <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
+              }
+              Sincronizar da API
+            </button>
+            <button class="btn btn-primary" (click)="toggleVinculos()">
+              <lucide-icon [name]="showVinculos() ? 'chevron-up' : 'link'" [size]="16"></lucide-icon>
+              {{ showVinculos() ? 'Fechar' : 'Gerenciar vínculos' }}
+            </button>
+          </div>
+        </div>
+
+        @if (showVinculos()) {
+          @if (isLoadingVinculosOpcoes()) {
+            <div class="loading-container">
+              <div class="spinner"></div>
+              <p>Carregando funcionários e relógios...</p>
+            </div>
+          } @else {
+            <div class="vinculos-form">
+              <label class="campo">
+                <span>Empresa</span>
+                <select [value]="empresaVinculosFiltro()"
+                  (change)="onEmpresaVinculosChange($any($event.target).value)">
+                  <option value="">Todas as empresas</option>
+                  @for (e of empresasPontocertificado(); track e.id) {
+                    <option [value]="e.id">{{ e.nome }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="campo">
+                <span>Ação</span>
+                <select [value]="vinculosAcao()"
+                  (change)="onVinculosAcaoChange($any($event.target).value)">
+                  <option value="vincular">Vincular</option>
+                  <option value="desvincular">Desvincular</option>
+                </select>
+              </label>
+
+              <div class="campo campo-vinculos">
+                <span>Funcionários ({{ vinculosMatriculas().length }} selecionado(s))</span>
+                <app-multi-select-dropdown
+                  [options]="vinculosOpcoes().funcionarios"
+                  labelProp="nome"
+                  valueProp="matricula"
+                  subLabelProp="empresa"
+                  placeholder="Selecione os funcionários"
+                  searchPlaceholder="Buscar por nome ou matrícula..."
+                  [titleCaseLabel]="true"
+                  (selectionChange)="onVinculosMatriculasChange($event)">
+                </app-multi-select-dropdown>
+              </div>
+
+              <div class="campo campo-vinculos">
+                <span>Relógios ({{ vinculosNumSeries().length }} selecionado(s))</span>
+                <app-multi-select-dropdown
+                  [options]="vinculosOpcoes().relogios"
+                  labelProp="descricao"
+                  valueProp="num_serie"
+                  subLabelProp="num_serie"
+                  placeholder="Selecione os relógios"
+                  searchPlaceholder="Buscar por descrição ou número de série..."
+                  (selectionChange)="onVinculosNumSeriesChange($event)">
+                </app-multi-select-dropdown>
+              </div>
+
+              <div class="vinculos-acoes">
+                <button class="btn btn-outline" (click)="gerarPreviewVinculos()"
+                  [disabled]="isPreviewVinculos() || isAplicandoVinculos()">
+                  @if (isPreviewVinculos()) {
+                    <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+                  } @else {
+                    <lucide-icon name="clipboard-list" [size]="16"></lucide-icon>
+                  }
+                  Gerar prévia
+                </button>
+                <button class="btn btn-primary" (click)="aplicarVinculos()"
+                  [disabled]="isAplicandoVinculos() || !vinculosPreview() || vinculosPreview()!.resumo.alteracoes === 0">
+                  @if (isAplicandoVinculos()) {
+                    <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+                  } @else {
+                    <lucide-icon name="check-circle" [size]="16"></lucide-icon>
+                  }
+                  Aplicar alterações
+                </button>
+              </div>
+            </div>
+          }
+
+          @if (vinculosErro()) {
+            <div class="sync-banner erro">
+              <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
+              <span>{{ vinculosErro() }}</span>
+            </div>
+          }
+
+          @if (vinculosPreview(); as preview) {
+            <div class="marcacoes-resultado">
+              <div class="sync-resultado-header">
+                <strong>Prévia — {{ preview.acao === 'vincular' ? 'vinculação' : 'desvinculação' }}</strong>
+                <span class="badge" [class.status-ok]="preview.resumo.alteracoes > 0"
+                  [class.status-falta]="preview.resumo.alteracoes === 0">
+                  {{ preview.resumo.alteracoes }} pendente(s)
+                </span>
+              </div>
+
+              <div class="resumo-strip">
+                <span><strong>{{ preview.resumo.funcionarios }}</strong> funcionário(s)</span>
+                <span><strong>{{ preview.resumo.relogios }}</strong> relógio(s)</span>
+                <span><strong>{{ preview.resumo.jaAplicados }}</strong> já no estado desejado</span>
+                @if (preview.resumo.semEmpresa > 0) {
+                  <span class="texto-alerta"><strong>{{ preview.resumo.semEmpresa }}</strong> sem empresa</span>
+                }
+                @if (preview.resumo.matriculasNaoEncontradas > 0) {
+                  <span class="texto-alerta"><strong>{{ preview.resumo.matriculasNaoEncontradas }}</strong> matrícula(s) não encontrada(s)</span>
+                }
+                @if (preview.resumo.relogiosDesconhecidos > 0) {
+                  <span class="texto-alerta"><strong>{{ preview.resumo.relogiosDesconhecidos }}</strong> relógio(s) desconhecido(s)</span>
+                }
+              </div>
+
+              @if (preview.alteracoes.length > 0) {
+                <div class="table-container vinculos-tabela">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Matrícula</th>
+                        <th>Funcionário</th>
+                        <th>Relógio</th>
+                        <th>Empresa</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (item of preview.alteracoes; track item.matricula + '|' + item.num_serie) {
+                        <tr>
+                          <td>{{ item.matricula }}</td>
+                          <td>{{ item.nome || '—' }}</td>
+                          <td>{{ item.descricao || item.num_serie }} <span class="texto-suave">({{ item.num_serie }})</span></td>
+                          <td>{{ item.empresa_config_nome }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                  @if (preview.truncado) {
+                    <p class="marcacoes-aviso">
+                      <lucide-icon name="info" [size]="14"></lucide-icon>
+                      Exibindo os primeiros {{ preview.alteracoes.length }} registros. Todas as alterações serão aplicadas.
+                    </p>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+          @if (vinculosResultado(); as resultado) {
+            <div class="marcacoes-resultado">
+              <div class="sync-resultado-header">
+                <strong>Resultado da aplicação</strong>
+                <span class="badge"
+                  [class.status-ok]="resultado.status === 'CONCLUIDO'"
+                  [class.status-parcial]="resultado.status === 'PARCIAL'"
+                  [class.status-falta]="resultado.status === 'ERRO'"
+                >{{ resultado.status }}</span>
+              </div>
+              <div class="resumo-strip">
+                <span><strong>{{ resultado.vinculados }}</strong> vinculado(s)</span>
+                <span><strong>{{ resultado.desvinculados }}</strong> desvinculado(s)</span>
+                <span><strong>{{ resultado.erros }}</strong> erro(s)</span>
+              </div>
+            </div>
+          }
+
+          @if (vinculosSyncResultado(); as resultado) {
+            <div class="marcacoes-resultado">
+              <div class="sync-resultado-header">
+                <strong>Resultado da sincronização</strong>
+                <span class="badge"
+                  [class.status-ok]="resultado.status === 'CONCLUIDO'"
+                  [class.status-parcial]="resultado.status === 'PARCIAL'"
+                  [class.status-falta]="resultado.status === 'ERRO'"
+                >{{ resultado.status }}</span>
+              </div>
+              <div class="resumo-strip">
+                <span>{{ resumoVinculos(resultado) }}</span>
+              </div>
+            </div>
+          }
+
+          @if (isLoadingVinculosStatus()) {
+            <div class="loading-container">
+              <div class="spinner"></div>
+              <p>Carregando status dos vínculos...</p>
+            </div>
+          } @else if (vinculosStatus().length > 0) {
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Empresa</th>
+                    <th>Funcionários</th>
+                    <th>Vínculos ativos</th>
+                    <th>Relógios</th>
+                    <th>Última sincronização</th>
+                    <th>Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of vinculosStatus(); track item.empresa_config_id) {
+                    <tr>
+                      <td>
+                        <strong>{{ item.nome }}</strong>
+                        <span class="texto-suave d-block">
+                          {{ item.empresa_nome || 'Empresa local não definida' }}
+                        </span>
+                      </td>
+                      <td>{{ item.total_funcionarios }}</td>
+                      <td>{{ item.total_vinculos_ativos }}</td>
+                      <td>{{ item.total_relogios }}</td>
+                      <td>
+                        @if (item.ultima_sincronizacao_em) {
+                          {{ item.ultima_sincronizacao_em | date:'dd/MM/yyyy HH:mm' }}
+                        } @else {
+                          <span class="texto-suave">—</span>
+                        }
+                      </td>
+                      <td>
+                        <button class="btn btn-outline btn-sm" (click)="sincronizarVinculosEmpresa(item)"
+                          [disabled]="isSincronizandoVinculos() || !item.ativo"
+                          title="Importar os vínculos desta empresa a partir da API">
+                          @if (isSincronizandoVinculos()) {
+                            <lucide-icon name="loader-circle" [size]="14" class="spin"></lucide-icon>
+                          } @else {
+                            <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
+                          }
+                          Sincronizar
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        }
+      </div>
+
+      <div class="results-card">
+        <div class="section-header">
+          <div>
+            <strong>AFD — Portaria 671/MTP</strong>
+            <p>Gere o Arquivo Fonte de Dados por relógio, modelo REPP/REPA ou AFD único.</p>
+          </div>
+          <button class="btn btn-primary" (click)="toggleAfd()">
+            <lucide-icon [name]="showAfd() ? 'chevron-up' : 'file-text'" [size]="16"></lucide-icon>
+            {{ showAfd() ? 'Fechar' : 'Gerar AFD' }}
+          </button>
+        </div>
+
+        @if (showAfd()) {
+          @if (isLoadingAfd()) {
+            <div class="loading-container">
+              <div class="spinner"></div>
+              <p>Carregando operações e histórico de AFD...</p>
+            </div>
+          } @else {
+            <div class="marcacoes-form afd-form">
+              <label class="campo">
+                <span>Empresa</span>
+                <select [value]="afdEmpresaFiltro()"
+                  (change)="afdEmpresaFiltro.set($any($event.target).value)">
+                  <option value="">Todas as empresas</option>
+                  @for (e of empresasPontocertificado(); track e.id) {
+                    <option [value]="e.id">{{ e.nome }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="campo">
+                <span>Operação</span>
+                <select [value]="afdOperacao()"
+                  (change)="afdOperacao.set($any($event.target).value)">
+                  @for (op of afdOperacoes(); track op.chave) {
+                    <option [value]="op.chave">{{ op.label }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="campo">
+                <span>Data inicial</span>
+                <input type="date" [value]="afdDataInicio()"
+                  (input)="afdDataInicio.set($any($event.target).value)" />
+              </label>
+
+              <label class="campo">
+                <span>Data final</span>
+                <input type="date" [value]="afdDataFim()"
+                  (input)="afdDataFim.set($any($event.target).value)" />
+              </label>
+
+              @if (afdExigeRelogio()) {
+                <label class="campo">
+                  <span>Número de série do relógio</span>
+                  <input type="text" placeholder="Ex.: 338101079864" [value]="afdNumeroSerie()"
+                    (input)="afdNumeroSerie.set($any($event.target).value)" />
+                </label>
+              }
+
+              @if (afdOperacao() === 'GeraAFDUnico') {
+                <label class="campo">
+                  <span>Relógio do cabeçalho (opcional)</span>
+                  <input type="text" placeholder="Opcional" [value]="afdCabecalho()"
+                    (input)="afdCabecalho.set($any($event.target).value)" />
+                </label>
+              }
+
+              <button class="btn btn-primary" (click)="gerarAfd()" [disabled]="isGerandoAfd()">
+                @if (isGerandoAfd()) {
+                  <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+                } @else {
+                  <lucide-icon name="download" [size]="16"></lucide-icon>
+                }
+                Gerar AFD
+              </button>
+            </div>
+
+            @if (afdOperacaoAtual(); as op) {
+              <p class="marcacoes-aviso">
+                <lucide-icon name="info" [size]="14"></lucide-icon>
+                {{ op.descricao }}
+              </p>
+            }
+          }
+
+          @if (afdErro()) {
+            <div class="sync-banner erro">
+              <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
+              <span>{{ afdErro() }}</span>
+            </div>
+          }
+
+          @if (afdResultado(); as resultado) {
+            <div class="marcacoes-resultado">
+              <div class="sync-resultado-header">
+                <strong>Resultado da geração — {{ resultado.operacaoLabel }}</strong>
+                <span class="badge"
+                  [class.status-ok]="resultado.success"
+                  [class.status-parcial]="!resultado.success && resultado.sucesso > 0"
+                  [class.status-falta]="resultado.sucesso === 0"
+                >{{ resultado.success ? 'CONCLUÍDO' : (resultado.sucesso > 0 ? 'PARCIAL' : 'ERRO') }}</span>
+              </div>
+              <div class="resumo-strip">
+                <span>{{ resultado.sucesso }} de {{ resultado.total }} empresa(s)</span>
+              </div>
+
+              <div class="sync-empresas">
+                @for (empresa of resultado.empresas; track empresa.empresa_config_id) {
+                  <div class="sync-empresa" [class.sync-empresa-erro]="empresa.status === 'ERRO'">
+                    <div class="sync-empresa-titulo">
+                      <strong>{{ empresa.empresa_config_nome }}</strong>
+                      <span class="sync-empresa-local">{{ tamanhoArquivo(empresa.tamanho_bytes) }}</span>
+                    </div>
+                    @if (empresa.status === 'ERRO') {
+                      <p class="sync-erro-texto">
+                        <lucide-icon name="alert-circle" [size]="14"></lucide-icon>
+                        {{ empresa.erro }}
+                      </p>
+                    } @else {
+                      <button class="btn btn-outline btn-sm" (click)="baixarAfd(empresa)">
+                        <lucide-icon name="download" [size]="14"></lucide-icon>
+                        Baixar {{ empresa.nome_arquivo }}
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          @if (afdGeracoes().length > 0) {
+            <div class="table-container afd-tabela">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Empresa</th>
+                    <th>Operação</th>
+                    <th>Período</th>
+                    <th>Relógio</th>
+                    <th>Tamanho</th>
+                    <th>Status</th>
+                    <th>Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of afdGeracoes(); track item.id) {
+                    <tr>
+                      <td>{{ item.criado_em | date:'dd/MM/yyyy HH:mm' }}</td>
+                      <td>{{ item.empresa_config_nome }}</td>
+                      <td>{{ item.operacao }}</td>
+                      <td>
+                        {{ item.data_inicial || '—' }}
+                        @if (item.data_final) { — {{ item.data_final }} }
+                      </td>
+                      <td>{{ item.numero_serie || '—' }}</td>
+                      <td>{{ tamanhoArquivo(item.tamanho_bytes) }}</td>
+                      <td>
+                        @if (item.status === 'CONCLUIDO') {
+                          <span class="badge status-ok">Concluído</span>
+                        } @else {
+                          <span class="badge status-falta" [title]="item.erro || ''">Erro</span>
+                        }
+                      </td>
+                      <td>
+                        @if (item.status === 'CONCLUIDO') {
+                          <button class="btn btn-outline btn-sm" (click)="baixarAfd(item)">
+                            <lucide-icon name="download" [size]="14"></lucide-icon>
+                            Baixar
+                          </button>
+                        } @else {
+                          <span class="texto-suave">{{ item.erro }}</span>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        }
+      </div>
     }
-  </div>
+  </section>
 
-  }
+  <!-- ───────────────────────── Webhooks ───────────────────────── -->
+  <section class="tab-panel" role="tabpanel" [hidden]="abaAtiva() !== 'webhooks'">
+    @if (!temPontoCertificado()) {
+      <div class="results-card">
+        <div class="empty-state">
+          <lucide-icon name="link" [size]="48"></lucide-icon>
+          <h3>Webhooks indisponíveis</h3>
+          <p>Cadastre uma empresa do Ponto Certificado para usar webhooks.</p>
+        </div>
+      </div>
+    } @else {
+      <div class="results-card">
+        <div class="section-header">
+          <div>
+            <strong>Webhooks</strong>
+            <p>Assine notificações em tempo real e acompanhe os eventos recebidos.</p>
+          </div>
+          <button class="btn btn-outline" (click)="sincronizarWebhooks()"
+            [disabled]="isSincronizandoWebhooks()">
+            @if (isSincronizandoWebhooks()) {
+              <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+            } @else {
+              <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
+            }
+            Sincronizar da API
+          </button>
+        </div>
 
-  @if (showHistorico()) {
-    <div class="results-card historico-card">
-      <div class="historico-header">
-        <strong>Últimas sincronizações</strong>
-        <button class="btn btn-outline btn-sm" (click)="toggleHistorico()">Fechar</button>
+        <div class="marcacoes-form webhook-form">
+          <label class="campo">
+            <span>Empresa</span>
+            <select [value]="webhookEmpresaId()"
+              (change)="webhookEmpresaId.set($any($event.target).value)">
+              <option value="">Selecione...</option>
+              @for (e of empresasPontocertificado(); track e.id) {
+                <option [value]="e.id">{{ e.nome }}</option>
+              }
+            </select>
+          </label>
+
+          <label class="campo">
+            <span>Tipo do webhook</span>
+            <input type="text" placeholder="Ex.: Marcacao" [value]="webhookType()"
+              (input)="webhookType.set($any($event.target).value)" />
+          </label>
+
+          <label class="campo campo-uri">
+            <span>URL pública HTTPS (opcional)</span>
+            <input type="url" placeholder="Padrão: URL pública deste sistema" [value]="webhookUri()"
+              (input)="webhookUri.set($any($event.target).value)" />
+          </label>
+
+          <button class="btn btn-primary" (click)="criarWebhook()" [disabled]="isCriandoWebhook()">
+            @if (isCriandoWebhook()) {
+              <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+            } @else {
+              <lucide-icon name="plus" [size]="16"></lucide-icon>
+            }
+            Criar assinatura
+          </button>
+        </div>
+
+        @if (webhookErro()) {
+          <div class="sync-banner erro">
+            <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
+            <span>{{ webhookErro() }}</span>
+          </div>
+        }
+
+        @if (webhookSyncResultado(); as resultado) {
+          <div class="marcacoes-resultado">
+            <div class="sync-resultado-header">
+              <strong>Resultado da sincronização de webhooks</strong>
+              <span class="badge"
+                [class.status-ok]="resultado.success"
+                [class.status-parcial]="!resultado.success"
+              >{{ resultado.success ? 'CONCLUÍDO' : 'PARCIAL' }}</span>
+            </div>
+            <div class="resumo-strip">
+              <span>{{ resultado.total }} assinatura(s)</span>
+            </div>
+            @if (!resultado.success) {
+              <div class="sync-empresas">
+                @for (empresa of resultado.empresas; track empresa.empresa_config_id) {
+                  @if (empresa.erro) {
+                    <div class="sync-empresa sync-empresa-erro">
+                      <div class="sync-empresa-titulo">
+                        <strong>{{ empresa.nome }}</strong>
+                      </div>
+                      <p class="sync-erro-texto">
+                        <lucide-icon name="alert-circle" [size]="14"></lucide-icon>
+                        {{ empresa.erro }}
+                      </p>
+                    </div>
+                  }
+                }
+              </div>
+            }
+          </div>
+        }
+
+        @if (isLoadingWebhooks()) {
+          <div class="loading-container">
+            <div class="spinner"></div>
+            <p>Carregando webhooks e eventos...</p>
+          </div>
+        } @else if (webhookAssinaturas().length === 0) {
+          <div class="empty-state">
+            <lucide-icon name="link" [size]="40"></lucide-icon>
+            <h3>Nenhuma assinatura de webhook</h3>
+            <p>Crie uma assinatura ou sincronize as existentes na API externa.</p>
+          </div>
+        } @else {
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Empresa</th>
+                  <th>Tipo</th>
+                  <th>Status</th>
+                  <th>Eventos</th>
+                  <th>Callback</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of webhookAssinaturas(); track item.id) {
+                  <tr>
+                    <td><strong>{{ item.empresa_config_nome }}</strong></td>
+                    <td>{{ item.webhook_type }}</td>
+                    <td>
+                      @if (item.ativo) {
+                        <span class="badge status-ok">Ativa</span>
+                      } @else {
+                        <span class="badge status-falta">Inativa</span>
+                      }
+                    </td>
+                    <td>
+                      {{ item.total_eventos }}
+                      @if (item.ultimo_evento_em) {
+                        <span class="texto-suave d-block">
+                          {{ item.ultimo_evento_em | date:'dd/MM/yyyy HH:mm' }}
+                        </span>
+                      }
+                    </td>
+                    <td>
+                      <div class="webhook-callback">
+                        <code class="webhook-secret">{{ item.callback_url }}</code>
+                        <button class="btn btn-outline btn-sm" (click)="copiar(item.callback_url, 'URL de callback copiada')">
+                          <lucide-icon name="clipboard-list" [size]="14"></lucide-icon>
+                        </button>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="acoes">
+                        <button class="btn btn-outline btn-sm" (click)="usarCallbackLocal(item)"
+                          title="Registrar na API a URL de callback local">
+                          <lucide-icon name="link" [size]="14"></lucide-icon>
+                          Usar callback local
+                        </button>
+                        <button class="btn btn-outline btn-sm" (click)="atualizarWebhook(item)" title="Atualizar URL">
+                          <lucide-icon name="edit-2" [size]="14"></lucide-icon>
+                          URL
+                        </button>
+                        <button class="btn btn-outline btn-sm" (click)="copiar(item.secret, 'Secret copiado')"
+                          title="Copiar secret da assinatura">
+                          <lucide-icon name="key-round" [size]="14"></lucide-icon>
+                          Secret
+                        </button>
+                        @if (item.ativo) {
+                          <button class="btn btn-outline btn-sm" (click)="desativarWebhook(item)" title="Desativar">
+                            <lucide-icon name="ban" [size]="14"></lucide-icon>
+                            Desativar
+                          </button>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        @if (webhookEventos().length > 0) {
+          <div class="webhook-eventos">
+            <div class="sync-resultado-header">
+              <strong>Eventos recebidos</strong>
+              <span class="texto-suave">últimos {{ webhookEventos().length }}</span>
+            </div>
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Recebido em</th>
+                    <th>Empresa</th>
+                    <th>Tipo</th>
+                    <th>Payload</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (evento of webhookEventos(); track evento.id) {
+                    <tr>
+                      <td>{{ evento.recebido_em | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+                      <td>{{ evento.empresa_config_nome || '—' }}</td>
+                      <td>{{ evento.tipo_evento || '—' }}</td>
+                      <td>
+                        <code class="webhook-payload" [title]="evento.payload || ''">
+                          {{ evento.payload_preview || '—' }}
+                        </code>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </section>
+
+  <!-- ───────────────────────── Histórico ───────────────────────── -->
+  <section class="tab-panel" role="tabpanel" [hidden]="abaAtiva() !== 'historico'">
+    <div class="results-card">
+      <div class="section-header">
+        <div>
+          <strong>Últimas sincronizações</strong>
+          <p>Histórico das execuções de sincronização e importação.</p>
+        </div>
+        <button class="btn btn-outline" (click)="carregarHistorico()" [disabled]="isLoadingHistorico()">
+          <lucide-icon name="refresh-cw" [size]="16" [class.spin]="isLoadingHistorico()"></lucide-icon>
+          Atualizar
+        </button>
       </div>
 
       @if (isLoadingHistorico()) {
@@ -1800,87 +1796,7 @@
         </div>
       }
     </div>
-  }
-
-  <div class="results-card">
-    @if (isLoading()) {
-      <div class="loading-container">
-        <div class="spinner"></div>
-        <p>Carregando empresas...</p>
-      </div>
-    } @else if (empresas().length === 0) {
-      <div class="empty-state">
-        <lucide-icon name="building-2" [size]="48"></lucide-icon>
-        <h3>Nenhuma empresa cadastrada</h3>
-        <p>Adicione a primeira empresa para começar a integrar dados.</p>
-      </div>
-    } @else {
-      <div class="table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>E-mail</th>
-              <th>Chave</th>
-              <th>Empresa local</th>
-              <th>Status</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (e of empresas(); track e.id) {
-              <tr>
-                <td>
-                  <strong>{{ e.nome }}</strong>
-                  @if (e.provedor === 'exata') {
-                    <span class="badge status-ok d-block">ExataWeb</span>
-                    <span class="texto-suave">Credenciais em backend/.env</span>
-                  }
-                </td>
-                <td>{{ e.email }}</td>
-                <td class="chave-cell">{{ e.chave }}</td>
-                <td>{{ e.empresa_nome || 'Automático' }}</td>
-                <td>
-                  @if (e.ativo) {
-                    <span class="badge status-ok">Ativa</span>
-                  } @else {
-                    <span class="badge status-falta">Inativa</span>
-                  }
-                </td>
-                <td>
-                  <div class="acoes">
-                    @if (e.provedor === 'exata') {
-                      <span class="texto-suave">Gerencie esta conta no painel ExataWeb acima</span>
-                    } @else {
-                    <button class="btn btn-outline btn-sm" (click)="sincronizarEmpresa(e)"
-                      [disabled]="isSincronizando() || !e.ativo"
-                      title="Sincronizar funcionários e relógios desta empresa">
-                      @if (isSincronizando() && sincronizandoEmpresaId() === e.id) {
-                        <lucide-icon name="loader-circle" [size]="14" class="spin"></lucide-icon>
-                      } @else {
-                        <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
-                      }
-                      Sincronizar
-                    </button>
-                    <button class="btn btn-outline btn-sm" (click)="abrirEditar(e)" title="Editar">
-                      <lucide-icon name="edit-2" [size]="14"></lucide-icon>
-                      Editar
-                    </button>
-                    <button class="btn btn-outline btn-sm" (click)="toggleAtivo(e)"
-                      [title]="e.ativo ? 'Desativar' : 'Ativar'">
-                      <lucide-icon [name]="e.ativo ? 'ban' : 'check-circle'" [size]="14"></lucide-icon>
-                      {{ e.ativo ? 'Desativar' : 'Ativar' }}
-                    </button>
-                    }
-                  </div>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    }
-  </div>
+  </section>
 </div>
 
 @if (showModal()) {
