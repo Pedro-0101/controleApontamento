@@ -895,6 +895,7 @@ function createPontoSync({ pool, pontoApi }) {
     matriculaFuncionario = null,
     numSerieRelogio = null,
     usuario = null,
+    registrarAuditoria = true,
   } = {}) {
     await ensureSchema();
 
@@ -995,18 +996,20 @@ function createPontoSync({ pool, pontoApi }) {
     };
 
     const duracaoMs = Date.now() - iniciadoEm;
-    const execucaoId = await registrarExecucao({
-      tipo: modoNormalizado === 'periodo' ? 'MARCACOES_PERIODO' : 'MARCACOES_INCREMENTAL',
-      status,
-      usuario,
-      iniciadoEm,
-      duracaoMs,
-      empresasProcessadas: resultados.length,
-      resumo,
-      erro: totalComErro > 0
-        ? resultados.filter((r) => r.erro).map((r) => `${r.nome}: ${r.erro}`).join('; ')
-        : null,
-    });
+    const execucaoId = registrarAuditoria
+      ? await registrarExecucao({
+        tipo: modoNormalizado === 'periodo' ? 'MARCACOES_PERIODO' : 'MARCACOES_INCREMENTAL',
+        status,
+        usuario,
+        iniciadoEm,
+        duracaoMs,
+        empresasProcessadas: resultados.length,
+        resumo,
+        erro: totalComErro > 0
+          ? resultados.filter((r) => r.erro).map((r) => `${r.nome}: ${r.erro}`).join('; ')
+          : null,
+      })
+      : null;
 
     return {
       success: totalComErro === 0,

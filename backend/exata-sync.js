@@ -1502,6 +1502,7 @@ function createExataSync({ pool, exataApi }) {
     dataFim,
     qtde,
     usuario = null,
+    registrarAuditoria = true,
   } = {}) {
     await ensureSchema();
     const conta = await getContaExata();
@@ -1628,18 +1629,20 @@ function createExataSync({ pool, exataApi }) {
       ? 'EXATA_PONTOS_PERIODO'
       : 'EXATA_PONTOS_INCREMENTAL';
 
-    const execucaoId = await registrarExecucao({
-      tipo,
-      status,
-      usuario,
-      iniciadoEm,
-      duracaoMs,
-      empresasProcessadas: resultados.length,
-      resumo: { modo: modoNormalizado, dataInicio: dataInicio || null, dataFim: dataFim || null, qtde: quantidade, ...totais, empresas: resultados },
-      erro: totalComErro > 0
-        ? resultados.filter((r) => r.erro).map((r) => `${r.descricao || r.empresasistema}: ${r.erro}`).join('; ')
-        : null,
-    });
+    const execucaoId = registrarAuditoria
+      ? await registrarExecucao({
+        tipo,
+        status,
+        usuario,
+        iniciadoEm,
+        duracaoMs,
+        empresasProcessadas: resultados.length,
+        resumo: { modo: modoNormalizado, dataInicio: dataInicio || null, dataFim: dataFim || null, qtde: quantidade, ...totais, empresas: resultados },
+        erro: totalComErro > 0
+          ? resultados.filter((r) => r.erro).map((r) => `${r.descricao || r.empresasistema}: ${r.erro}`).join('; ')
+          : null,
+      })
+      : null;
 
     const metricas = metricasPontos(totais);
     logExata('pontos.fim', {

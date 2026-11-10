@@ -3903,6 +3903,106 @@ async function runDueSchedules() {
   }
 }
 
+// ── Sincronização automática dos pontos do dia ──────────────────────────────
+// O painel e os relatórios leem somente `marcacoes_ponto`. Sem este agendador,
+// os pontos do dia atual só apareceriam depois de uma sincronização manual —
+// os dias anteriores ficam preenchidos pela carga histórica, mas o dia
+// corrente começa vazio a cada virada de data. Este ciclo importa os pontos
+// novos de todas as origens ativas (ExataWeb e Ponto Certificado).
+let pontosAutoRunning = false;
+let pontosAutoTimer = null;
+
+function envInteiroPositivo(nome, fallback) {
+  const valor = Number(process.env[nome]);
+  return Number.isFinite(valor) && valor > 0 ? Math.trunc(valor) : fallback;
+}
+
+function envLigado(nome, fallback = true) {
+  const valor = process.env[nome];
+  if (valor === undefined || valor === null || String(valor).trim() === '') return fallback;
+  return !['0', 'false', 'nao', 'não', 'off'].includes(String(valor).trim().toLowerCase());
+}
+
+async function runPontosAutoSync() {
+  if (pontosAutoRunning) return;
+  if (!pool || !pontoSync || !exataSync) return;
+
+  pontosAutoRunning = true;
+  const iniciadoEm = Date.now();
+  try {
+    if (envLigado('SYNC_PONTOS_AUTO_EXATA', true)) {
+      try {
+        const conta = await exataSync.getContaExata();
+        if (conta?.ativo) {
+          const resultado = await exataSync.sincronizarPontos({
+            modo: 'incremental',
+            usuario: 'automatico',
+            registrarAuditoria: false,
+          });
+          console.log(
+            `[Pontos automáticos] Exata ${resultado.status}: ` +
+            `${resultado.inseridos} novo(s), ${resultado.atualizados} atualizado(s), ` +
+            `${resultado.baixados} baixado(s)`
+          );
+        }
+      } catch (erro) {
+        console.warn('[Pontos automáticos] Exata:', erro?.message || erro);
+      }
+    }
+
+    if (envLigado('SYNC_PONTOS_AUTO_PONTO_CERTIFICADO', true)) {
+      try {
+        const resultado = await pontoSync.runMarcacoesSync({
+          modo: 'incremental',
+          usuario: 'automatico',
+          registrarAuditoria: false,
+        });
+        const inseridos = (resultado.empresas || []).reduce(
+          (total, empresa) => total + (empresa.marcacoes?.inseridos || 0),
+          0
+        );
+        const atualizados = (resultado.empresas || []).reduce(
+          (total, empresa) => total + (empresa.marcacoes?.atualizados || 0),
+          0
+        );
+        console.log(
+          `[Pontos automáticos] Ponto Certificado ${resultado.status}: ` +
+          `${inseridos} novo(s), ${atualizados} atualizado(s)`
+        );
+      } catch (erro) {
+        const mensagem = erro?.message || String(erro);
+        // Sem empresas da Ponto Certificado configuradas é um cenário normal.
+        if (!/Nenhuma empresa/i.test(mensagem)) {
+          console.warn('[Pontos automáticos] Ponto Certificado:', mensagem);
+        }
+      }
+    }
+  } finally {
+    const duracao = Date.now() - iniciadoEm;
+    console.log(`[Pontos automáticos] Ciclo finalizado em ${duracao}ms`);
+    pontosAutoRunning = false;
+  }
+}
+
+function iniciarSincronizacaoAutomaticaPontos() {
+  if (!envLigado('SYNC_PONTOS_AUTO', true)) {
+    console.log('Sincronização automática de pontos desativada (SYNC_PONTOS_AUTO=0)');
+    return;
+  }
+
+  const minutos = Math.min(Math.max(envInteiroPositivo('SYNC_PONTOS_INTERVALO_MIN', 10), 1), 1440);
+  const intervaloMs = minutos * 60 * 1000;
+
+  // Primeira execução após a subida do servidor, quando o banco já está pronto.
+  setTimeout(runPontosAutoSync, 20 * 1000).unref?.();
+
+  if (pontosAutoTimer) clearInterval(pontosAutoTimer);
+  pontosAutoTimer = setInterval(runPontosAutoSync, intervaloMs);
+  pontosAutoTimer.unref?.();
+
+  console.log(`Sincronização automática de pontos iniciada (a cada ${minutos}min)`);
+}
+
 // GET /api/relatorios-agendados
 app.get('/api/relatorios-agendados', async (req, res) => {
   try {
@@ -4080,6 +4180,9 @@ async function startServer() {
   // Verificador dos agendamentos (a cada 30s)
   setInterval(runDueSchedules, 30 * 1000);
   console.log('Agendador de relatórios iniciado (verificação a cada 30s)');
+
+  // Importa periodicamente os pontos do dia atual de todas as origens.
+  iniciarSincronizacaoAutomaticaPontos();
   
   // Servir arquivos estáticos do Angular (Production Build)
   const distPath = path.join(__dirname, '../dist/controleApontamento/browser');
