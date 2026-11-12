@@ -1063,7 +1063,10 @@ export class Relatorios {
     const tableBody = func.dias.map((dia, i) => [
       dia.getDataFormatada(),
       dia.getDiaSemana().substring(0, 3),
-      rowsMeta[i].map(m => m.label).join('  '),
+      // Separador simples: o jsPDF colapsa espaços múltiplos ao quebrar o texto
+      // da célula, então usar '  ' aqui faria os pontos redesenhados ficarem
+      // deslocados em relação ao texto original.
+      rowsMeta[i].map(m => m.label).join(' '),
       dia.getHorasTrabalhadas(),
       this.getStatusRelatorio(dia, func.matricula)
     ]);
@@ -1100,31 +1103,50 @@ export class Relatorios {
 
         const cell = data.cell;
         const fz = 8;
-        const baseY = cell.getTextPos().y;
-        const sepW = doc.getTextWidth('  ');
+        const scale = doc.internal.scaleFactor || 2.834645669;
+        const fontSizeMm = fz / scale;
+        const lineHeight = fontSizeMm * 1.15;
         const corCinza: [number, number, number] = [156, 163, 175];
-        const strikeY = baseY - fz * 0.32;
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(fz);
 
-        let curX = cell.x + cell.padding('left');
-        meta.forEach((m) => {
-          const label = m.label;
-          const w = doc.getTextWidth(label);
+        // Replica a disposição usada pelo autoTable: o texto é quebrado em
+        // linhas com espaço simples entre os pontos e a primeira linha é
+        // desenhada a partir da baseline calculada pelo autoTableText
+        // (y + fontSize * (2 - 1.15)), e não do topo da célula.
+        const textPos = cell.getTextPos();
+        const maxWidth = Math.ceil(cell.width - cell.padding('left') - cell.padding('right'));
+        const labels = meta.map(m => m.label);
+        const lines: string[] = doc.splitTextToSize(labels.join(' '), maxWidth);
+        const spaceW = doc.getTextWidth(' ');
+        const firstBaselineY = textPos.y + fontSizeMm * (2 - 1.15);
 
-          if (m.desconsiderado) {
-            // Redesenha o texto em cinza muted por cima do texto preto do autoTable
-            doc.setTextColor(corCinza[0], corCinza[1], corCinza[2]);
-            doc.text(label, curX, baseY);
+        let labelIndex = 0;
+        lines.forEach((line, lineIndex) => {
+          const baseY = firstBaselineY + lineIndex * lineHeight;
+          const tokens = line.split(' ').filter((t: string) => t.length > 0);
+          let curX = textPos.x;
 
-            // Risco cortando o texto (não sublinhado)
-            doc.setDrawColor(corCinza[0], corCinza[1], corCinza[2]);
-            doc.setLineWidth(0.35);
-            doc.line(curX, strikeY, curX + w, strikeY);
-          }
+          tokens.forEach(token => {
+            const m = meta[labelIndex] ?? meta.find(item => item.label === token);
+            labelIndex++;
+            const w = doc.getTextWidth(token);
 
-          curX += w + sepW;
+            if (m?.desconsiderado) {
+              // Redesenha o texto em cinza muted por cima do texto do autoTable
+              doc.setTextColor(corCinza[0], corCinza[1], corCinza[2]);
+              doc.text(token, curX, baseY);
+
+              // Risco cortando o texto (não sublinhado)
+              doc.setDrawColor(corCinza[0], corCinza[1], corCinza[2]);
+              doc.setLineWidth(0.35);
+              const strikeY = baseY - fontSizeMm * 0.3;
+              doc.line(curX, strikeY, curX + w, strikeY);
+            }
+
+            curX += w + spaceW;
+          });
         });
 
         doc.setTextColor(0, 0, 0);
