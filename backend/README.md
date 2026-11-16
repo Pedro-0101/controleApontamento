@@ -201,7 +201,11 @@ EXATA_API_TIMEOUT_MS=30000
 EXATA_TOKEN_TTL_MS=900000
 EXATA_PONTOS_QTDE=100
 EXATA_INCREMENTAL_DIAS=30
+EXATA_BAIXAR_PONTOS=1
 ```
+
+`EXATA_BAIXAR_PONTOS=0` desliga o `baixaponto671`: os pontos são apenas importados
+para o painel/relatórios e continuam pendentes na Exata.
 
 Nenhuma credencial é enviada ao frontend nem registrada em log.
 
@@ -242,6 +246,10 @@ EXATA_INTEGRATION=1 EXATA_INTEGRATION_BAIXA=1 npm test
 - Referência dos endpoints: `../docs/api-exata-web.md`.
 - Status da integração e fluxos de rollout/rollback: `../docs/resumo-integracao-exata.md`.
 - Fumaça manual: `node scripts/exata-smoke.js [empresasistema] [AAAA-MM-DD]`.
+- Pré-voo somente leitura (ambiente + API + banco): `npm run preflight`.
+  - `npm run preflight -- --json` para saída estruturada.
+  - `npm run preflight -- --sem-api` para verificar apenas ambiente/banco.
+  - Retorna código 1 quando há bloqueio (`FALHA`) e sugere os próximos passos.
 
 ## Observações
 

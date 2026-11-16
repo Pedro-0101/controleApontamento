@@ -322,6 +322,28 @@ Consequências para a UI:
 
 ---
 
+### Fase 8 — Encerramento assistido e pré-voo operacional — concluída em 11/11/2026
+
+- [x] Script de pré-voo somente leitura (`backend/scripts/exata-preflight.js`):
+  - confere variáveis de ambiente obrigatórias sem exibir segredos;
+  - valida login/consulta de empresas na Exata (pode ser pulado com `--sem-api`);
+  - confere tabelas e colunas da integração no banco;
+  - valida conta Exata ativa, mapeamento de empresas, funcionários importados;
+  - conta marcações exportadas/pendentes, duplicidades e últimas execuções;
+  - compara empresas da API com as persistidas em `empresas_exata`;
+  - retorna código 1 quando há FALHA e sugere próximos passos.
+- [x] Saída legível e `--json` para uso em checklist/automação.
+- [x] Testes unitários dos helpers do pré-voo (`backend/exata-preflight.test.js`).
+- [x] Script `npm run preflight` no backend.
+- [x] Documentação de operação atualizada (`backend/README.md` e `docs/resumo-integracao-exata.md`).
+
+**Critérios de aceite:**
+- `npm run preflight` executa sem alterar dados e não imprime credenciais.
+- Falhas de ambiente/schema/API/banco são reportadas com status claro.
+- Suíte `npm test` continua verde.
+
+---
+
 ## 7. Cronograma estimado
 
 | Fase | Escopo | Estimativa |
@@ -334,7 +356,8 @@ Consequências para a UI:
 | 5 | Relatórios e UI | 1–2 dias |
 | 6 | Coexistência e rollout | 2–3 dias |
 | 7 | Qualidade e documentação | contínuo |
-| **Total** | | **≈ 12–19 dias úteis** |
+| 8 | Encerramento assistido e pré-voo | 1 dia |
+| **Total** | | **≈ 13–20 dias úteis** |
 
 > A estimativa assume as credenciais da Exata disponíveis no `.env`. Sem elas, a Fase 1 pode avançar com mocks, mas a validação fica bloqueada.
 
@@ -347,10 +370,11 @@ Consequências para a UI:
 - `backend/exata-api.js`
 - `backend/provedor-api.js`
 - `backend/scripts/exata-smoke.js`
+- `backend/scripts/exata-preflight.js` — pré-voo somente leitura da operação
 - `backend/scripts/exata-import.js` (opcional, operação manual)
 - `docs/api-exata-web.md`
 - `src/app/.../empresas-config` — campos e ações do provedor Exata
-- Testes: `backend/exata-api.test.js`, `backend/provedor-api.test.js`
+- Testes: `backend/exata-api.test.js`, `backend/provedor-api.test.js`, `backend/exata-preflight.test.js`
 
 ### Alterados
 

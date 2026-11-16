@@ -359,6 +359,7 @@ export interface ExataPontosSyncResultado {
   execucaoId: number;
   status: 'CONCLUIDO' | 'PARCIAL' | 'ERRO';
   modo: 'periodo' | 'incremental';
+  baixaHabilitada?: boolean;
   duracaoMs: number;
   buscados: number;
   inseridos: number;
@@ -399,6 +400,8 @@ export interface ExecutarExataPontosOptions {
   dataFim?: string;
   qtde?: number;
   usuario?: string;
+  /** false = apenas importa, sem confirmar a baixa na Exata */
+  baixarPontos?: boolean;
 }
 
 export interface ExataStatusFuncionario {
@@ -530,6 +533,7 @@ export interface ExataMonitoramentoExecucao {
 export interface ExataMonitoramento {
   success: boolean;
   conta: { id: number; nome: string; ativo: number };
+  baixaHabilitada?: boolean;
   saude: 'OK' | 'ATENCAO';
   alertas: string[];
   pontos: {

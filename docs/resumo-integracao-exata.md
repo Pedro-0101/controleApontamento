@@ -27,6 +27,7 @@ webhooks e AFD filtram a conta Exata quando a funcionalidade não existe nela.
 | 5 | Relatórios consolidados e ocultação de telas inexistentes | ✅ Concluída |
 | 6 | Coexistência, validação, monitoramento e rollback | ✅ Concluída em 09/11/2026 |
 | 7 | Qualidade contínua (testes, logs, métricas e documentação) | ✅ **Concluída em 09/11/2026** |
+| 8 | Encerramento assistido e pré-voo operacional | ✅ **Concluída em 11/11/2026** |
 
 ---
 
@@ -120,9 +121,12 @@ Filtros da validação: `dataInicio`, `dataFim`, `empresasExataIds` (lista separ
 2. Selecione a empresa (ou todas), a data inicial/final e o lote (`qtde`).
 3. Clique em **Importar período**.
 4. O backend consulta `POST /pontos671` com `status = "N"`, pagina até vir menos que `qtde`,
-   persiste cada página e só então chama `POST /baixaponto671`.
+   persiste cada página e só então chama `POST /baixaponto671` (quando
+   `EXATA_BAIXAR_PONTOS=1`).
 5. Se a baixa falhar, os dados permanecem no banco e a próxima execução reconsulta os mesmos
    pontos com upsert idempotente.
+6. Com `EXATA_BAIXAR_PONTOS=0` nada é confirmado na Exata: os pontos apenas aparecem no
+   painel/relatórios e continuam pendentes para os demais consumidores da conta.
 
 ### 5.2 Incremental
 
@@ -284,7 +288,39 @@ A referência dos endpoints usados está em `docs/api-exata-web.md`.
 
 ---
 
-## 11. Pendências para encerramento
+## 11. Verificação de encerramento (Fase 8)
+
+O pré-voo valida a integração **sem alterar dados** e sem imprimir credenciais:
+
+```bash
+cd backend
+npm run preflight              # relatório legível
+npm run preflight -- --json    # saída para automação
+npm run preflight -- --sem-api # apenas ambiente + banco (sem chamar a Exata)
+```
+
+O que é verificado:
+
+- presença de `EXATA_API_BASE_URL`, `EXATA_API_USER` e `EXATA_API_PASSWORD`;
+- login e consulta de `/empresas` na conta real;
+- existência das tabelas/colunas da integração;
+- conta `exata`, mapeamento de empresas e funcionários importados;
+- marcações exportadas × pendentes de baixa e duplicidades;
+- últimas execuções `EXATA_*` em `sincronizacao_execucao`;
+- comparação entre as empresas da API e as persistidas em `empresas_exata`.
+
+Saída:
+
+- `OK`: nenhum bloqueio encontrado;
+- `ATENCAO`: pendências operacionais (mapeamento, baixas, conta desativada);
+- `FALHA`: ambiente/schema/API/banco impedem a operação (código de saída 1).
+
+Ao final o script sugere os próximos passos. Use-o antes de entregar as contagens ao
+solicitante e após qualquer rollback/reativação.
+
+---
+
+## 12. Pendências para encerramento
 
 - [ ] Informar/confirmar as credenciais reais da Exata no `backend/.env`.
 - [ ] Executar o rollout com a conta real.

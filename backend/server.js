@@ -2165,6 +2165,7 @@ app.post('/api/sincronizacao/exata/pontos', async (req, res) => {
     dataFim,
     qtde,
     usuario,
+    baixarPontos,
   } = req.body || {};
 
   if (empresasExataIds !== undefined && !Array.isArray(empresasExataIds)) {
@@ -2176,6 +2177,9 @@ app.post('/api/sincronizacao/exata/pontos', async (req, res) => {
   if (modo === 'periodo' && (!dataInicio || !dataFim)) {
     return res.status(400).json({ success: false, error: 'Informe dataInicio e dataFim para importar por período' });
   }
+  if (baixarPontos !== undefined && typeof baixarPontos !== 'boolean') {
+    return res.status(400).json({ success: false, error: 'baixarPontos deve ser booleano' });
+  }
 
   try {
     const resultado = await exataSync.sincronizarPontos({
@@ -2185,6 +2189,7 @@ app.post('/api/sincronizacao/exata/pontos', async (req, res) => {
       dataFim,
       qtde,
       usuario: usuario || null,
+      baixarPontos,
     });
     res.json(resultado);
   } catch (e) {
@@ -3942,7 +3947,7 @@ async function runPontosAutoSync() {
           console.log(
             `[Pontos automáticos] Exata ${resultado.status}: ` +
             `${resultado.inseridos} novo(s), ${resultado.atualizados} atualizado(s), ` +
-            `${resultado.baixados} baixado(s)`
+            `${resultado.baixados} baixado(s), baixa ${resultado.baixaHabilitada ? 'ativa' : 'desligada'}`
           );
         }
       } catch (erro) {

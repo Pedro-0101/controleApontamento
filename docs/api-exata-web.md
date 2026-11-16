@@ -132,12 +132,27 @@ Content-Type: application/json
 ]
 ```
 
+A baixa confirma para a Exata que a integração já consumiu as marcações: os pontos
+saem de `status = "N"` e passam a `status = "S"`. É a **única escrita** da integração.
+
+Comportamento controlado por `EXATA_BAIXAR_PONTOS`:
+
+| Valor | Efeito |
+|---|---|
+| `1` (padrão) | Importa e dá baixa; os pontos deixam a fila de pendentes da Exata |
+| `0` | Apenas importa/espelha; **não** chama `baixaponto671` e os pontos continuam pendentes na Exata |
+
+A rota `POST /api/sincronizacao/exata/pontos` também aceita `"baixarPontos": false`
+no corpo para desligar a baixa em uma execução pontual.
+
 Regras de segurança:
 
 1. os pontos são persistidos no banco **antes** da baixa;
 2. a baixa é enviada em lotes;
 3. se a baixa falhar, os dados permanecem com `status_exportacao = 'N'`;
-4. a próxima execução reconsulta os mesmos pontos e o upsert idempotente evita duplicidade.
+4. a próxima execução reconsulta os mesmos pontos e o upsert idempotente evita duplicidade;
+5. com a baixa desligada, a paginação para ao detectar o mesmo lote (a API não tem
+   offset), então o teto por dia é `EXATA_PONTOS_QTDE`.
 
 ---
 

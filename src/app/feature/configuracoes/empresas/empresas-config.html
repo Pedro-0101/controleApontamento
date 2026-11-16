@@ -520,7 +520,12 @@
                       <strong>{{ empresa.descricao || empresa.empresasistema }}</strong>
                       <span class="sync-empresa-local">
                         {{ empresa.buscados }} buscada(s) · {{ empresa.inseridos }} nova(s) ·
-                        {{ empresa.atualizados }} atualizada(s) · {{ empresa.baixados }} baixada(s)
+                        {{ empresa.atualizados }} atualizada(s)
+                        @if (resultado.baixaHabilitada === false) {
+                          · baixa desativada
+                        } @else {
+                          · {{ empresa.baixados }} baixada(s)
+                        }
                       </span>
                     </div>
                     @if (empresa.erro) {
@@ -713,7 +718,11 @@
               </span>
               <span><strong>{{ monitor.pontos.total }}</strong> marcação(ões)</span>
               <span><strong>{{ monitor.pontos.hoje }}</strong> hoje</span>
-              <span><strong>{{ monitor.pontos.pendentes_baixa }}</strong> com baixa pendente</span>
+              @if (monitor.baixaHabilitada === false) {
+                <span><strong>Baixa desativada</strong> (pontos permanecem na Exata)</span>
+              } @else {
+                <span><strong>{{ monitor.pontos.pendentes_baixa }}</strong> com baixa pendente</span>
+              }
               <span><strong>{{ monitor.empresas.sem_mapeamento }}</strong> empresa(s) sem empresa local</span>
               <button class="btn btn-outline btn-sm" (click)="carregarMonitoramentoExata()"
                 [disabled]="isCarregandoMonitoramentoExata()">
@@ -735,7 +744,7 @@
 
             @if (monitor.pendenciasBaixa.length > 0 || monitor.duplicidades.length > 0) {
               <div class="marcacoes-form">
-                @if (monitor.pendenciasBaixa.length > 0) {
+                @if (monitor.pendenciasBaixa.length > 0 && monitor.baixaHabilitada !== false) {
                   <div class="sync-empresa">
                     <div class="sync-empresa-titulo">
                       <strong>Baixas pendentes por empresa</strong>

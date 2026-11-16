@@ -26,6 +26,21 @@ function envPositiveInt(name, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : fallback;
 }
 
+function envLigado(nome, fallback = true) {
+  const valor = process.env[nome];
+  if (valor === undefined || valor === null || String(valor).trim() === '') return fallback;
+  return !['0', 'false', 'nao', 'não', 'off'].includes(String(valor).trim().toLowerCase());
+}
+
+/**
+ * Quando desligada, a integração apenas importa os pontos (`pontos671` com
+ * `status = "N"`) e não chama `baixaponto671`. Os pontos continuam pendentes
+ * na Exata para os demais consumidores da conta.
+ */
+function baixarPontosHabilitado() {
+  return envLigado('EXATA_BAIXAR_PONTOS', true);
+}
+
 function pontosQtdePadrao() {
   return Math.min(envPositiveInt('EXATA_PONTOS_QTDE', DEFAULT_PONTOS_QTDE), 1000);
 }
@@ -1321,6 +1336,7 @@ function createExataSync({ pool, exataApi }) {
     dataInicio,
     dataFim,
     qtde = pontosQtdePadrao(),
+    baixarPontos = baixarPontosHabilitado(),
   }) {
     const quantidade = Math.min(Math.max(Math.trunc(Number(qtde) || pontosQtdePadrao()), 1), 1000);
     const stats = {
@@ -1398,8 +1414,12 @@ function createExataSync({ pool, exataApi }) {
           .sort()
           .join('|');
         if (assinaturas.has(assinatura)) {
-          stats.errosBaixa++;
-          stats.ultimoErro = 'A API retornou o mesmo lote duas vezes; importação interrompida para evitar laço';
+          // Sem baixa, a API devolve sempre o mesmo primeiro lote pendente:
+          // repetir não traz dados novos e não é erro operacional.
+          if (baixarPontos) {
+            stats.errosBaixa++;
+            stats.ultimoErro = 'A API retornou o mesmo lote duas vezes; importação interrompida para evitar laço';
+          }
           break;
         }
         assinaturas.add(assinatura);
@@ -1413,14 +1433,16 @@ function createExataSync({ pool, exataApi }) {
         pagina++;
         registrarLinhas(persistido.rows);
 
-        const baixa = await confirmarPontosExata(empresa.empresasistema, persistido.rows);
-        stats.baixados += baixa.confirmados;
-        if (baixa.erros.length > 0) {
-          stats.errosBaixa += baixa.erros.length;
-          stats.ultimoErro = baixa.erros[0];
-          interromper = true;
-        } else if (persistido.rows.length > 0) {
-          await marcarPontosExportados(conta.id, empresa.empresasistema, persistido.rows);
+        if (baixarPontos) {
+          const baixa = await confirmarPontosExata(empresa.empresasistema, persistido.rows);
+          stats.baixados += baixa.confirmados;
+          if (baixa.erros.length > 0) {
+            stats.errosBaixa += baixa.erros.length;
+            stats.ultimoErro = baixa.erros[0];
+            interromper = true;
+          } else if (persistido.rows.length > 0) {
+            await marcarPontosExportados(conta.id, empresa.empresasistema, persistido.rows);
+          }
         }
 
         await salvarEstadoPontosExata(conta.id, empresa.empresasistema, {
@@ -1503,6 +1525,7 @@ function createExataSync({ pool, exataApi }) {
     qtde,
     usuario = null,
     registrarAuditoria = true,
+    baixarPontos = baixarPontosHabilitado(),
   } = {}) {
     await ensureSchema();
     const conta = await getContaExata();
@@ -1528,6 +1551,7 @@ function createExataSync({ pool, exataApi }) {
       modo: modoNormalizado,
       empresas: empresas.length,
       qtde: quantidade,
+      baixa: baixarPontos ? 'S' : 'N',
       dataInicio: dataInicio || '-',
       dataFim: dataFim || '-',
       usuario: usuario || '-',
@@ -1573,6 +1597,7 @@ function createExataSync({ pool, exataApi }) {
           dataInicio,
           dataFim,
           qtde: quantidade,
+          baixarPontos,
         });
 
         Object.assign(resultado, {
@@ -1649,6 +1674,7 @@ function createExataSync({ pool, exataApi }) {
       empresa_config_id: conta.id,
       modo: modoNormalizado,
       status,
+      baixa: baixarPontos ? 'S' : 'N',
       buscados: metricas.buscados,
       persistidos: metricas.persistidos,
       baixados: metricas.baixados,
@@ -1662,6 +1688,7 @@ function createExataSync({ pool, exataApi }) {
       execucaoId,
       status,
       modo: modoNormalizado,
+      baixaHabilitada: baixarPontos,
       duracaoMs,
       ...totais,
       metricas: metricasPontos(totais),
@@ -1932,6 +1959,7 @@ function createExataSync({ pool, exataApi }) {
       (acc, item) => acc + (Number(item.total) || 0),
       0
     );
+    const baixaHabilitada = baixarPontosHabilitado();
     const errosRecentes = ultimas.filter((item) => item.status !== 'CONCLUIDO');
     const empresaResumo = empresasResumo[0] || {};
     const pontos = pontosResumo[0] || {};
@@ -1943,7 +1971,7 @@ function createExataSync({ pool, exataApi }) {
     if (duplicidades.length > 0) {
       alertas.push(`${duplicidades.length} chave(s) duplicada(s) em marcações`);
     }
-    if (totalPendentes > 0) {
+    if (baixaHabilitada && totalPendentes > 0) {
       alertas.push(`${totalPendentes} marcação(ões) com baixa pendente`);
     }
     if (errosRecentes.length > 0) {
@@ -1953,6 +1981,7 @@ function createExataSync({ pool, exataApi }) {
     return {
       success: true,
       conta: { id: conta.id, nome: conta.nome, ativo: Number(conta.ativo) ? 1 : 0 },
+      baixaHabilitada,
       saude: duplicidades.length > 0 || errosRecentes.length > 0
         ? 'ATENCAO'
         : (alertas.length > 0 ? 'ATENCAO' : 'OK'),
@@ -2385,5 +2414,6 @@ module.exports = {
   gerarCsvValidacao,
   pontosQtdePadrao,
   incrementalDiasPadrao,
+  baixarPontosHabilitado,
   EVENTOS_LOCAIS,
 };

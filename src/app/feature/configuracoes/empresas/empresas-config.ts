@@ -391,8 +391,11 @@ export class EmpresasConfig implements OnInit {
       this.exataPontosResultado.set(resultado);
 
       if (resultado.status === 'CONCLUIDO') {
+        const importadas = resultado.inseridos + resultado.atualizados;
         this.toastService.success(
-          `${resultado.inseridos + resultado.atualizados} marcação(ões) importada(s) e ${resultado.baixados} baixada(s)`
+          resultado.baixaHabilitada === false
+            ? `${importadas} marcação(ões) importada(s) (baixa desativada na Exata)`
+            : `${importadas} marcação(ões) importada(s) e ${resultado.baixados} baixada(s)`
         );
       } else if (resultado.status === 'PARCIAL') {
         this.toastService.warning('Importação concluída com falhas em algumas empresas');
@@ -416,8 +419,12 @@ export class EmpresasConfig implements OnInit {
       `${resultado.buscados} buscada(s)`,
       `${resultado.inseridos} nova(s)`,
       `${resultado.atualizados} atualizada(s)`,
-      `${resultado.baixados} baixada(s)`,
     ];
+    if (resultado.baixaHabilitada === false) {
+      partes.push('baixa desativada (pontos seguem pendentes na Exata)');
+    } else {
+      partes.push(`${resultado.baixados} baixada(s)`);
+    }
     if (resultado.ignorados > 0) partes.push(`${resultado.ignorados} ignorada(s)`);
     if (resultado.erros > 0) partes.push(`${resultado.erros} erro(s) de baixa`);
     return partes.join(' · ');

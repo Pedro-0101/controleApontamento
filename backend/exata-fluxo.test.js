@@ -290,6 +290,39 @@ test('falha na baixa preserva os dados e é recuperada na execução seguinte', 
   }
 });
 
+test('com baixa desligada apenas importa e mantém os pontos pendentes na Exata', async () => {
+  const { pool, exataApi, sync } = setup();
+  const opcoes = {
+    modo: 'periodo',
+    dataInicio: '2026-11-09',
+    dataFim: '2026-11-09',
+    baixarPontos: false,
+  };
+
+  const primeira = await sync.sincronizarPontos(opcoes);
+  assert.equal(primeira.success, true);
+  assert.equal(primeira.baixaHabilitada, false);
+  assert.equal(primeira.buscados, 2);
+  assert.equal(primeira.inseridos, 2);
+  assert.equal(primeira.baixados, 0);
+  assert.equal(primeira.erros, 0);
+  assert.equal(exataApi.baixas.length, 0, 'baixaponto671 não deve ser chamado');
+  assert.equal(exataApi.exportados.size, 0);
+  for (const marcacao of pool.state.marcacoes.values()) {
+    assert.equal(marcacao.status_exportacao, 'N');
+  }
+
+  // Reexecutar reconsulta os mesmos pendentes sem duplicar e sem baixar.
+  const segunda = await sync.sincronizarPontos(opcoes);
+  assert.equal(segunda.success, true);
+  assert.equal(segunda.buscados, 2);
+  assert.equal(segunda.inseridos, 0);
+  assert.equal(segunda.atualizados, 2);
+  assert.equal(segunda.baixados, 0);
+  assert.equal(exataApi.baixas.length, 0);
+  assert.equal(pool.state.marcacoes.size, 2);
+});
+
 test('logs de sincronização têm contexto e contadores sem credenciais', async () => {
   const { sync } = setup();
   const linhas = [];
