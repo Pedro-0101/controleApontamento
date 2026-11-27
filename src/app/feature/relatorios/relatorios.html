@@ -81,6 +81,17 @@
         />
       </div>
 
+      <!-- Status Filter -->
+      <div class="form-group">
+        <label>Status (opcional)</label>
+        <app-multi-select-dropdown
+          [options]="statusOptions()"
+          [placeholder]="'Todos os status...'"
+          [searchPlaceholder]="'Buscar status...'"
+          (selectionChange)="onStatusSelectionChange($event)"
+        />
+        <small class="form-hint">Sem seleção, todos os dias são incluídos</small>
+      </div>
 
       @if (tipoRelatorio() === 'vr') {
         <div class="form-group">
@@ -381,7 +392,7 @@
             <lucide-icon name="clock" [size]="20"></lucide-icon>
             <div>
               <span class="summary-label">Total de Marcações</span>
-              <span class="summary-value">{{ marcacoes().length }}</span>
+              <span class="summary-value">{{ totalMarcacoesFiltradas }}</span>
             </div>
           </div>
         </div>

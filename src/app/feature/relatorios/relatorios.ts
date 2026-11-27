@@ -21,6 +21,33 @@ import { AdmUnit } from '../../models/admUnit/adm-unit';
 
 type TipoRelatorio = 'espelho' | 'vr' | 'faltas';
 
+// Status conhecidos de um dia. Usado como base do filtro de status;
+// status vindos de eventos também são adicionados dinamicamente após a geração.
+const STATUS_OPTIONS_BASE: string[] = [
+  'Atraso',
+  'Falta',
+  'Incompleto',
+  'Ok',
+  'Outro',
+  'Pendente',
+  'Em andamento',
+  'Corrigido',
+  'Falta Confirmada',
+  'Descontar Atraso',
+  'BH',
+  'BH do Atraso',
+  'Folga',
+  'Ferias',
+  'Férias',
+  'Feriado',
+  'Atestado',
+  'Afastado',
+  'Suspensao',
+  'Licença Maternidade/ Paternidade',
+  'Licença Nojo',
+  'Não bate ponto'
+];
+
 interface FaltaConfirmadaResultado {
   matricula: string;
   nome: string;
@@ -75,6 +102,14 @@ export class Relatorios {
   selectedCompanies = signal<string[]>([]);
   selectedLocations = signal<string[]>([]);
   selectedClock = signal('');
+  selectedStatuses = signal<string[]>([]);
+
+  // Status encontrados no último relatório gerado (inclui status de eventos)
+  private statusVistos = signal<string[]>([]);
+  statusOptions = computed(() => {
+    const todos = [...STATUS_OPTIONS_BASE, ...this.statusVistos()];
+    return [...new Set(todos)].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  });
 
   // Options
   employees = signal<Employee[]>([]);
@@ -304,7 +339,13 @@ export class Relatorios {
 
       const marcacoesPorDia = await this.marcacaoService.formatarMarcacoesPorDia(marcacoesOrdenadas, dataInicioDDMMYYYY, originalDataFimDDMMYYYY, targetMatriculas);
 
-      this.marcacoesPorDia.set(marcacoesPorDia);
+      // Mantém disponíveis para o filtro todos os status presentes no período
+      this.statusVistos.set([
+        ...new Set(marcacoesPorDia.map(dia => this.getStatusRelatorio(dia, dia.matricula)))
+      ]);
+
+      // Sem status selecionado, o relatório traz todos os dias
+      this.marcacoesPorDia.set(this.filtrarPorStatus(marcacoesPorDia));
       if (this.tipoRelatorio() === 'vr') this.calcularNaoAptosVR();
       if (this.tipoRelatorio() === 'faltas') this.calcularFaltasConfirmadas();
       this.hasGenerated.set(true);
@@ -321,6 +362,8 @@ export class Relatorios {
     this.selectedCompanies.set([]);
     this.selectedLocations.set([]);
     this.selectedClock.set('');
+    this.selectedStatuses.set([]);
+    this.statusVistos.set([]);
     this.setDefaultDates();
     this.marcacoes.set([]);
     this.marcacoesPorDia.set([]);
@@ -349,11 +392,27 @@ export class Relatorios {
     this.selectedEmployees.update(current => current.filter(m => filteredMatriculas.includes(m)));
   }
 
+  onStatusSelectionChange(selected: string[]) {
+    this.selectedStatuses.set(selected);
+  }
+
+  private filtrarPorStatus(dias: MarcacaoDia[]): MarcacaoDia[] {
+    const selecionados = this.selectedStatuses();
+    if (selecionados.length === 0) return dias;
+
+    const statusSet = new Set(selecionados);
+    return dias.filter(dia => statusSet.has(this.getStatusRelatorio(dia, dia.matricula)));
+  }
+
   // Pagination helpers
   get paginatedMarcacoes() {
     const start = (this.currentPage() - 1) * this.itemsPerPage();
     const end = start + this.itemsPerPage();
     return this.marcacoes().slice(start, end);
+  }
+
+  get totalMarcacoesFiltradas(): number {
+    return this.marcacoesPorDia().reduce((total, dia) => total + dia.marcacoes.length, 0);
   }
 
   get paginatedMarcacoesPorDia() {
