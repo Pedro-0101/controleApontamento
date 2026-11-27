@@ -4,6 +4,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { MarcacaoDia } from '../../../models/marcacaoDia/marcacao-dia';
 import { DateHelper } from '../../helpers/dateHelper';
+import { formatarComentarios } from '../../helpers/comentarioHelper';
 
 export type ExportFormat = 'csv' | 'excel' | 'pdf' | 'print';
 
@@ -73,7 +74,7 @@ export class ExportService {
           }
           case 'totalHoras': obj['Total Horas'] = item.getHorasTrabalhadas(); break;
           case 'status': obj['Status'] = item.getStatus(); break;
-          case 'comentario': obj['Comentário'] = item.comentario || ''; break;
+          case 'comentario': obj['Comentário'] = formatarComentarios(item.comentarios); break;
         }
       });
       return obj;
@@ -137,6 +138,15 @@ export class ExportService {
     doc.save(`${fileName}.pdf`);
   }
 
+  private escapeHtml(value: any): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/\n/g, '<br>');
+  }
+
   private printTable(data: any[], fields: string[]) {
     const headers = data.length > 0 ? Object.keys(data[0]) : [];
     const rows = data.map(obj => Object.values(obj));
@@ -149,6 +159,7 @@ export class ExportService {
           <style>
             table { width: 100%; border-collapse: collapse; }
             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            td { white-space: pre-line; }
             th { background-color: #f2f2f2; }
             h2 { text-align: center; }
             .legenda { margin-top: 10px; font-size: 12px; color: #555; }
@@ -161,7 +172,7 @@ export class ExportService {
               <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
             </thead>
             <tbody>
-              ${rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}
+              ${rows.map(row => `<tr>${row.map(cell => `<td>${this.escapeHtml(cell)}</td>`).join('')}</tr>`).join('')}
             </tbody>
           </table>
           ${temDesconsiderados ? '<p class="legenda">Marcações entre colchetes [HH:MM] foram desconsideradas/canceladas.</p>' : ''}

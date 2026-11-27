@@ -11,6 +11,7 @@ import { Relogio } from '../../models/relogio/relogio';
 import { Pagination } from '../../shared/pagination/pagination';
 import { MarcacaoDia } from '../../models/marcacaoDia/marcacao-dia';
 import { DateHelper } from '../../core/helpers/dateHelper';
+import { formatarComentarios } from '../../core/helpers/comentarioHelper';
 import { MarcacaoService } from '../../core/services/marcacao/marcacao.service';
 import { MultiSelectDropdown } from '../../shared/multi-select-dropdown/multi-select-dropdown';
 import { ToastService } from '../../core/services/toast/toast.service';
@@ -811,7 +812,8 @@ export class Relatorios {
           return hora;
         }).join(', '),
         HorasTrabalhadas: dia.getHorasTrabalhadas(),
-        Status: this.getStatusRelatorio(dia, dia.matricula)
+        Status: this.getStatusRelatorio(dia, dia.matricula),
+        Comentarios: formatarComentarios(dia.comentarios)
       });
     });
 
@@ -1068,22 +1070,24 @@ export class Relatorios {
       // deslocados em relação ao texto original.
       rowsMeta[i].map(m => m.label).join(' '),
       dia.getHorasTrabalhadas(),
-      this.getStatusRelatorio(dia, func.matricula)
+      this.getStatusRelatorio(dia, func.matricula),
+      formatarComentarios(dia.comentarios)
     ]);
 
     autoTable(doc, {
       startY: 38,
-      head: [['Data', 'Dia', 'Marcacoes', 'Horas', 'Status']],
+      head: [['Data', 'Dia', 'Marcacoes', 'Horas', 'Status', 'Comentarios']],
       body: tableBody,
       theme: 'grid',
       styles: { fontSize: 8, cellPadding: [1.5, 3] },
       headStyles: { fillColor: [80, 80, 80], textColor: [255, 255, 255], fontStyle: 'bold' },
       columnStyles: {
-        0: { cellWidth: 22 },
-        1: { cellWidth: 18 },
-        2: { cellWidth: 90 },
-        3: { cellWidth: 22, halign: 'center' },
-        4: { cellWidth: 30, halign: 'center' }
+        0: { cellWidth: 20 },
+        1: { cellWidth: 12 },
+        2: { cellWidth: 60 },
+        3: { cellWidth: 16, halign: 'center' },
+        4: { cellWidth: 26, halign: 'center' },
+        5: { cellWidth: 48 }
       },
       didParseCell: (data: any) => {
         if (data.section !== 'body') return;
