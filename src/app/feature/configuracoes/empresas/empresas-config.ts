@@ -6,12 +6,15 @@ import {
   ExecutarMarcacoesOptions,
   ExecutarVinculosOptions,
   ExataConta,
+  ExataCoberturaFuncionario,
+  ExataCoberturaResultado,
   ExataEmpresa,
   ExataListaResultado,
   ExataMonitoramento,
   ExataPontosStatus,
   ExataPontosSyncResultado,
   ExataResumo,
+  ExataSituacaoCobertura,
   ExataStatusFuncionario,
   ExataStatusListaResultado,
   ExataStatusSyncResultado,
@@ -49,11 +52,13 @@ import {
 } from '../../../core/services/webhooks/webhook.service';
 import { MultiSelectDropdown } from '../../../shared/multi-select-dropdown/multi-select-dropdown';
 import { ModalEmpresaConfig } from './modal-empresa-config/modal-empresa-config';
+import { ModalColaborador } from '../../colaboradores/modal-colaborador/modal-colaborador';
+import { Employee } from '../../../models/employee/employee';
 
 @Component({
   selector: 'app-empresas-config',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule, MultiSelectDropdown, ModalEmpresaConfig],
+  imports: [CommonModule, LucideAngularModule, MultiSelectDropdown, ModalEmpresaConfig, ModalColaborador],
   templateUrl: './empresas-config.html',
   styleUrl: './empresas-config.css',
 })
@@ -163,6 +168,26 @@ export class EmpresasConfig implements OnInit {
   exataEmpresasResultado = signal<ExataSyncEmpresasResultado | null>(null);
   exataFuncionariosResultado = signal<ExataSyncFuncionariosResultado | null>(null);
 
+  // ExataWeb — cobertura do cadastro local (Fase 1, somente leitura)
+  exataCobertura = signal<ExataCoberturaResultado | null>(null);
+  exataCoberturaErro = signal<string | null>(null);
+  isCarregandoCoberturaExata = signal(false);
+  exataCoberturaSituacao = signal<ExataSituacaoCobertura | ''>('');
+  exataCoberturaEmpresaId = signal('');
+  exataCoberturaBusca = signal('');
+  exataCoberturaPagina = signal(1);
+  exataCoberturaPorPagina = 50;
+  showCoberturaModal = signal(false);
+  coberturaModalMode = signal<'create' | 'edit'>('edit');
+  coberturaEmployee = signal<Employee | null>(null);
+  exataCoberturaPorEmpresa = computed(() => {
+    const mapa = new Map<number, ExataCoberturaResultado['resumo']['porEmpresa'][number]>();
+    for (const empresa of this.exataCobertura()?.resumo.porEmpresa || []) {
+      mapa.set(empresa.empresa_exata_id, empresa);
+    }
+    return mapa;
+  });
+
   // ExataWeb — marcações de ponto e baixa (Fase 3)
   exataPontosStatus = signal<ExataPontosStatus | null>(null);
   exataPontosResultado = signal<ExataPontosSyncResultado | null>(null);
@@ -191,6 +216,7 @@ export class EmpresasConfig implements OnInit {
   exataValidacaoFim = signal(this.isoDate(new Date()));
   exataValidacaoEmpresaId = signal('');
   isAlterandoContaExata = signal(false);
+  isAlterandoEspelhoExata = signal(false);
   isExecutandoRolloutExata = signal(false);
   exataRolloutMensagem = signal<string | null>(null);
 
@@ -203,6 +229,7 @@ export class EmpresasConfig implements OnInit {
       this.carregarStatusPontosExata(),
       this.carregarStatusExata(),
       this.carregarMonitoramentoExata(),
+      this.carregarCoberturaExata(),
     ]);
   }
 
@@ -245,6 +272,7 @@ export class EmpresasConfig implements OnInit {
       }
 
       await this.carregarExata();
+      await this.carregarCoberturaExata();
       if (this.showHistorico()) await this.carregarHistorico();
     } catch (error: any) {
       const mensagem = error?.error?.error || 'Erro ao sincronizar empresas da Exata';
@@ -276,6 +304,7 @@ export class EmpresasConfig implements OnInit {
       }
 
       await this.carregarExata();
+      await this.carregarCoberturaExata();
       if (this.showHistorico()) await this.carregarHistorico();
     } catch (error: any) {
       const mensagem = error?.error?.error || 'Erro ao sincronizar funcionários da Exata';
@@ -298,6 +327,7 @@ export class EmpresasConfig implements OnInit {
       );
       this.toastService.success('Mapeamento atualizado');
       await this.carregarExata();
+      await this.carregarCoberturaExata();
     } catch (error: any) {
       this.toastService.error(error?.error?.error || 'Erro ao atualizar o mapeamento');
     }
@@ -321,13 +351,167 @@ export class EmpresasConfig implements OnInit {
       `${resultado.atualizados} atualizado(s)`,
     ];
     if (resultado.locaisInseridos > 0) partes.push(`${resultado.locaisInseridos} incluído(s) no cadastro local`);
+    if ((resultado.naoEspelhados ?? 0) > 0) {
+      partes.push(`${resultado.naoEspelhados} aguardando cadastro local`);
+    }
     if (resultado.semEmpresaLocal > 0) partes.push(`${resultado.semEmpresaLocal} sem empresa local`);
+    if (resultado.espelhoHabilitado === false) partes.push('criação automática desativada');
     if (resultado.ignorados > 0) partes.push(`${resultado.ignorados} ignorado(s)`);
     return partes.join(' · ');
   }
 
   temErroExataFuncionarios(resultado: ExataSyncFuncionariosResultado): boolean {
     return (resultado.empresas || []).some((empresa) => !!empresa.erro);
+  }
+
+  // ── ExataWeb — cobertura do cadastro local (Fase 1) ──────────────────────
+
+  readonly situacoesCoberturaExata: ExataSituacaoCobertura[] = [
+    'CADASTRADO',
+    'CADASTRADO_SEM_EMPRESA',
+    'OUTRA_EMPRESA',
+    'AMBIGUO',
+    'NAO_CADASTRADO',
+    'EMPRESA_NAO_MAPEADA',
+  ];
+
+  async carregarCoberturaExata(pagina = 1) {
+    const empresaId = Number(this.exataCoberturaEmpresaId());
+    this.isCarregandoCoberturaExata.set(true);
+    this.exataCoberturaErro.set(null);
+
+    try {
+      const resultado = await this.syncService.coberturaFuncionariosExata({
+        empresasExataIds: Number.isFinite(empresaId) && empresaId > 0 ? [empresaId] : undefined,
+        situacao: this.exataCoberturaSituacao(),
+        busca: this.exataCoberturaBusca().trim(),
+        pagina,
+        porPagina: this.exataCoberturaPorPagina,
+      });
+      this.exataCobertura.set(resultado);
+      this.exataCoberturaPagina.set(resultado.paginacao.pagina);
+    } catch (error: any) {
+      this.exataCoberturaErro.set(
+        error?.error?.error || 'Erro ao carregar a cobertura de funcionários'
+      );
+    } finally {
+      this.isCarregandoCoberturaExata.set(false);
+    }
+  }
+
+  aplicarFiltroCoberturaExata(situacao: ExataSituacaoCobertura | '') {
+    this.exataCoberturaSituacao.set(situacao);
+    this.carregarCoberturaExata(1);
+  }
+
+  buscarCoberturaExata() {
+    this.carregarCoberturaExata(1);
+  }
+
+  paginaAnteriorCoberturaExata() {
+    const pagina = this.exataCoberturaPagina();
+    if (pagina > 1) this.carregarCoberturaExata(pagina - 1);
+  }
+
+  proximaPaginaCoberturaExata() {
+    const pagina = this.exataCoberturaPagina();
+    const totalPaginas = this.exataCobertura()?.paginacao.totalPaginas || 0;
+    if (pagina < totalPaginas) this.carregarCoberturaExata(pagina + 1);
+  }
+
+  async exportarCoberturaExata() {
+    const empresaId = Number(this.exataCoberturaEmpresaId());
+    try {
+      const blob = await this.syncService.exportarCoberturaFuncionariosExata({
+        empresasExataIds: Number.isFinite(empresaId) && empresaId > 0 ? [empresaId] : undefined,
+        situacao: this.exataCoberturaSituacao(),
+        busca: this.exataCoberturaBusca().trim(),
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'cobertura-funcionarios-exata.csv';
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      this.toastService.error(error?.error?.error || 'Erro ao exportar a cobertura');
+    }
+  }
+
+  labelSituacaoCobertura(situacao: ExataSituacaoCobertura | null): string {
+    switch (situacao) {
+      case 'CADASTRADO': return 'Cadastrado';
+      case 'CADASTRADO_SEM_EMPRESA': return 'Cadastrado sem empresa';
+      case 'OUTRA_EMPRESA': return 'Outra empresa';
+      case 'AMBIGUO': return 'Ambíguo';
+      case 'NAO_CADASTRADO': return 'Não cadastrado';
+      case 'EMPRESA_NAO_MAPEADA': return 'Empresa não mapeada';
+      default: return '—';
+    }
+  }
+
+  classeSituacaoCobertura(situacao: ExataSituacaoCobertura | null): string {
+    if (situacao === 'CADASTRADO') return 'status-ok';
+    if (situacao === 'NAO_CADASTRADO') return 'status-falta';
+    return 'status-parcial';
+  }
+
+  labelAlertaCobertura(alerta: string): string {
+    switch (alerta) {
+      case 'inativo_local': return 'inativo no cadastro local';
+      case 'nome_divergente': return 'nome divergente';
+      case 'possivel_espelho': return 'espelhado automaticamente pela Exata';
+      case 'duplicado': return 'matrícula duplicada';
+      case 'empresa_local_nula': return 'empresa local nula';
+      default: return alerta;
+    }
+  }
+
+  alertasCobertura(alertas: string[]): string {
+    return (alertas || []).map((alerta) => this.labelAlertaCobertura(alerta)).join(' · ');
+  }
+
+  /**
+   * Abre o modal de colaborador já preenchido com os dados da cobertura.
+   * Se não houver cadastro local, abre no modo de criação com os dados da Exata.
+   */
+  editarCobertura(item: ExataCoberturaFuncionario) {
+    const local = item.cadastro_local;
+    this.coberturaModalMode.set(local ? 'edit' : 'create');
+    this.coberturaEmployee.set(this.montarEmployeeCobertura(item));
+    this.showCoberturaModal.set(true);
+  }
+
+  private montarEmployeeCobertura(item: ExataCoberturaFuncionario): Employee {
+    const local = item.cadastro_local;
+    const base = {
+      matricula: item.matricula,
+      nome: local?.nome || item.nome_exata || '',
+      empresa_id: local?.empresa_id ?? item.empresa_local_id ?? undefined,
+      local_id: local?.local_id ?? undefined,
+      cargo: local?.cargo || '',
+      ativo: local ? local.ativo : 1,
+      trabalha_sabado: local ? local.trabalha_sabado : 1,
+      bate_ponto: local ? local.bate_ponto : 1,
+      data_admissao: local?.data_admissao ?? item.admissao_exata ?? undefined,
+      data_fim_experiencia: local?.data_fim_experiencia ?? undefined,
+      empresa: local?.empresa || '',
+      local: local?.local || '',
+    };
+
+    return local
+      ? Employee.fromJson({ ...base, id: local.id })
+      : Employee.fromJson(base);
+  }
+
+  fecharModalCobertura() {
+    this.showCoberturaModal.set(false);
+    this.coberturaEmployee.set(null);
+  }
+
+  async handleSaveCobertura() {
+    this.fecharModalCobertura();
+    await this.carregarCoberturaExata(this.exataCoberturaPagina());
   }
 
   // ── ExataWeb — marcações de ponto (Fase 3) ───────────────────────────────
@@ -534,6 +718,28 @@ export class EmpresasConfig implements OnInit {
       this.toastService.error(error?.error?.error || `Erro ao ${acao} a conta Exata`);
     } finally {
       this.isAlterandoContaExata.set(false);
+    }
+  }
+
+  async alterarEspelhoExata(habilitado: boolean) {
+    if (this.isAlterandoEspelhoExata()) return;
+
+    this.isAlterandoEspelhoExata.set(true);
+    try {
+      const conta = await this.syncService.atualizarEspelhoFuncionariosExata(habilitado ? 1 : 0);
+      this.exataConta.set(conta);
+      this.toastService.success(
+        habilitado
+          ? 'Criação automática de funcionários ativada'
+          : 'Criação automática de funcionários desativada'
+      );
+      await this.carregarCoberturaExata();
+    } catch (error: any) {
+      this.toastService.error(
+        error?.error?.error || 'Erro ao alterar a criação automática de funcionários'
+      );
+    } finally {
+      this.isAlterandoEspelhoExata.set(false);
     }
   }
 

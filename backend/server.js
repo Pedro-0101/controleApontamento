@@ -1132,7 +1132,7 @@ app.put('/api/employees/:id', async (req, res) => {
     }
 
     await pool.query(
-      'UPDATE qrcod_2023 SET matricula=?, empresa_id=?, empresa=?, local_id=?, local=?, nome=?, cargo=?, ativo=?, trabalha_sabado=?, bate_ponto=?, data_admissao=?, data_fim_experiencia=? WHERE id=?',
+      'UPDATE qrcod_2023 SET matricula=?, empresa_id=?, empresa=?, local_id=?, local=?, nome=?, cargo=?, ativo=?, trabalha_sabado=?, bate_ponto=?, data_admissao=?, data_fim_experiencia=?, origem_exata=0 WHERE id=?',
       [matricula, empresa_id || null, empresaNome, local_id || null, localNome, nome, cargo || '', ativo !== undefined ? ativo : 1, trabalha_sabado !== undefined ? trabalha_sabado : 1, bate_ponto !== undefined ? bate_ponto : 1, dataAdmissaoVal, dataFimExpVal, id]
     );
 
@@ -2152,6 +2152,41 @@ app.post('/api/sincronizacao/exata/funcionarios', async (req, res) => {
   }
 });
 
+// GET /api/sincronizacao/exata/funcionarios/cobertura — cobertura do cadastro local
+// Query: empresasExataIds (CSV), situacao, busca, pagina, porPagina, formato=json|csv
+app.get('/api/sincronizacao/exata/funcionarios/cobertura', async (req, res) => {
+  try {
+    const ids = parseQueryList(req.query.empresasExataIds)
+      ?.map(Number)
+      .filter(Number.isFinite);
+    const formato = String(req.query.formato || '').toLowerCase();
+    const resultado = await exataSync.relatorioCoberturaFuncionarios({
+      empresasExataIds: ids,
+      situacao: req.query.situacao,
+      busca: req.query.busca,
+      pagina: req.query.pagina,
+      porPagina: req.query.porPagina,
+      semPaginacao: formato === 'csv',
+    });
+
+    if (formato === 'csv') {
+      const csv = exataSync.gerarCsvCoberturaFuncionarios(resultado);
+      const nome = 'cobertura-funcionarios-exata.csv';
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${nome}"`);
+      return res.send(`\uFEFF${csv}`);
+    }
+
+    res.json(resultado);
+  } catch (e) {
+    console.error('Erro ao gerar a cobertura de funcionários da Exata:', e);
+    res.status(500).json({
+      success: false,
+      error: e.message || 'Erro ao gerar a cobertura de funcionários da Exata',
+    });
+  }
+});
+
 // ── ExataWeb — marcações de ponto e baixa (Fase 3) ─────────────────────────
 
 // POST /api/sincronizacao/exata/pontos — importa pontos por período/incremental
@@ -2212,14 +2247,22 @@ app.get('/api/sincronizacao/exata/pontos/status', async (req, res) => {
 // ── ExataWeb — coexistência, validação e monitoramento (Fase 6) ────────────
 
 // PUT /api/sincronizacao/exata/conta — ativa/desativa a conta global (rollback)
+// Body: { ativo?: 0|1, espelhar_funcionarios?: 0|1, usuario? }
 app.put('/api/sincronizacao/exata/conta', async (req, res) => {
-  const { ativo, usuario } = req.body || {};
-  if (ativo === undefined || ativo === null) {
-    return res.status(400).json({ success: false, error: 'Informe o campo ativo (1 ou 0)' });
+  const { ativo, espelhar_funcionarios, usuario } = req.body || {};
+  if (ativo === undefined && espelhar_funcionarios === undefined) {
+    return res.status(400).json({
+      success: false,
+      error: 'Informe ativo e/ou espelhar_funcionarios',
+    });
   }
 
   try {
-    const conta = await exataSync.atualizarContaExata({ ativo, usuario: usuario || null });
+    const conta = await exataSync.atualizarContaExata({
+      ativo,
+      espelhar_funcionarios,
+      usuario: usuario || null,
+    });
     res.json({ success: true, conta });
   } catch (e) {
     console.error('Erro ao atualizar a conta Exata:', e);

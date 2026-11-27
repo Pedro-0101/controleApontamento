@@ -12,6 +12,7 @@ const {
   encontrarEmpresaLocal,
   matriculaToString,
   gerarCsvValidacao,
+  espelharFuncionariosHabilitado,
 } = require('./exata-sync');
 
 test('matricula é sempre string e preserva zeros à esquerda', () => {
@@ -217,4 +218,28 @@ test('gera CSV de validação por empresa/dia com resumo e escape', () => {
   assert.match(linhas[2], /2026-11-02;1;1;0;1;1;12;12$/);
   assert.match(linhas[3], /^Sem dados;8;Sem empresa local;;0;0;0;0;0;;$/);
   assert.match(linhas.at(-1), /^Total geral;;;;3;2;2;1$/);
+});
+
+test('espelho autom�tico come�a desligado e respeita a conta', () => {
+  const anterior = process.env.EXATA_ESPELHAR_FUNCIONARIOS;
+  delete process.env.EXATA_ESPELHAR_FUNCIONARIOS;
+  try {
+    assert.equal(espelharFuncionariosHabilitado({ espelhar_funcionarios: 0 }), false);
+    assert.equal(espelharFuncionariosHabilitado({ espelhar_funcionarios: 1 }), true);
+    assert.equal(espelharFuncionariosHabilitado({}), false);
+  } finally {
+    if (anterior === undefined) delete process.env.EXATA_ESPELHAR_FUNCIONARIOS;
+    else process.env.EXATA_ESPELHAR_FUNCIONARIOS = anterior;
+  }
+});
+
+test('EXATA_ESPELHAR_FUNCIONARIOS tem prioridade sobre a conta', () => {
+  const anterior = process.env.EXATA_ESPELHAR_FUNCIONARIOS;
+  process.env.EXATA_ESPELHAR_FUNCIONARIOS = '0';
+  try {
+    assert.equal(espelharFuncionariosHabilitado({ espelhar_funcionarios: 1 }), false);
+  } finally {
+    if (anterior === undefined) delete process.env.EXATA_ESPELHAR_FUNCIONARIOS;
+    else process.env.EXATA_ESPELHAR_FUNCIONARIOS = anterior;
+  }
 });

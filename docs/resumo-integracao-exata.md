@@ -63,9 +63,10 @@ backend/provedor-api.js   abstração de provedor usada pelo fluxo comum
 
 | Tabela | Papel |
 |---|---|
-| `empresas_config` | conta global `exata` (`chave = 'exata'`, `provedor = 'exata'`) e demais contas |
+| `empresas_config` | conta global `exata` (`chave = 'exata'`, `provedor = 'exata'`) e demais contas; `espelhar_funcionarios` controla a criação automática no cadastro local |
 | `empresas_exata` | empresas descobertas, `empresasistema`, mapeamento `empresa_id` e ativo/inativo |
 | `funcionario_exata` | espelho dos funcionários por empresa/matrícula |
+| `qrcod_2023` | cadastro local usado por relatórios; `origem_exata = 1` marca linhas criadas pela integração |
 | `marcacoes_ponto` | marcações com `provedor`, `empresasistema`, `reppid`, `nsr` e `status_exportacao` |
 | `marcacao_sync_estado_exata` | progresso incremental por empresa |
 | `status_funcionario_exata` | catálogo de status e mapeamento para eventos locais |
@@ -94,6 +95,7 @@ carga atualiza o registro existente e não cria duplicata.
 | `POST` | `/api/sincronizacao/exata/empresas/sincronizar` | descobre/atualiza todas as empresas |
 | `PUT` | `/api/sincronizacao/exata/empresas/:id` | ajusta empresa local e ativo/inativo |
 | `POST` | `/api/sincronizacao/exata/funcionarios` | importa funcionários (leitura) |
+| `GET` | `/api/sincronizacao/exata/funcionarios/cobertura` | cobertura do cadastro local por funcionário (`json` ou `csv`) |
 | `POST` | `/api/sincronizacao/exata/pontos` | importa pontos por período ou incremental |
 | `GET` | `/api/sincronizacao/exata/pontos/status` | estado por empresa |
 | `POST` | `/api/sincronizacao/exata/status` | importa catálogo de status (leitura) |
@@ -104,7 +106,7 @@ carga atualiza o registro existente e não cria duplicata.
 
 | Método | Rota | Função |
 |---|---|---|
-| `PUT` | `/api/sincronizacao/exata/conta` | ativa/desativa a conta Exata (rollback) |
+| `PUT` | `/api/sincronizacao/exata/conta` | ativa/desativa a conta Exata (rollback) e liga/desliga `espelhar_funcionarios` |
 | `GET` | `/api/sincronizacao/exata/validacao` | contagens por empresa/dia |
 | `GET` | `/api/sincronizacao/exata/validacao?formato=csv` | exportação CSV para o solicitante |
 | `GET` | `/api/sincronizacao/exata/monitoramento` | saúde, baixas pendentes, duplicidades e execuções |
@@ -147,6 +149,25 @@ O botão **Executar rollout** no painel ExataWeb executa, em sequência:
 
 Cada etapa é auditada em `sincronizacao_execucao`. A Ponto Certificado continua funcionando
 durante todo o processo.
+
+### 5.4 Cobertura de funcionários
+
+A tela **ExataWeb → Cobertura de funcionários** compara o que a API retorna com o
+`qrcod_2023`, por matrícula e empresa, e classifica em `CADASTRADO`,
+`CADASTRADO_SEM_EMPRESA`, `OUTRA_EMPRESA`, `AMBIGUO`, `NAO_CADASTRADO` e
+`EMPRESA_NAO_MAPEADA`.
+
+A criação automática de funcionários ausentes é **opt-in**:
+`empresas_config.espelhar_funcionarios` nasce `0` e pode ser ligada no checkbox da tela.
+Quando desligada, os ausentes aparecem como `NAO_CADASTRADO` na cobertura. A variável
+`EXATA_ESPELHAR_FUNCIONARIOS`, se definida, tem prioridade sobre o banco.
+
+Linhas antigas criadas pelo espelho podem ser regularizadas com:
+
+```bash
+node backend/scripts/exata-marcar-espelhos.js            # dry-run
+node backend/scripts/exata-marcar-espelhos.js --aplicar  # marca origem_exata = 1
+```
 
 ---
 

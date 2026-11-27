@@ -116,6 +116,36 @@
   color: var(--color-gray-900, #111827);
 }
 
+.espelho-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-gray-200, #e5e7eb);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-gray-50, #f9fafb);
+  font-size: 0.82rem;
+  color: var(--color-gray-600, #4b5563);
+  cursor: pointer;
+}
+
+.espelho-toggle input {
+  margin-top: 2px;
+}
+
+.espelho-toggle strong {
+  display: block;
+  color: var(--color-gray-900, #111827);
+  font-size: 0.84rem;
+  margin-bottom: 2px;
+}
+
+.espelho-toggle small {
+  display: block;
+  line-height: 1.4;
+}
+
 /* ── Subseções recolhíveis ────────────────────────────────────────────── */
 
 .subcard {
@@ -596,4 +626,14 @@
 .btn-sm {
   padding: 4px 10px;
   font-size: 0.78rem;
+}
+
+.paginacao-cobertura {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 0.82rem;
+  color: var(--color-gray-600, #4b5563);
 }

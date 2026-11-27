@@ -71,6 +71,41 @@ async function ensureEmpresasConfigSchema(pool) {
     'provedor',
     "VARCHAR(20) NOT NULL DEFAULT 'pontocertificado'"
   );
+  // Controle da conta Exata: por padrão novos funcionários NÃO são criados
+  // automaticamente no cadastro local. A tela permite ligar/desligar.
+  await addColumnIfMissing(
+    pool,
+    'empresas_config',
+    'espelhar_funcionarios',
+    'TINYINT(1) NOT NULL DEFAULT 0'
+  );
+}
+
+/**
+ * Marca as linhas de `qrcod_2023` criadas pela integração e adiciona os índices
+ * usados pelo relatório de cobertura.
+ */
+async function ensureQrcodCoberturaSchema(pool) {
+  if (!(await tableExists(pool, 'qrcod_2023'))) return;
+
+  await addColumnIfMissing(
+    pool,
+    'qrcod_2023',
+    'origem_exata',
+    'TINYINT(1) NOT NULL DEFAULT 0'
+  );
+  await addIndexIfMissing(
+    pool,
+    'qrcod_2023',
+    'idx_qrcod_matricula',
+    'INDEX `idx_qrcod_matricula` (`matricula`)'
+  );
+  await addIndexIfMissing(
+    pool,
+    'qrcod_2023',
+    'idx_qrcod_empresa',
+    'INDEX `idx_qrcod_empresa` (`empresa_id`)'
+  );
 }
 
 async function ensureEmpresasExataSchema(pool) {
@@ -239,6 +274,7 @@ async function ensureEventoFuncionarioExataSchema(pool) {
  */
 async function ensureExataSchema(pool) {
   await ensureEmpresasConfigSchema(pool);
+  await ensureQrcodCoberturaSchema(pool);
   await ensureEmpresasExataSchema(pool);
   await ensureFuncionarioExataSchema(pool);
   await ensureMarcacoesPontoSchema(pool);
@@ -250,6 +286,7 @@ async function ensureExataSchema(pool) {
 module.exports = {
   ensureExataSchema,
   ensureEmpresasConfigSchema,
+  ensureQrcodCoberturaSchema,
   ensureEmpresasExataSchema,
   ensureFuncionarioExataSchema,
   ensureMarcacoesPontoSchema,

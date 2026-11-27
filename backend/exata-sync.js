@@ -41,6 +41,21 @@ function baixarPontosHabilitado() {
   return envLigado('EXATA_BAIXAR_PONTOS', true);
 }
 
+/**
+ * Criação automática de funcionários ausentes em `qrcod_2023`.
+ *
+ * Padrão: desligada (a coluna `empresas_config.espelhar_funcionarios` nasce 0).
+ * A variável `EXATA_ESPELHAR_FUNCIONARIOS`, quando definida, tem prioridade —
+ * útil para scripts e testes. A tela da conta Exata liga/desliga o padrão.
+ */
+function espelharFuncionariosHabilitado(conta) {
+  const env = process.env.EXATA_ESPELHAR_FUNCIONARIOS;
+  if (env !== undefined && String(env).trim() !== '') {
+    return envLigado('EXATA_ESPELHAR_FUNCIONARIOS', false);
+  }
+  return Number(conta?.espelhar_funcionarios) === 1;
+}
+
 function pontosQtdePadrao() {
   return Math.min(envPositiveInt('EXATA_PONTOS_QTDE', DEFAULT_PONTOS_QTDE), 1000);
 }
@@ -388,6 +403,212 @@ function gerarCsvValidacao(resultado) {
   return linhas.map((linha) => linha.map(csvCell).join(';')).join('\r\n');
 }
 
+/**
+ * Situações possíveis de um funcionário da Exata em relação ao cadastro local
+ * (`qrcod_2023`). A classificação é independente de escrita: é usada tanto pelo
+ * relatório de cobertura quanto pelo resumo da sincronização.
+ */
+const SITUACOES_COBERTURA = [
+  'CADASTRADO',
+  'CADASTRADO_SEM_EMPRESA',
+  'OUTRA_EMPRESA',
+  'AMBIGUO',
+  'NAO_CADASTRADO',
+  'EMPRESA_NAO_MAPEADA',
+];
+
+const ALERTAS_COBERTURA = [
+  'inativo_local',
+  'nome_divergente',
+  'possivel_espelho',
+  'duplicado',
+  'empresa_local_nula',
+];
+
+function criarResumoCoberturaVazio() {
+  const porSituacao = {};
+  for (const situacao of SITUACOES_COBERTURA) porSituacao[situacao] = 0;
+  const alertas = {};
+  for (const alerta of ALERTAS_COBERTURA) alertas[alerta] = 0;
+  return { total: 0, porSituacao, alertas };
+}
+
+function somarResumoCobertura(destino, origem) {
+  if (!origem) return destino;
+  destino.total += Number(origem.total) || 0;
+  for (const situacao of SITUACOES_COBERTURA) {
+    destino.porSituacao[situacao] += Number(origem.porSituacao?.[situacao]) || 0;
+  }
+  for (const alerta of ALERTAS_COBERTURA) {
+    destino.alertas[alerta] += Number(origem.alertas?.[alerta]) || 0;
+  }
+  return destino;
+}
+
+function cadastroLocalParaResposta(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    empresa_id: row.empresa_id === null || row.empresa_id === undefined
+      ? null
+      : Number(row.empresa_id),
+    empresa: textoOuNull(row.empresa),
+    local_id: row.local_id === null || row.local_id === undefined ? null : Number(row.local_id),
+    nome: textoOuNull(row.nome),
+    cargo: textoOuNull(row.cargo),
+    local: textoOuNull(row.local),
+    ativo: Number(row.ativo) ? 1 : 0,
+    trabalha_sabado: Number(row.trabalha_sabado) ? 1 : 0,
+    bate_ponto: Number(row.bate_ponto) ? 1 : 0,
+    origem_exata: Number(row.origem_exata) === 1 ? 1 : 0,
+    data_admissao: dataParaIso(row.data_admissao),
+    data_fim_experiencia: dataParaIso(row.data_fim_experiencia),
+  };
+}
+
+/**
+ * Classifica um funcionário retornado pela Exata em relação às linhas locais que
+ * possuem a mesma matrícula. Função pura (sem banco), exportada para testes.
+ *
+ * @param {object} funcionario linha de `funcionario_exata` (ou objeto equivalente)
+ * @param {object} empresa linha de `empresas_exata` (usa `empresa_id`)
+ * @param {Array<object>} linhasLocais linhas de `qrcod_2023` com a mesma matrícula
+ */
+function classificarCoberturaFuncionario(funcionario, empresa, linhasLocais = []) {
+  const rows = Array.isArray(linhasLocais) ? linhasLocais : [];
+  const empresaLocalId = empresa?.empresa_id === null || empresa?.empresa_id === undefined
+    ? null
+    : Number(empresa.empresa_id);
+  const alertas = [];
+  let situacao = 'CADASTRADO';
+  let cadastro = null;
+
+  if (rows.length > 1) alertas.push('duplicado');
+
+  if (empresaLocalId === null) {
+    situacao = 'EMPRESA_NAO_MAPEADA';
+    cadastro = rows.length > 0 ? rows[0] : null;
+  } else if (rows.length === 0) {
+    situacao = 'NAO_CADASTRADO';
+  } else {
+    const mesmaEmpresa = rows.filter((row) => (
+      row.empresa_id !== null
+      && row.empresa_id !== undefined
+      && Number(row.empresa_id) === empresaLocalId
+    ));
+
+    if (mesmaEmpresa.length === 1) {
+      situacao = 'CADASTRADO';
+      cadastro = mesmaEmpresa[0];
+    } else if (mesmaEmpresa.length > 1) {
+      situacao = 'AMBIGUO';
+      cadastro = mesmaEmpresa[0];
+    } else if (rows.length === 1) {
+      cadastro = rows[0];
+      const semEmpresa = cadastro.empresa_id === null || cadastro.empresa_id === undefined;
+      situacao = semEmpresa ? 'CADASTRADO_SEM_EMPRESA' : 'OUTRA_EMPRESA';
+    } else {
+      situacao = 'AMBIGUO';
+      cadastro = rows.find((row) => row.empresa_id === null || row.empresa_id === undefined)
+        || rows[0];
+    }
+  }
+
+  if (cadastro) {
+    if (Number(cadastro.ativo) === 0) alertas.push('inativo_local');
+    if (cadastro.empresa_id === null || cadastro.empresa_id === undefined) {
+      alertas.push('empresa_local_nula');
+    }
+
+    const nomeExata = normalizeTexto(funcionario?.nome);
+    const nomeLocal = normalizeTexto(cadastro.nome);
+    if (nomeExata && nomeLocal && nomeExata !== nomeLocal) {
+      alertas.push('nome_divergente');
+    }
+
+    if (Number(cadastro.origem_exata) === 1) {
+      alertas.push('possivel_espelho');
+    }
+  }
+
+  return {
+    situacao_cadastro: situacao,
+    cadastro_local: cadastroLocalParaResposta(cadastro),
+    alertas,
+  };
+}
+
+/** Resume a cobertura de um lote de funcionários de uma empresa da Exata. */
+function resumirCoberturaFuncionarios(rows, empresa, cadastrosPorMatricula) {
+  const resumo = criarResumoCoberturaVazio();
+  for (const row of rows || []) {
+    const chave = matriculaToString(row.matricula);
+    const { situacao_cadastro, alertas } = classificarCoberturaFuncionario(
+      row,
+      empresa,
+      cadastrosPorMatricula?.get(chave) || []
+    );
+    resumo.total++;
+    resumo.porSituacao[situacao_cadastro] = (resumo.porSituacao[situacao_cadastro] || 0) + 1;
+    for (const alerta of alertas) {
+      resumo.alertas[alerta] = (resumo.alertas[alerta] || 0) + 1;
+    }
+  }
+  return resumo;
+}
+
+/** Gera o CSV do relatório de cobertura (separador `;`, pronto para Excel). */
+function gerarCsvCoberturaFuncionarios(resultado) {
+  const linhas = [[
+    'Matrícula',
+    'Nome Exata',
+    'Empresa Exata',
+    'empresasistema',
+    'Situação',
+    'Origem Exata',
+    'Empresa Local',
+    'Ativo Local',
+    'Nome Local',
+    'Cargo',
+    'Local',
+    'Admissão Local',
+    'Alertas',
+  ]];
+
+  for (const item of resultado?.funcionarios || []) {
+    const local = item.cadastro_local || null;
+    linhas.push([
+      item.matricula,
+      item.nome_exata || '',
+      item.empresa_exata || '',
+      item.empresasistema,
+      item.situacao_cadastro,
+      local?.origem_exata ? 'Exata' : 'Local',
+      local?.empresa || '',
+      local ? (local.ativo ? 'Ativo' : 'Inativo') : '',
+      local?.nome || '',
+      local?.cargo || '',
+      local?.local || '',
+      local?.data_admissao || '',
+      (item.alertas || []).join(', '),
+    ]);
+  }
+
+  const resumo = resultado?.resumo;
+  if (resumo) {
+    linhas.push([]);
+    linhas.push(['Resumo', resumo.total]);
+    for (const situacao of SITUACOES_COBERTURA) {
+      linhas.push([situacao, resumo.porSituacao?.[situacao] || 0]);
+    }
+    for (const alerta of ALERTAS_COBERTURA) {
+      linhas.push([`alerta: ${alerta}`, resumo.alertas?.[alerta] || 0]);
+    }
+  }
+
+  return linhas.map((linha) => linha.map(csvCell).join(';')).join('\r\n');
+}
+
 const STATUS_EVENTO_REGRAS = [
   { regex: /ferias/, evento: 'Ferias' },
   { regex: /atestado/, evento: 'Atestado' },
@@ -476,7 +697,7 @@ function createExataSync({ pool, exataApi }) {
     );
 
     const [rows] = await pool.query(
-      `SELECT id, nome, ativo, provedor
+      `SELECT id, nome, ativo, provedor, espelhar_funcionarios
          FROM empresas_config
         WHERE chave = ?
         LIMIT 1`,
@@ -503,18 +724,39 @@ function createExataSync({ pool, exataApi }) {
    * Desativar é o rollback previsto: nenhuma chamada é feita à Exata e a Ponto
    * Certificado continua funcionando. Os dados já importados são preservados.
    */
-  async function atualizarContaExata({ ativo, usuario = null } = {}) {
+  async function atualizarContaExata({ ativo, espelhar_funcionarios, usuario = null } = {}) {
     await ensureSchema();
     const conta = await getContaExata();
-    if (ativo === undefined || ativo === null) {
-      throw new Error('Informe o campo ativo (1 para ativar, 0 para desativar)');
+    const temAtivo = ativo !== undefined && ativo !== null;
+    const temEspelho = espelhar_funcionarios !== undefined && espelhar_funcionarios !== null;
+    if (!temAtivo && !temEspelho) {
+      throw new Error('Informe ativo e/ou espelhar_funcionarios');
     }
 
-    const novoAtivo = ativo ? 1 : 0;
+    const novoAtivo = temAtivo ? (ativo ? 1 : 0) : (Number(conta.ativo) ? 1 : 0);
+    const novoEspelho = temEspelho
+      ? (espelhar_funcionarios ? 1 : 0)
+      : (Number(conta.espelhar_funcionarios) === 1 ? 1 : 0);
+
+    const sets = [];
+    const params = [];
+    if (temAtivo) {
+      sets.push('ativo = ?');
+      params.push(novoAtivo);
+    }
+    if (temEspelho) {
+      sets.push('espelhar_funcionarios = ?');
+      params.push(novoEspelho);
+    }
+    params.push(conta.id);
     await pool.query(
-      `UPDATE empresas_config SET ativo = ? WHERE id = ? AND provedor = 'exata'`,
-      [novoAtivo, conta.id]
+      `UPDATE empresas_config SET ${sets.join(', ')} WHERE id = ? AND provedor = 'exata'`,
+      params
     );
+
+    const acao = temAtivo
+      ? (novoAtivo ? 'EXATA_CONTA_ATIVAR' : 'EXATA_CONTA_DESATIVAR')
+      : (novoEspelho ? 'EXATA_ESPELHO_ATIVAR' : 'EXATA_ESPELHO_DESATIVAR');
 
     try {
       await pool.query(
@@ -522,10 +764,16 @@ function createExataSync({ pool, exataApi }) {
          VALUES (?, ?, 'empresas_config', ?, ?, ?)`,
         [
           usuario || null,
-          novoAtivo ? 'EXATA_CONTA_ATIVAR' : 'EXATA_CONTA_DESATIVAR',
+          acao,
           conta.id,
-          JSON.stringify({ ativo: conta.ativo }),
-          JSON.stringify({ ativo: novoAtivo }),
+          JSON.stringify({
+            ativo: conta.ativo,
+            espelhar_funcionarios: conta.espelhar_funcionarios,
+          }),
+          JSON.stringify({
+            ativo: novoAtivo,
+            espelhar_funcionarios: novoEspelho,
+          }),
         ]
       );
     } catch {
@@ -535,10 +783,15 @@ function createExataSync({ pool, exataApi }) {
     logExata('conta.atualizada', {
       empresa_config_id: conta.id,
       ativo: novoAtivo,
+      espelhar_funcionarios: novoEspelho,
       usuario: usuario || '-',
     });
 
-    return { ...conta, ativo: novoAtivo };
+    return {
+      ...conta,
+      ativo: novoAtivo,
+      espelhar_funcionarios: novoEspelho,
+    };
   }
 
   async function carregarEmpresasLocais() {
@@ -876,26 +1129,63 @@ function createExataSync({ pool, exataApi }) {
     return { inseridos, atualizados };
   }
 
+  /** Carrega, por matrícula, as linhas do cadastro local usadas na conferência. */
+  async function carregarCadastrosLocaisPorMatricula(matriculas) {
+    const porMatricula = new Map();
+    const unicas = [...new Set((matriculas || []).map(matriculaToString).filter(Boolean))];
+
+    for (let i = 0; i < unicas.length; i += CHUNK_SIZE) {
+      const chunk = unicas.slice(i, i + CHUNK_SIZE);
+      if (chunk.length === 0) continue;
+      const [found] = await pool.query(
+        `SELECT id, matricula, empresa_id, empresa, local_id, local, nome, cargo, ativo,
+                trabalha_sabado, bate_ponto, origem_exata, data_admissao, data_fim_experiencia
+           FROM qrcod_2023
+          WHERE matricula IN (?)`,
+        [chunk]
+      );
+      for (const row of found) {
+        const chave = matriculaToString(row.matricula);
+        if (!porMatricula.has(chave)) porMatricula.set(chave, []);
+        porMatricula.get(chave).push(row);
+      }
+    }
+
+    return porMatricula;
+  }
+
   /**
    * Espelha em qrcod_2023 apenas matrículas que ainda não existem em nenhuma
    * empresa local. Funcionários já cadastrados nunca são alterados.
+   *
+   * Antes de inserir, calcula a cobertura local dos funcionários recebidos —
+   * assim o resumo da execução registra o que faltava *antes* do espelho.
    */
-  async function espelharFuncionariosLocais(rows, empresaLocal) {
-    const stats = { inseridos: 0, existentes: 0, semEmpresaLocal: 0 };
+  async function espelharFuncionariosLocais(rows, empresaLocal, empresaExata = null, permiteEspelhar = true) {
+    const stats = {
+      inseridos: 0,
+      existentes: 0,
+      semEmpresaLocal: 0,
+      naoEspelhados: 0,
+      cobertura: criarResumoCoberturaVazio(),
+    };
     const matriculas = rows.map((row) => row.matricula);
+    const cadastrosPorMatricula = await carregarCadastrosLocaisPorMatricula(matriculas);
 
-    const existentes = new Set();
-    for (let i = 0; i < matriculas.length; i += CHUNK_SIZE) {
-      const chunk = matriculas.slice(i, i + CHUNK_SIZE);
-      const [found] = await pool.query(
-        'SELECT DISTINCT matricula FROM qrcod_2023 WHERE matricula IN (?)',
-        [chunk]
-      );
-      for (const row of found) existentes.add(matriculaToString(row.matricula));
-    }
+    stats.cobertura = resumirCoberturaFuncionarios(
+      rows,
+      {
+        empresa_id: empresaExata?.empresa_id ?? empresaLocal?.id ?? null,
+        descricao: empresaExata?.descricao ?? null,
+        empresasistema: empresaExata?.empresasistema ?? null,
+      },
+      cadastrosPorMatricula
+    );
+
+    const existentes = new Set(cadastrosPorMatricula.keys());
 
     for (const row of rows) {
-      if (existentes.has(row.matricula)) {
+      if (existentes.has(matriculaToString(row.matricula))) {
         stats.existentes++;
         continue;
       }
@@ -903,11 +1193,15 @@ function createExataSync({ pool, exataApi }) {
         stats.semEmpresaLocal++;
         continue;
       }
+      if (!permiteEspelhar) {
+        stats.naoEspelhados++;
+        continue;
+      }
 
       await pool.query(
         `INSERT INTO qrcod_2023
-           (matricula, empresa_id, empresa, nome, cargo, ativo, trabalha_sabado, bate_ponto, local)
-         VALUES (?, ?, ?, ?, '', ?, 1, 1, '')`,
+           (matricula, empresa_id, empresa, nome, cargo, ativo, trabalha_sabado, bate_ponto, local, origem_exata)
+         VALUES (?, ?, ?, ?, '', ?, 1, 1, '', 1)`,
         [
           row.matricula,
           empresaLocal.id,
@@ -916,7 +1210,7 @@ function createExataSync({ pool, exataApi }) {
           row._ativo_local ? 1 : 0,
         ]
       );
-      existentes.add(row.matricula);
+      existentes.add(matriculaToString(row.matricula));
       stats.inseridos++;
     }
 
@@ -956,6 +1250,7 @@ function createExataSync({ pool, exataApi }) {
     const empresasLocais = await carregarEmpresasLocais();
     const resultados = [];
     let totalComErro = 0;
+    const espelharHabilitado = espelharFuncionariosHabilitado(conta);
     const totais = {
       recebidos: 0,
       inseridos: 0,
@@ -963,7 +1258,9 @@ function createExataSync({ pool, exataApi }) {
       ignorados: 0,
       locaisInseridos: 0,
       semEmpresaLocal: 0,
+      naoEspelhados: 0,
     };
+    const coberturaGeral = criarResumoCoberturaVazio();
 
     for (const empresa of empresas) {
       const resultado = {
@@ -978,6 +1275,9 @@ function createExataSync({ pool, exataApi }) {
         ignorados: 0,
         locais_inseridos: 0,
         sem_empresa_local: 0,
+        nao_espelhados: 0,
+        espelho_habilitado: espelharHabilitado ? 1 : 0,
+        cobertura: criarResumoCoberturaVazio(),
         erro: null,
       };
 
@@ -992,7 +1292,7 @@ function createExataSync({ pool, exataApi }) {
           empresa.empresasistema
         );
         const persistido = await persistirFuncionarios(conta.id, empresa.empresasistema, rows);
-        const espelho = await espelharFuncionariosLocais(rows, local);
+        const espelho = await espelharFuncionariosLocais(rows, local, empresa, espelharHabilitado);
 
         resultado.recebidos = recebidos;
         resultado.inseridos = persistido.inseridos;
@@ -1000,6 +1300,8 @@ function createExataSync({ pool, exataApi }) {
         resultado.ignorados = ignorados;
         resultado.locais_inseridos = espelho.inseridos;
         resultado.sem_empresa_local = espelho.semEmpresaLocal;
+        resultado.nao_espelhados = espelho.naoEspelhados;
+        resultado.cobertura = espelho.cobertura;
 
         totais.recebidos += recebidos;
         totais.inseridos += persistido.inseridos;
@@ -1007,6 +1309,8 @@ function createExataSync({ pool, exataApi }) {
         totais.ignorados += ignorados;
         totais.locaisInseridos += espelho.inseridos;
         totais.semEmpresaLocal += espelho.semEmpresaLocal;
+        totais.naoEspelhados += espelho.naoEspelhados;
+        somarResumoCobertura(coberturaGeral, espelho.cobertura);
       } catch (error) {
         totalComErro++;
         resultado.erro = error?.message || String(error);
@@ -1033,7 +1337,7 @@ function createExataSync({ pool, exataApi }) {
       ? 'CONCLUIDO'
       : (totalComErro === empresas.length ? 'ERRO' : 'PARCIAL');
 
-    const resumo = { ...totais, empresas: resultados };
+    const resumo = { ...totais, cobertura: coberturaGeral, empresas: resultados };
     const execucaoId = await registrarExecucao({
       tipo: 'EXATA_FUNCIONARIOS',
       status,
@@ -1054,6 +1358,9 @@ function createExataSync({ pool, exataApi }) {
       recebidos: totais.recebidos,
       inseridos: totais.inseridos,
       atualizados: totais.atualizados,
+      locais_inseridos: totais.locaisInseridos,
+      nao_espelhados: totais.naoEspelhados,
+      espelho_habilitado: espelharHabilitado ? 1 : 0,
       erros: totalComErro,
       duracao_ms: duracaoMs,
     });
@@ -1064,7 +1371,181 @@ function createExataSync({ pool, exataApi }) {
       status,
       duracaoMs,
       ...totais,
+      cobertura: coberturaGeral,
+      espelhoHabilitado: espelharHabilitado,
       empresas: resultados,
+    };
+  }
+
+  // ── Fase 1 — Cobertura do cadastro local (somente leitura) ────────────────
+
+  async function relatorioCoberturaFuncionarios({
+    empresasExataIds,
+    situacao,
+    busca,
+    pagina = 1,
+    porPagina = 50,
+    semPaginacao = false,
+  } = {}) {
+    await ensureSchema();
+    const conta = await getContaExata();
+
+    const ids = Array.isArray(empresasExataIds)
+      ? empresasExataIds.map(Number).filter(Number.isFinite)
+      : [];
+    const filtroEmpresas = ids.length > 0 ? ' AND ee.id IN (?)' : '';
+    const [empresas] = await pool.query(
+      `SELECT ee.id, ee.empresasistema, ee.descricao, ee.empresa_id, ee.ativo,
+              e.nome AS empresa_nome
+         FROM empresas_exata ee
+         LEFT JOIN empresas e ON e.id = ee.empresa_id
+        WHERE ee.empresa_config_id = ?${filtroEmpresas}
+        ORDER BY ee.descricao ASC, ee.empresasistema ASC`,
+      ids.length > 0 ? [conta.id, ids] : [conta.id]
+    );
+
+    const situacaoFiltro = SITUACOES_COBERTURA.includes(situacao) ? situacao : '';
+    const paginaNum = Math.max(1, Math.trunc(Number(pagina) || 1));
+    const porPaginaNum = Math.min(Math.max(Math.trunc(Number(porPagina) || 50), 1), 200);
+
+    const resumo = criarResumoCoberturaVazio();
+    const porEmpresa = empresas.map((empresa) => ({
+      empresa_exata_id: empresa.id,
+      empresasistema: Number(empresa.empresasistema),
+      descricao: empresa.descricao,
+      empresa_id: empresa.empresa_id === null || empresa.empresa_id === undefined
+        ? null
+        : Number(empresa.empresa_id),
+      empresa_nome: empresa.empresa_nome || null,
+      ativo: Number(empresa.ativo) ? 1 : 0,
+      total: 0,
+      ...Object.fromEntries(SITUACOES_COBERTURA.map((item) => [item.toLowerCase(), 0])),
+      ...Object.fromEntries(ALERTAS_COBERTURA.map((item) => [item, 0])),
+    }));
+
+    if (empresas.length === 0) {
+      return {
+        success: true,
+        conta: { id: conta.id, nome: conta.nome, ativo: Number(conta.ativo) ? 1 : 0 },
+        resumo: { total: 0, porSituacao: resumo.porSituacao, alertas: resumo.alertas, porEmpresa },
+        funcionarios: [],
+        paginacao: { pagina: paginaNum, porPagina: porPaginaNum, total: 0, totalPaginas: 0 },
+      };
+    }
+
+    const sistemas = [...new Set(empresas.map((empresa) => Number(empresa.empresasistema)))];
+    const [funcionarios] = await pool.query(
+      `SELECT empresasistema, matricula, nome, cpf, pis, admissao, status
+         FROM funcionario_exata
+        WHERE empresa_config_id = ? AND empresasistema IN (?)
+        ORDER BY nome ASC, matricula ASC`,
+      [conta.id, sistemas]
+    );
+
+    const cadastrosPorMatricula = await carregarCadastrosLocaisPorMatricula(
+      funcionarios.map((funcionario) => funcionario.matricula)
+    );
+    const empresaPorSistema = new Map(
+      empresas.map((empresa) => [Number(empresa.empresasistema), empresa])
+    );
+    const contagemPorSistema = new Map(
+      porEmpresa.map((item) => [Number(item.empresasistema), item])
+    );
+
+    const itens = [];
+    for (const funcionario of funcionarios) {
+      const empresa = empresaPorSistema.get(Number(funcionario.empresasistema));
+      if (!empresa) continue;
+
+      const matricula = matriculaToString(funcionario.matricula);
+      const classificacao = classificarCoberturaFuncionario(
+        funcionario,
+        empresa,
+        cadastrosPorMatricula.get(matricula) || []
+      );
+
+      const item = {
+        empresa_exata_id: empresa.id,
+        empresasistema: Number(funcionario.empresasistema),
+        empresa_exata: empresa.descricao || `Empresa ${funcionario.empresasistema}`,
+        empresa_local_id: empresa.empresa_id === null || empresa.empresa_id === undefined
+          ? null
+          : Number(empresa.empresa_id),
+        empresa_local_nome: empresa.empresa_nome || null,
+        matricula,
+        nome_exata: textoOuNull(funcionario.nome),
+        admissao_exata: dataParaIso(funcionario.admissao),
+        situacao_cadastro: classificacao.situacao_cadastro,
+        alertas: classificacao.alertas,
+        cadastro_local: classificacao.cadastro_local,
+      };
+      itens.push(item);
+
+      resumo.total++;
+      resumo.porSituacao[item.situacao_cadastro] =
+        (resumo.porSituacao[item.situacao_cadastro] || 0) + 1;
+      for (const alerta of item.alertas) {
+        resumo.alertas[alerta] = (resumo.alertas[alerta] || 0) + 1;
+      }
+
+      const contagem = contagemPorSistema.get(Number(funcionario.empresasistema));
+      if (contagem) {
+        contagem.total++;
+        const chaveSituacao = item.situacao_cadastro.toLowerCase();
+        contagem[chaveSituacao] = (contagem[chaveSituacao] || 0) + 1;
+        for (const alerta of item.alertas) {
+          contagem[alerta] = (contagem[alerta] || 0) + 1;
+        }
+      }
+    }
+
+    let filtrados = itens;
+    if (situacaoFiltro) {
+      filtrados = filtrados.filter((item) => item.situacao_cadastro === situacaoFiltro);
+    }
+    const buscaBruta = String(busca ?? '').trim();
+    if (buscaBruta) {
+      const alvo = normalizeTexto(buscaBruta);
+      const alvoMatricula = buscaBruta.toLowerCase();
+      filtrados = filtrados.filter((item) => (
+        item.matricula.toLowerCase().includes(alvoMatricula)
+        || (alvo && normalizeTexto(item.nome_exata).includes(alvo))
+        || (alvo && normalizeTexto(item.cadastro_local?.nome).includes(alvo))
+      ));
+    }
+
+    filtrados = [...filtrados].sort((a, b) => {
+      const porEmpresaNome = String(a.empresa_exata).localeCompare(String(b.empresa_exata), 'pt-BR');
+      if (porEmpresaNome !== 0) return porEmpresaNome;
+      return String(a.nome_exata || a.matricula)
+        .localeCompare(String(b.nome_exata || b.matricula), 'pt-BR');
+    });
+
+    const totalFiltrado = filtrados.length;
+    const totalPaginas = porPaginaNum > 0 ? Math.ceil(totalFiltrado / porPaginaNum) : 0;
+    const paginaAtual = semPaginacao
+      ? 1
+      : Math.min(paginaNum, Math.max(1, totalPaginas));
+    const funcionariosPagina = semPaginacao
+      ? filtrados
+      : filtrados.slice((paginaAtual - 1) * porPaginaNum, paginaAtual * porPaginaNum);
+
+    return {
+      success: true,
+      conta: { id: conta.id, nome: conta.nome, ativo: Number(conta.ativo) ? 1 : 0 },
+      resumo: {
+        total: resumo.total,
+        porSituacao: resumo.porSituacao,
+        alertas: resumo.alertas,
+        porEmpresa,
+      },
+      funcionarios: funcionariosPagina,
+      paginacao: {
+        pagina: paginaAtual,
+        porPagina: semPaginacao ? totalFiltrado : porPaginaNum,
+        total: totalFiltrado,
+        totalPaginas,
+      },
     };
   }
 
@@ -2381,6 +2862,8 @@ function createExataSync({ pool, exataApi }) {
     sincronizarEmpresas,
     atualizarEmpresaExata,
     sincronizarFuncionarios,
+    // Fase 1 — cobertura do cadastro local (leitura)
+    relatorioCoberturaFuncionarios,
     // Fase 3 — marcações e baixa
     sincronizarPontos,
     listarPontosStatus,
@@ -2412,8 +2895,13 @@ module.exports = {
   encontrarEmpresaLocal,
   matriculaToString,
   gerarCsvValidacao,
+  gerarCsvCoberturaFuncionarios,
+  classificarCoberturaFuncionario,
+  SITUACOES_COBERTURA,
+  ALERTAS_COBERTURA,
   pontosQtdePadrao,
   incrementalDiasPadrao,
   baixarPontosHabilitado,
+  espelharFuncionariosHabilitado,
   EVENTOS_LOCAIS,
 };

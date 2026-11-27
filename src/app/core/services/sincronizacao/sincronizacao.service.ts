@@ -252,6 +252,7 @@ export interface ExataConta {
   nome: string;
   ativo: number;
   provedor: string;
+  espelhar_funcionarios: number;
   ultima_execucao: {
     id: number;
     tipo: string;
@@ -317,6 +318,9 @@ export interface ExataSyncFuncionarioEmpresa {
   ignorados: number;
   locais_inseridos: number;
   sem_empresa_local: number;
+  nao_espelhados?: number;
+  espelho_habilitado?: number;
+  cobertura?: ExataCoberturaContagem;
   erro: string | null;
 }
 
@@ -331,8 +335,109 @@ export interface ExataSyncFuncionariosResultado {
   ignorados: number;
   locaisInseridos: number;
   semEmpresaLocal: number;
+  naoEspelhados?: number;
+  espelhoHabilitado?: boolean;
+  cobertura?: ExataCoberturaContagem;
   empresas: ExataSyncFuncionarioEmpresa[];
 }
+
+export type ExataSituacaoCobertura =
+  | 'CADASTRADO'
+  | 'CADASTRADO_SEM_EMPRESA'
+  | 'OUTRA_EMPRESA'
+  | 'AMBIGUO'
+  | 'NAO_CADASTRADO'
+  | 'EMPRESA_NAO_MAPEADA';
+
+export type ExataAlertaCobertura =
+  | 'inativo_local'
+  | 'nome_divergente'
+  | 'possivel_espelho'
+  | 'duplicado'
+  | 'empresa_local_nula';
+
+export interface ExataCoberturaCadastroLocal {
+  id: number;
+  empresa_id: number | null;
+  empresa: string | null;
+  local_id: number | null;
+  nome: string | null;
+  cargo: string | null;
+  local: string | null;
+  ativo: number;
+  trabalha_sabado: number;
+  bate_ponto: number;
+  origem_exata: number;
+  data_admissao: string | null;
+  data_fim_experiencia: string | null;
+}
+
+export interface ExataCoberturaFuncionario {
+  empresa_exata_id: number;
+  empresasistema: number;
+  empresa_exata: string;
+  empresa_local_id: number | null;
+  empresa_local_nome: string | null;
+  matricula: string;
+  nome_exata: string | null;
+  admissao_exata: string | null;
+  situacao_cadastro: ExataSituacaoCobertura;
+  alertas: ExataAlertaCobertura[];
+  cadastro_local: ExataCoberturaCadastroLocal | null;
+}
+
+export interface ExataCoberturaEmpresaResumo {
+  empresa_exata_id: number;
+  empresasistema: number;
+  descricao: string | null;
+  empresa_id: number | null;
+  empresa_nome: string | null;
+  ativo: number;
+  total: number;
+  cadastrado: number;
+  cadastrado_sem_empresa: number;
+  outra_empresa: number;
+  ambiguo: number;
+  nao_cadastrado: number;
+  empresa_nao_mapeada: number;
+  inativo_local: number;
+  nome_divergente: number;
+  possivel_espelho: number;
+  duplicado: number;
+  empresa_local_nula: number;
+}
+
+export interface ExataCoberturaContagem {
+  total: number;
+  porSituacao: Record<ExataSituacaoCobertura, number>;
+  alertas: Record<ExataAlertaCobertura, number>;
+}
+
+export interface ExataCoberturaResumo extends ExataCoberturaContagem {
+  porEmpresa: ExataCoberturaEmpresaResumo[];
+}
+
+export interface ExataCoberturaResultado {
+  success: boolean;
+  conta: { id: number; nome: string; ativo: number };
+  resumo: ExataCoberturaResumo;
+  funcionarios: ExataCoberturaFuncionario[];
+  paginacao: {
+    pagina: number;
+    porPagina: number;
+    total: number;
+    totalPaginas: number;
+  };
+}
+
+export interface ExecutarExataCoberturaOptions {
+  empresasExataIds?: number[];
+  situacao?: ExataSituacaoCobertura | '';
+  busca?: string;
+  pagina?: number;
+  porPagina?: number;
+}
+
 
 export interface ExataPontosSyncEmpresa {
   empresa_exata_id: number;
@@ -673,6 +778,41 @@ export class SincronizacaoService {
     );
   }
 
+  async coberturaFuncionariosExata(
+    options: ExecutarExataCoberturaOptions = {}
+  ): Promise<ExataCoberturaResultado> {
+    return firstValueFrom(
+      this.http.get<ExataCoberturaResultado>(`${this.apiUrl}/exata/funcionarios/cobertura`, {
+        params: this.parametrosCoberturaExata(options),
+      })
+    );
+  }
+
+  async exportarCoberturaFuncionariosExata(
+    options: ExecutarExataCoberturaOptions = {}
+  ): Promise<Blob> {
+    return firstValueFrom(
+      this.http.get(`${this.apiUrl}/exata/funcionarios/cobertura`, {
+        params: { ...this.parametrosCoberturaExata(options), formato: 'csv' },
+        responseType: 'blob',
+      })
+    );
+  }
+
+  private parametrosCoberturaExata(
+    options: ExecutarExataCoberturaOptions
+  ): Record<string, string> {
+    const params: Record<string, string> = {};
+    if (options.empresasExataIds?.length) {
+      params['empresasExataIds'] = options.empresasExataIds.join(',');
+    }
+    if (options.situacao) params['situacao'] = options.situacao;
+    if (options.busca) params['busca'] = options.busca;
+    if (options.pagina) params['pagina'] = String(options.pagina);
+    if (options.porPagina) params['porPagina'] = String(options.porPagina);
+    return params;
+  }
+
   // ── ExataWeb (Fase 3) — marcações e baixa ───────────────────────────────
 
   async sincronizarPontosExata(
@@ -735,6 +875,20 @@ export class SincronizacaoService {
       )
     );
     if (!r.success) throw new Error('Erro ao atualizar a conta Exata');
+    return r.conta;
+  }
+
+  async atualizarEspelhoFuncionariosExata(
+    espelhar_funcionarios: number,
+    usuario?: string
+  ): Promise<ExataConta> {
+    const r = await firstValueFrom(
+      this.http.put<{ success: boolean; conta: ExataConta }>(
+        `${this.apiUrl}/exata/conta`,
+        { espelhar_funcionarios, usuario }
+      )
+    );
+    if (!r.success) throw new Error('Erro ao atualizar a criação automática de funcionários');
     return r.conta;
   }
 

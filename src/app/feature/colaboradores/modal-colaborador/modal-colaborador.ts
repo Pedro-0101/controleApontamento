@@ -57,10 +57,10 @@ export class ModalColaborador implements OnInit {
       console.error('Erro ao carregar empresas/locais:', error);
     }
 
-    if (this.mode() === 'edit' && this.employee()) {
+    if (this.employee()) {
       const emp = this.employee()!;
-      this.nome.set(emp.nome);
-      this.matricula.set(emp.matricula);
+      this.nome.set(emp.nome ?? '');
+      this.matricula.set(emp.matricula ?? '');
       this.empresaId.set(emp.empresa_id ?? null);
       this.localId.set(emp.local_id ?? null);
       this.cargo.set(emp.cargo ?? '');
@@ -68,7 +68,10 @@ export class ModalColaborador implements OnInit {
       this.trabalhaSabado.set(emp.trabalha_sabado === 1);
       this.batePonto.set(emp.bate_ponto === 1 || emp.bate_ponto === undefined);
       this.dataAdmissao.set(emp.data_admissao ?? '');
-      this.dataFimExperiencia.set(emp.data_fim_experiencia ?? emp.data_admissao ?? '');
+      this.dataFimExperiencia.set(
+        emp.data_fim_experiencia
+        ?? (this.mode() === 'create' ? emp.data_admissao ?? '' : '')
+      );
     }
   }
 

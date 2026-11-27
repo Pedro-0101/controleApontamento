@@ -77,6 +77,32 @@ Campos mapeados para `funcionario_exata`:
 
 Somente leitura: não há `POST /funcionarios` (inclusão/alteração/exclusão).
 
+#### 3.2.1 Cobertura do cadastro local
+
+A API devolve os funcionários **ativos da empresa**; o cadastro usado pelos
+relatórios é `qrcod_2023`. A conferência é feita por **matrícula + empresa** e
+exposta em:
+
+```http
+GET /api/sincronizacao/exata/funcionarios/cobertura
+```
+
+Situações: `CADASTRADO`, `CADASTRADO_SEM_EMPRESA`, `OUTRA_EMPRESA`, `AMBIGUO`,
+`NAO_CADASTRADO` e `EMPRESA_NAO_MAPEADA`. Alertas: inativo local, nome
+divergente, matrícula duplicada, empresa local nula e espelho automático.
+
+A coluna `qrcod_2023.origem_exata` identifica linhas criadas pela integração.
+A criação automática é controlada por `empresas_config.espelhar_funcionarios`
+(padrão **desligado**) e pode ser ligada na tela; a variável
+`EXATA_ESPELHAR_FUNCIONARIOS`, quando definida, tem prioridade.
+
+Para regularizar linhas antigas criadas antes da coluna existir:
+
+```bash
+node backend/scripts/exata-marcar-espelhos.js            # dry-run
+node backend/scripts/exata-marcar-espelhos.js --aplicar  # marca origem_exata = 1
+```
+
 ### 3.3 Status de funcionários
 
 ```http

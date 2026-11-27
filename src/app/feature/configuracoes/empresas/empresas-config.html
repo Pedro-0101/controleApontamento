@@ -286,6 +286,25 @@
           }
         </div>
 
+        @if (exataConta(); as conta) {
+          <label class="espelho-toggle">
+            <input type="checkbox"
+              [checked]="conta.espelhar_funcionarios === 1"
+              (change)="alterarEspelhoExata($any($event.target).checked)"
+              [disabled]="isAlterandoEspelhoExata() || !conta.ativo" />
+            <span>
+              <strong>Criar automaticamente funcionários ausentes</strong>
+              <small>
+                Quando desligado, os funcionários novos da Exata aparecem como
+                “Não cadastrado” na cobertura e só entram no cadastro local por ação explícita.
+              </small>
+            </span>
+            @if (isAlterandoEspelhoExata()) {
+              <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+            }
+          </label>
+        }
+
         @if (exataErro()) {
           <div class="sync-banner erro">
             <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
@@ -385,7 +404,17 @@
                         <span class="texto-alerta d-block">Mapeamento pendente</span>
                       }
                     </td>
-                    <td>{{ empresa.total_funcionarios }}</td>
+                    <td>
+                      {{ empresa.total_funcionarios }}
+                      @if (exataCoberturaPorEmpresa().get(empresa.id); as cobertura) {
+                        @if (cobertura.nao_cadastrado > 0) {
+                          <span class="texto-alerta d-block">{{ cobertura.nao_cadastrado }} sem cadastro local</span>
+                        }
+                        @if (cobertura.outra_empresa > 0) {
+                          <span class="texto-alerta d-block">{{ cobertura.outra_empresa }} em outra empresa</span>
+                        }
+                      }
+                    </td>
                     <td>
                       @if (empresa.sincronizado_em) {
                         {{ empresa.sincronizado_em | date:'dd/MM/yyyy HH:mm' }}
@@ -432,6 +461,211 @@
           }
         }
       }
+
+      <details class="subcard">
+        <summary>
+          <span>Cobertura de funcionários</span>
+          <span class="summary-hint">Quem a Exata retorna e como está no cadastro local</span>
+        </summary>
+        <div class="subcard-body">
+          <div class="subcard-toolbar">
+            <p>
+              Compara os funcionários retornados pela Exata com o cadastro local
+              (<code>qrcod_2023</code>). Somente leitura: nada é criado ou alterado.
+            </p>
+            <div class="header-actions">
+              <button class="btn btn-outline" (click)="carregarCoberturaExata()"
+                [disabled]="isCarregandoCoberturaExata()">
+                @if (isCarregandoCoberturaExata()) {
+                  <lucide-icon name="loader-circle" [size]="16" class="spin"></lucide-icon>
+                } @else {
+                  <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
+                }
+                Atualizar
+              </button>
+              <button class="btn btn-outline" (click)="exportarCoberturaExata()"
+                [disabled]="isCarregandoCoberturaExata()">
+                <lucide-icon name="download" [size]="16"></lucide-icon>
+                Exportar CSV
+              </button>
+            </div>
+          </div>
+
+          <div class="marcacoes-form">
+            <label class="campo">
+              <span>Empresa Exata</span>
+              <select [value]="exataCoberturaEmpresaId()"
+                (change)="exataCoberturaEmpresaId.set($any($event.target).value); carregarCoberturaExata(1)">
+                <option value="">Todas as empresas</option>
+                @for (empresa of exataEmpresas(); track empresa.id) {
+                  <option [value]="empresa.id">
+                    {{ empresa.descricao || ('Empresa ' + empresa.empresasistema) }}
+                  </option>
+                }
+              </select>
+            </label>
+            <label class="campo">
+              <span>Situação</span>
+              <select [value]="exataCoberturaSituacao()"
+                (change)="aplicarFiltroCoberturaExata($any($event.target).value)">
+                <option value="">Todas as situações</option>
+                @for (situacao of situacoesCoberturaExata; track situacao) {
+                  <option [value]="situacao">{{ labelSituacaoCobertura(situacao) }}</option>
+                }
+              </select>
+            </label>
+            <label class="campo">
+              <span>Buscar</span>
+              <input type="text" placeholder="Matrícula ou nome"
+                [value]="exataCoberturaBusca()"
+                (input)="exataCoberturaBusca.set($any($event.target).value)"
+                (keyup.enter)="buscarCoberturaExata()" />
+            </label>
+            <button class="btn btn-primary" (click)="buscarCoberturaExata()"
+              [disabled]="isCarregandoCoberturaExata()">
+              <lucide-icon name="search" [size]="16"></lucide-icon>
+              Filtrar
+            </button>
+          </div>
+
+          @if (exataCoberturaErro()) {
+            <div class="sync-banner erro">
+              <lucide-icon name="alert-circle" [size]="18"></lucide-icon>
+              <span>{{ exataCoberturaErro() }}</span>
+            </div>
+          }
+
+          @if (exataCobertura(); as cobertura) {
+            <div class="resumo-strip">
+              <span><strong>{{ cobertura.resumo.total }}</strong> na API</span>
+              <span><strong>{{ cobertura.resumo.porSituacao.CADASTRADO }}</strong> cadastrado(s)</span>
+              @if (cobertura.resumo.porSituacao.NAO_CADASTRADO > 0) {
+                <span class="texto-alerta">
+                  <strong>{{ cobertura.resumo.porSituacao.NAO_CADASTRADO }}</strong> não cadastrado(s)
+                </span>
+              }
+              @if (cobertura.resumo.porSituacao.OUTRA_EMPRESA > 0) {
+                <span class="texto-alerta">
+                  <strong>{{ cobertura.resumo.porSituacao.OUTRA_EMPRESA }}</strong> em outra empresa
+                </span>
+              }
+              @if (cobertura.resumo.porSituacao.CADASTRADO_SEM_EMPRESA > 0) {
+                <span class="texto-alerta">
+                  <strong>{{ cobertura.resumo.porSituacao.CADASTRADO_SEM_EMPRESA }}</strong> sem empresa no cadastro
+                </span>
+              }
+              @if (cobertura.resumo.porSituacao.AMBIGUO > 0) {
+                <span class="texto-alerta">
+                  <strong>{{ cobertura.resumo.porSituacao.AMBIGUO }}</strong> ambíguo(s)
+                </span>
+              }
+              @if (cobertura.resumo.porSituacao.EMPRESA_NAO_MAPEADA > 0) {
+                <span class="texto-alerta">
+                  <strong>{{ cobertura.resumo.porSituacao.EMPRESA_NAO_MAPEADA }}</strong> empresa(s) não mapeada(s)
+                </span>
+              }
+              @if (cobertura.resumo.alertas.inativo_local > 0) {
+                <span><strong>{{ cobertura.resumo.alertas.inativo_local }}</strong> inativo(s) no cadastro</span>
+              }
+              @if (cobertura.resumo.alertas.nome_divergente > 0) {
+                <span><strong>{{ cobertura.resumo.alertas.nome_divergente }}</strong> nome(s) divergente(s)</span>
+              }
+              @if (cobertura.resumo.alertas.possivel_espelho > 0) {
+                <span><strong>{{ cobertura.resumo.alertas.possivel_espelho }}</strong> espelhado(s) automaticamente</span>
+              }
+              @if (cobertura.resumo.alertas.duplicado > 0) {
+                <span><strong>{{ cobertura.resumo.alertas.duplicado }}</strong> matrícula(s) duplicada(s)</span>
+              }
+            </div>
+
+            @if (cobertura.funcionarios.length === 0) {
+              <div class="empty-state">
+                <lucide-icon name="users" [size]="40"></lucide-icon>
+                <h3>Nenhum funcionário para os filtros</h3>
+                <p>Ajuste a empresa, a situação ou a busca.</p>
+              </div>
+            } @else {
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Matrícula</th>
+                      <th>Nome (Exata)</th>
+                      <th>Empresa Exata</th>
+                      <th>Empresa local</th>
+                      <th>Situação</th>
+                      <th>Alertas</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of cobertura.funcionarios; track item.empresa_exata_id + '-' + item.matricula) {
+                      <tr>
+                        <td>{{ item.matricula }}</td>
+                        <td>{{ item.nome_exata || '—' }}</td>
+                        <td>{{ item.empresa_exata }}</td>
+                        <td>
+                          @if (item.cadastro_local; as local) {
+                            {{ local.empresa || 'Sem empresa' }}
+                            @if (!local.ativo) {
+                              <span class="texto-alerta d-block">Inativo</span>
+                            }
+                          } @else {
+                            <span class="texto-suave">Não cadastrado</span>
+                          }
+                        </td>
+                        <td>
+                          <span class="badge" [class]="'badge ' + classeSituacaoCobertura(item.situacao_cadastro)">
+                            {{ labelSituacaoCobertura(item.situacao_cadastro) }}
+                          </span>
+                        </td>
+                        <td>
+                          @if (item.alertas.length === 0) {
+                            <span class="texto-suave">—</span>
+                          } @else {
+                            <span class="texto-alerta">
+                              {{ alertasCobertura(item.alertas) }}
+                            </span>
+                          }
+                        </td>
+                        <td>
+                          <button class="btn btn-outline btn-sm" (click)="editarCobertura(item)"
+                            [title]="item.cadastro_local ? 'Editar o cadastro local' : 'Cadastrar no banco local'">
+                            <lucide-icon name="edit" [size]="14"></lucide-icon>
+                            {{ item.cadastro_local ? 'Editar' : 'Cadastrar' }}
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+
+              @if (cobertura.paginacao.totalPaginas > 1) {
+                <div class="paginacao-cobertura">
+                  <button class="btn btn-outline btn-sm" (click)="paginaAnteriorCoberturaExata()"
+                    [disabled]="isCarregandoCoberturaExata() || cobertura.paginacao.pagina <= 1">
+                    Anterior
+                  </button>
+                  <span>
+                    Página {{ cobertura.paginacao.pagina }} de {{ cobertura.paginacao.totalPaginas }}
+                    · {{ cobertura.paginacao.total }} registro(s)
+                  </span>
+                  <button class="btn btn-outline btn-sm" (click)="proximaPaginaCoberturaExata()"
+                    [disabled]="isCarregandoCoberturaExata() || cobertura.paginacao.pagina >= cobertura.paginacao.totalPaginas">
+                    Próxima
+                  </button>
+                </div>
+              }
+            }
+          } @else if (isCarregandoCoberturaExata()) {
+            <div class="loading-container">
+              <div class="spinner"></div>
+              <p>Carregando a cobertura de funcionários...</p>
+            </div>
+          }
+        </div>
+      </details>
 
       <details class="subcard">
         <summary>
@@ -1815,4 +2049,13 @@
     (close)="fecharModal()"
     (save)="aoSalvar()"
   ></app-modal-empresa-config>
+}
+
+@if (showCoberturaModal()) {
+  <app-modal-colaborador
+    [mode]="coberturaModalMode()"
+    [employee]="coberturaEmployee()"
+    (close)="fecharModalCobertura()"
+    (save)="handleSaveCobertura()"
+  ></app-modal-colaborador>
 }
